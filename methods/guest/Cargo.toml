@@ -1,0 +1,30 @@
+[package]
+name = "guests"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "get-proof-data"
+path = "src/bin/get_proof_data.rs"
+
+[workspace]
+
+[dependencies]
+alloy-primitives = { version = "0.8.8", default-features = false}
+alloy-sol-types = { version = "0.8.8" }
+risc0-steel = { git = "https://github.com/risc0/risc0-ethereum", tag = "v1.2.0" }
+risc0-zkvm = { version = "=1.2.1", default-features = false, features = ['std', 'unstable'] }
+revm = { version = "18.0", default-features = false, features = ["std"] }
+malda_utils = { path = "../../malda_utils" }
+alloy-consensus = "0.6.4"
+tiny-keccak = { version = "2.0.2", features = ["keccak"] }
+alloy-encode-packed = "0.1.1"
+
+[patch.crates-io]
+ethereum_hashing = { path = "../../patch/ethereum_hashing" }
+crypto-bigint = { git = "https://github.com/risc0/RustCrypto-crypto-bigint", tag = "v0.5.5-risczero.0" }
+k256 = { git = "https://github.com/risc0/RustCrypto-elliptic-curves", tag = "k256/v0.13.3-risczero.1"  }
+tiny-keccak = { git = "https://github.com/risc0/tiny-keccak", tag = "tiny-keccak/v2.0.2-risczero.0" }
+
+[profile.release]
+lto = "thin"

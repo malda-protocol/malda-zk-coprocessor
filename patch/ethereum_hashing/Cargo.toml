@@ -1,0 +1,29 @@
+[package]
+name = "ethereum_hashing"
+version = "0.7.0"
+edition = "2021"
+license = "Apache-2.0"
+readme = "README.md"
+description = "Hashing primitives used in Ethereum"
+repository = "https://github.com/sigp/ethereum_hashing"
+documentation = "https://docs.rs/ethereum_hashing"
+keywords = ["ethereum"]
+categories = ["cryptography::cryptocurrencies"]
+rust-version = "1.79.0"
+
+[dependencies]
+sha2 = "0.10"
+once_cell = "1.19" 
+
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+cpufeatures = "0.2"
+
+[dev-dependencies]
+rustc-hex = "2"
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-test = "0.3.33"
+
+[features]
+default = ["zero_hash_cache"]
+zero_hash_cache = []
