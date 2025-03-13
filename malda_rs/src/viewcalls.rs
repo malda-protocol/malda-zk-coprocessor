@@ -652,7 +652,7 @@ pub async fn get_proof_data_zkvm_input_l1_inclusion(
         )
     );
 
-    let env_input_l1_inclusion: Option<EthEvmInput> = if l1_inclusion {
+    let env_input_l1_inclusion = if l1_inclusion {
 
         let l1_rpc_url = match chain_id {
             OPTIMISM_CHAIN_ID => rpc_url_ethereum(),
@@ -697,10 +697,30 @@ pub async fn get_proof_data_zkvm_input_l1_inclusion(
     let created_at = returns._1;
     let game_address = returns._2;
 
-    let game_status_call = IDisputeGame::statusCall {};
+    let root_claim_call = IDisputeGame::rootClaimCall {};
+
+    let mut contract = Contract::preflight(game_address, &mut env);
+    let returns = contract
+        .call_builder(&root_claim_call)
+        .call()
+        .await
+        .expect("Failed to execute root claim call");
+
+    let root_claim = returns._0;
+
+    let l2_block_number_challenged_call = IDisputeGame::l2BlockNumberChallengedCall {};
+
+    let mut contract = Contract::preflight(game_address, &mut env);
+    let returns = contract
+        .call_builder(&l2_block_number_challenged_call)
+        .call()
+        .await
+        .expect("Failed to execute l2 block number challenged call");
+    Some(env
+        .into_input()
+        .await
+        .expect("Failed to convert environment to input"))
     
-    
-        None
     } else {
         None
     };
