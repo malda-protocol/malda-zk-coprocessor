@@ -110,101 +110,57 @@ pub fn validate_get_proof_data_call(
                 env_op_input.unwrap(),
                 chain_id,
             );
-            // let env_eth = env_eth_input.unwrap().into_env();
-            // let OPTIMISM_PORTAL = address!("bEb5Fc579115071764c7423A4f12eDde41f106Ed");
-            // let op_portal_contract = Contract::new(OPTIMISM_PORTAL, &env_eth);
+            let env_eth = env_eth_input.unwrap().into_env();
+            let eth_hash = env_eth.header().seal();
+            let env_eth_timestamp = env_eth.header().inner().inner().timestamp;
 
-            // // Make single multicall
-            // let dispute_game_call = IOptimismPortal2::disputeGameFactoryCall {};
+            assert_eq!(ethereum_hash, eth_hash, "last block hash mismatch");
+
+            let game_count_call = IDisputeGameFactory::gameCountCall {};
+
+            let contract = Contract::new(DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA, &env_eth);
+            let returns = contract
+                .call_builder(&game_count_call)
+                // .gas_price(U256::from(gas_price))
+                // .from(Address::ZERO)
+                .call();
         
-            // let dispute_game_factory = op_portal_contract.call_builder(&dispute_game_call).call()._0;
-            
-            // // Get game info from factory
-            // let factory_contract = Contract::new(dispute_game_factory, &env_eth);
-            // let game_info_call = IDisputeGameFactory::gameAtIndexCall { 
-            //     index: game_index 
-            // };
-            // let (game_type, created_at, game_address) = factory_contract
-            //     .call_builder(&game_info_call)
-            //     .call();
+            let latest_game_index = returns._0 - U256::from(1);
+        
+            let game_call = IDisputeGameFactory::gameAtIndexCall { index: latest_game_index };
+        
+            let contract = Contract::new(DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA, &env_eth);
+            let returns = contract
+                .call_builder(&game_call)
+                .call();
+        
+            let game_type = returns._0;
+            let created_at = returns._1;
+            let game_address = returns._2;
+        
+            let root_claim_call = IDisputeGame::rootClaimCall {};
+        
+            let contract = Contract::new(game_address, &env_eth);
+            let returns = contract
+                .call_builder(&root_claim_call)
+                .call();
+        
+            let root_claim = returns._0;
+        
+            let l2_block_number_challenged_call = IDisputeGame::l2BlockNumberChallengedCall {};
+        
+            let contract = Contract::new(game_address, &env_eth);
+            let returns = contract
+                .call_builder(&l2_block_number_challenged_call)
+                .call();
 
-            // // Get respected game type from portal
-            // let respected_game_call = IOptimismPortal2::respectedGameTypeCall {};
-            // let respected_game_type = op_portal_contract
-            //     .call_builder(&respected_game_call)
-            //     .call()
-            //     ._0;
+            let l2_block_number_challenged = returns._0;
 
-            // // Validate game type matches
-            // if game_type != respected_game_type {
-            //     panic!("Game type does not match respected game type");
-            // }
+            // assert_eq!(root_claim, env_state_root, "root claim mismatch");
+            assert_eq!(l2_block_number_challenged, false, "This L2 block has been challenged");
+            assert!(U256::from(env_eth_timestamp) > created_at + U256::from(300), "Not enough time passed to challenge the claim");
 
-            // // Get respected game type updated timestamp
-            // let updated_at_call = IOptimismPortal2::respectedGameTypeUpdatedAtCall {};
-            // let respected_game_updated_at = op_portal_contract
-            //     .call_builder(&updated_at_call)
-            //     .call()
-            //     ._0;
 
-            // // Validate creation timestamp
-            // if created_at < respected_game_updated_at {
-            //     panic!("Game created before respected game type was updated");
-            // }
-
-            // // Get game status
-            // let game_contract = Contract::new(game_address, &env_eth);
-            // let status_call = IDisputeGame::statusCall {};
-            // let game_status = game_contract
-            //     .call_builder(&status_call)
-            //     .call()
-            //     ._0;
-
-            // // Validate game status
-            // if game_status != GAME_STATUS_DEFENDER_WINS {
-            //     panic!("Game not resolved in defender's favor");
-            // }
-
-            // // Check resolution timing
-            // let resolved_at_call = IDisputeGame::resolvedAtCall {};
-            // let game_resolved_at = game_contract
-            //     .call_builder(&resolved_at_call)
-            //     .call()
-            //     ._0;
-
-            // let maturity_delay_call = IOptimismPortal2::proofMaturityDelaySecondsCall {};
-            // let maturity_delay = op_portal_contract
-            //     .call_builder(&maturity_delay_call)
-            //     .call()
-            //     ._0;
-
-            // if env_eth.block().timestamp - game_resolved_at <= maturity_delay {
-            //     panic!("Game resolution not mature enough");
-            // }
-
-            // // Check blacklist status
-            // let blacklist_call = IOptimismPortal2::disputeGameBlacklistCall { 
-            //     game: game_address 
-            // };
-            // let is_blacklisted = op_portal_contract
-            //     .call_builder(&blacklist_call)
-            //     .call()
-            //     ._0;
-
-            // if is_blacklisted {
-            //     panic!("Game is blacklisted");
-            // }
-
-            // // Verify root claim
-            // let root_claim_call = IDisputeGame::rootClaimCall {};
-            // let game_root_claim = game_contract
-            //     .call_builder(&root_claim_call)
-            //     .call()
-            //     ._0;
-
-            // if game_root_claim != root_claim {
-            //     panic!("Game root claim does not match provided root claim");
-            // }
 
             last_block_hash
         } else {
