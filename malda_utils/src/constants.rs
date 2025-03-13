@@ -48,6 +48,12 @@ pub const LINEA_SEPOLIA_SEQUENCER: Address = address!("a27342f1b74c0cfb2cda74bac
 /// This contract provides L1 block information to L2.
 pub const L1_BLOCK_ADDRESS_OPTIMISM: Address = address!("4200000000000000000000000000000000000015");
 
+pub const DISPUTE_GAME_FACTORY_OPTIMISM: Address = address!("e5965Ab5962eDc7477C8520243A95517CD252fA9");
+pub const OPTIMISM_PORTAL_ADDRESS: Address = address!("bEb5Fc579115071764c7423A4f12eDde41f106Ed");
+
+pub const DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA: Address = address!("05F9613aDB30026FFd634f38e5C4dFd30a197Fa1");
+pub const OPTIMISM_PORTAL_ADDRESS_SEPOLIA: Address = address!("16Fc5058F25648194471939df75CF27A2fdC48BC");
+
 /// Half of the secp256k1 curve order (n/2).
 ///
 /// This value is used in signature normalization to ensure s values are in the lower half

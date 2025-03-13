@@ -29,7 +29,7 @@ mod tests {
         constants::*,
         viewcalls::{
             get_current_sequencer_commitment, get_proof_data_exec, get_proof_data_prove,
-            get_proof_data_prove_sdk,
+            get_proof_data_prove_sdk, get_proof_data_exec_l1_inclusion
         },
         viewcalls_ethereum_light_client::get_proof_data_exec as get_proof_data_exec_ethereum_light_client,
     };
@@ -123,6 +123,27 @@ mod tests {
 
         let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
         println!("Cycles: {}", cycles);
+        panic!("test");
+    }
+
+    #[tokio::test]
+    async fn prove_get_proof_data_on_optimism_sepolia_slow_lane() {
+        let user_optimism = address!("e50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8");
+        let asset = WETH_MARKET_SEPOLIA;
+        let chain_id = OPTIMISM_SEPOLIA_CHAIN_ID;
+
+        let session_info = get_proof_data_exec_l1_inclusion(
+            vec![vec![user_optimism]],
+            vec![vec![asset]],
+            vec![vec![LINEA_CHAIN_ID]],
+            vec![chain_id],
+        )
+        .await
+        .unwrap();
+
+        let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
+        println!("Cycles: {}", cycles);
+        panic!("test");
     }
 
     #[tokio::test]

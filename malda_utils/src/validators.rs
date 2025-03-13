@@ -18,7 +18,7 @@ use crate::cryptography::{recover_signer, signature_from_bytes};
 use crate::types::*;
 use alloy_consensus::Header;
 use alloy_encode_packed::{abi, SolidityDataType, TakeLastXBytes};
-use alloy_primitives::{Address, Bytes, B256, U256};
+use alloy_primitives::{Address, Bytes, B256, U256, address};
 use alloy_sol_types::SolValue;
 use risc0_steel::{ethereum::EthEvmInput, serde::RlpHeader, Contract};
 
@@ -50,7 +50,9 @@ pub fn validate_get_proof_data_call(
     env_op_input: Option<EthEvmInput>,
     linking_blocks: Vec<RlpHeader<Header>>,
     output: &mut Vec<Bytes>,
+    env_eth_input: Option<EthEvmInput>,
 ) {
+    let validate_l1_inclusion = env_eth_input.is_some();
     let env = env_input.into_env();
 
     // Create array of Call3 structs for each proof data check
@@ -100,9 +102,116 @@ pub fn validate_get_proof_data_call(
         || chain_id == BASE_SEPOLIA_CHAIN_ID
         || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
     {
-        let last_block_hash = last_block.hash_slow();
-        validate_opstack_env(chain_id, &sequencer_commitment.unwrap(), last_block_hash);
-        last_block_hash
+        if validate_l1_inclusion {
+            let last_block_hash = last_block.hash_slow();
+            let env_state_root = env.header().inner().inner().clone().state_root;
+            let ethereum_hash = get_ethereum_block_hash_via_opstack(
+                sequencer_commitment.unwrap(),
+                env_op_input.unwrap(),
+                chain_id,
+            );
+            // let env_eth = env_eth_input.unwrap().into_env();
+            // let OPTIMISM_PORTAL = address!("bEb5Fc579115071764c7423A4f12eDde41f106Ed");
+            // let op_portal_contract = Contract::new(OPTIMISM_PORTAL, &env_eth);
+
+            // // Make single multicall
+            // let dispute_game_call = IOptimismPortal2::disputeGameFactoryCall {};
+        
+            // let dispute_game_factory = op_portal_contract.call_builder(&dispute_game_call).call()._0;
+            
+            // // Get game info from factory
+            // let factory_contract = Contract::new(dispute_game_factory, &env_eth);
+            // let game_info_call = IDisputeGameFactory::gameAtIndexCall { 
+            //     index: game_index 
+            // };
+            // let (game_type, created_at, game_address) = factory_contract
+            //     .call_builder(&game_info_call)
+            //     .call();
+
+            // // Get respected game type from portal
+            // let respected_game_call = IOptimismPortal2::respectedGameTypeCall {};
+            // let respected_game_type = op_portal_contract
+            //     .call_builder(&respected_game_call)
+            //     .call()
+            //     ._0;
+
+            // // Validate game type matches
+            // if game_type != respected_game_type {
+            //     panic!("Game type does not match respected game type");
+            // }
+
+            // // Get respected game type updated timestamp
+            // let updated_at_call = IOptimismPortal2::respectedGameTypeUpdatedAtCall {};
+            // let respected_game_updated_at = op_portal_contract
+            //     .call_builder(&updated_at_call)
+            //     .call()
+            //     ._0;
+
+            // // Validate creation timestamp
+            // if created_at < respected_game_updated_at {
+            //     panic!("Game created before respected game type was updated");
+            // }
+
+            // // Get game status
+            // let game_contract = Contract::new(game_address, &env_eth);
+            // let status_call = IDisputeGame::statusCall {};
+            // let game_status = game_contract
+            //     .call_builder(&status_call)
+            //     .call()
+            //     ._0;
+
+            // // Validate game status
+            // if game_status != GAME_STATUS_DEFENDER_WINS {
+            //     panic!("Game not resolved in defender's favor");
+            // }
+
+            // // Check resolution timing
+            // let resolved_at_call = IDisputeGame::resolvedAtCall {};
+            // let game_resolved_at = game_contract
+            //     .call_builder(&resolved_at_call)
+            //     .call()
+            //     ._0;
+
+            // let maturity_delay_call = IOptimismPortal2::proofMaturityDelaySecondsCall {};
+            // let maturity_delay = op_portal_contract
+            //     .call_builder(&maturity_delay_call)
+            //     .call()
+            //     ._0;
+
+            // if env_eth.block().timestamp - game_resolved_at <= maturity_delay {
+            //     panic!("Game resolution not mature enough");
+            // }
+
+            // // Check blacklist status
+            // let blacklist_call = IOptimismPortal2::disputeGameBlacklistCall { 
+            //     game: game_address 
+            // };
+            // let is_blacklisted = op_portal_contract
+            //     .call_builder(&blacklist_call)
+            //     .call()
+            //     ._0;
+
+            // if is_blacklisted {
+            //     panic!("Game is blacklisted");
+            // }
+
+            // // Verify root claim
+            // let root_claim_call = IDisputeGame::rootClaimCall {};
+            // let game_root_claim = game_contract
+            //     .call_builder(&root_claim_call)
+            //     .call()
+            //     ._0;
+
+            // if game_root_claim != root_claim {
+            //     panic!("Game root claim does not match provided root claim");
+            // }
+
+            last_block_hash
+        } else {
+            let last_block_hash = last_block.hash_slow();
+            validate_opstack_env(chain_id, &sequencer_commitment.unwrap(), last_block_hash);
+            last_block_hash
+        }
     } else if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
         let ethereum_hash = get_ethereum_block_hash_via_opstack(
             sequencer_commitment.unwrap(),
@@ -134,6 +243,7 @@ pub fn validate_get_proof_data_call(
                 SolidityDataType::Number(amounts.1), // amountOut
                 SolidityDataType::NumberWithShift(U256::from(chain_id), TakeLastXBytes(32)),
                 SolidityDataType::NumberWithShift(U256::from(*target_chain_id), TakeLastXBytes(32)),
+                SolidityDataType::Bool(validate_l1_inclusion),
             ];
 
             let (bytes, _hash) = abi::encode_packed(&input);

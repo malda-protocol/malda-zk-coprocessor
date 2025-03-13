@@ -17,17 +17,17 @@ use core::panic;
 
 use crate::constants::*;
 use crate::elfs_ids::*;
-use crate::types::{Call3, IMulticall3};
+use crate::types::{Call3, IMulticall3, IDisputeGameFactory, IDisputeGame, IOptimismPortal2, GameStatus};
 use crate::types::{ExecutionPayload, IL1Block, SequencerCommitment};
 
 use risc0_steel::{
-    ethereum::EthEvmEnv, host::BlockNumberOrTag, serde::RlpHeader, Contract, EvmInput,
+    ethereum::EthEvmEnv,ethereum::EthEvmInput, host::BlockNumberOrTag, serde::RlpHeader, Contract, EvmInput,
 };
 use risc0_zkvm::{
     default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
 };
 
-use alloy::primitives::Address;
+use alloy::primitives::{Address, U256};
 use alloy_consensus::Header;
 
 use anyhow::{Error, Result};
@@ -199,6 +199,55 @@ pub async fn get_proof_data_exec(
             let chain_id = chain_ids[i];
             tokio::spawn(async move {
                 get_proof_data_zkvm_input(users, markets, target_chain_id, chain_id).await
+            })
+        })
+        .collect();
+
+    let results = join_all(futures).await;
+    let all_inputs = results
+        .into_iter()
+        .map(|r| r.expect("Failed to join parallel execution task"))
+        .flatten()
+        .collect::<Vec<u8>>();
+
+    let env = ExecutorEnv::builder()
+        .write(&(chain_ids.len() as u64))
+        .expect("Failed to write chain count to executor environment")
+        .write_slice(&all_inputs)
+        .build()
+        .expect("Failed to build executor environment");
+
+    Ok(default_executor()
+        .execute(env, GET_PROOF_DATA_ELF)
+        .expect("Failed to execute ZKVM"))
+}
+
+pub async fn get_proof_data_exec_l1_inclusion(
+    users: Vec<Vec<Address>>,
+    markets: Vec<Vec<Address>>,
+    target_chain_id: Vec<Vec<u64>>,
+    chain_ids: Vec<u64>,
+) -> Result<SessionInfo, Error> {
+    // Verify outer arrays have same length
+    assert_eq!(
+        users.len(),
+        markets.len(),
+        "Users and markets array lengths must match"
+    );
+    assert_eq!(
+        users.len(),
+        chain_ids.len(),
+        "Users and chain_ids array lengths must match"
+    );
+
+    let futures: Vec<_> = (0..chain_ids.len())
+        .map(|i| {
+            let users = users[i].clone();
+            let markets = markets[i].clone();
+            let target_chain_id = target_chain_id[i].clone();
+            let chain_id = chain_ids[i];
+            tokio::spawn(async move {
+                get_proof_data_zkvm_input_l1_inclusion(users, markets, target_chain_id, chain_id, true).await
             })
         })
         .collect();
@@ -457,8 +506,10 @@ pub async fn get_proof_data_zkvm_input(
         if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
             let chain_id = if chain_id == ETHEREUM_CHAIN_ID {
                 OPTIMISM_CHAIN_ID
-            } else {
+            } else if chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
                 OPTIMISM_SEPOLIA_CHAIN_ID
+            } else {
+                panic!("Invalid chain ID");
             };
             let (l1_block_call_input, ethereum_block) =
                 get_l1block_call_input(BlockNumberOrTag::Number(block.unwrap()), chain_id).await;
@@ -492,6 +543,8 @@ pub async fn get_proof_data_zkvm_input(
         )
     );
 
+    let env_input_l1_inclusion: Option<EthEvmInput> = None;
+
     let input: Vec<u8> = bytemuck::pod_collect_to_vec(
         &risc0_zkvm::serde::to_vec(&(
             &proof_data_call_input,
@@ -502,6 +555,167 @@ pub async fn get_proof_data_zkvm_input(
             &commitment,
             &l1_block_call_input,
             &linking_blocks,
+            &env_input_l1_inclusion,
+        ))
+        .unwrap(),
+    );
+
+    input
+}
+
+pub async fn get_proof_data_zkvm_input_l1_inclusion(
+    users: Vec<Address>,
+    markets: Vec<Address>,
+    target_chain_ids: Vec<u64>,
+    chain_id: u64,
+    l1_inclusion: bool,
+) -> Vec<u8> {
+    let rpc_url = match chain_id {
+        BASE_CHAIN_ID => rpc_url_base(),
+        OPTIMISM_CHAIN_ID => rpc_url_optimism(),
+        LINEA_CHAIN_ID => rpc_url_linea(),
+        ETHEREUM_CHAIN_ID => rpc_url_ethereum(),
+        OPTIMISM_SEPOLIA_CHAIN_ID => rpc_url_optimism_sepolia(),
+        BASE_SEPOLIA_CHAIN_ID => rpc_url_base_sepolia(),
+        LINEA_SEPOLIA_CHAIN_ID => rpc_url_linea_sepolia(),
+        ETHEREUM_SEPOLIA_CHAIN_ID => rpc_url_ethereum_sepolia(),
+        _ => panic!("Invalid chain ID"),
+    };
+
+    let (block, commitment) = if chain_id == OPTIMISM_CHAIN_ID
+        || chain_id == BASE_CHAIN_ID
+        || chain_id == ETHEREUM_CHAIN_ID
+        || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
+        || chain_id == BASE_SEPOLIA_CHAIN_ID
+        || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID
+    {
+        let (commitment, block) = get_current_sequencer_commitment(chain_id).await;
+        (Some(block), Some(commitment))
+    } else if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
+        let block = EthEvmEnv::builder()
+            .rpc(Url::parse(rpc_url).unwrap())
+            .block_number_or_tag(BlockNumberOrTag::Latest)
+            .build()
+            .await
+            .unwrap()
+            .header()
+            .inner()
+            .inner()
+            .number;
+        (Some(block), None)
+    } else {
+        panic!("Invalid chain ID");
+    };
+
+    let (l1_block_call_input, ethereum_block) =
+        if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID || l1_inclusion {
+            let chain_id = if chain_id == ETHEREUM_CHAIN_ID {
+                OPTIMISM_CHAIN_ID
+            } else if chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
+                OPTIMISM_SEPOLIA_CHAIN_ID
+            } else if chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID || chain_id == LINEA_CHAIN_ID {
+                OPTIMISM_CHAIN_ID
+            } else if chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
+                OPTIMISM_SEPOLIA_CHAIN_ID
+            } else {
+                panic!("Invalid chain ID");
+            };
+            let (l1_block_call_input, ethereum_block) =
+                get_l1block_call_input(BlockNumberOrTag::Number(block.unwrap()), chain_id).await;
+
+            (Some(l1_block_call_input), Some(ethereum_block))
+        } else {
+            (None, None)
+        };
+
+    let block = match chain_id {
+        BASE_CHAIN_ID => block.unwrap(),
+        OPTIMISM_CHAIN_ID => block.unwrap(),
+        LINEA_CHAIN_ID => block.unwrap(),
+        ETHEREUM_CHAIN_ID => ethereum_block.unwrap(),
+        ETHEREUM_SEPOLIA_CHAIN_ID => ethereum_block.unwrap(),
+        BASE_SEPOLIA_CHAIN_ID => block.unwrap(),
+        OPTIMISM_SEPOLIA_CHAIN_ID => block.unwrap(),
+        LINEA_SEPOLIA_CHAIN_ID => block.unwrap(),
+        _ => panic!("Invalid chain ID"),
+    };
+
+    let (linking_blocks, proof_data_call_input) = tokio::join!(
+        get_linking_blocks(chain_id, rpc_url, block),
+        get_proof_data_call_input(
+            chain_id,
+            rpc_url,
+            block,
+            users.clone(),
+            markets.clone(),
+            target_chain_ids.clone()
+        )
+    );
+
+    let env_input_l1_inclusion: Option<EthEvmInput> = if l1_inclusion {
+
+        let l1_rpc_url = match chain_id {
+            OPTIMISM_CHAIN_ID => rpc_url_ethereum(),
+            BASE_CHAIN_ID => rpc_url_ethereum(),
+            LINEA_CHAIN_ID => rpc_url_ethereum(),
+            OPTIMISM_SEPOLIA_CHAIN_ID => rpc_url_ethereum_sepolia(),
+            BASE_SEPOLIA_CHAIN_ID => rpc_url_ethereum_sepolia(),
+            LINEA_SEPOLIA_CHAIN_ID => rpc_url_ethereum_sepolia(),
+            _ => panic!("Invalid chain ID"),
+        };
+        let mut env = EthEvmEnv::builder()
+        .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
+        .block_number_or_tag(BlockNumberOrTag::Number(ethereum_block.unwrap()))
+        .build()
+        .await
+        .expect("Failed to build EVM environment");
+
+    // Make single multicall
+    let game_count_call = IDisputeGameFactory::gameCountCall {};
+
+    let mut contract = Contract::preflight(DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA, &mut env);
+    let returns = contract
+        .call_builder(&game_count_call)
+        // .gas_price(U256::from(gas_price))
+        // .from(Address::ZERO)
+        .call()
+        .await
+        .expect("Failed to execute game count call");
+
+    let latest_game_index = returns._0 - U256::from(1);
+
+    let game_call = IDisputeGameFactory::gameAtIndexCall { index: latest_game_index };
+
+    let mut contract = Contract::preflight(DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA, &mut env);
+    let returns = contract
+        .call_builder(&game_call)
+        .call()
+        .await
+        .expect("Failed to execute game at index call");
+
+    let game_type = returns._0;
+    let created_at = returns._1;
+    let game_address = returns._2;
+
+    let game_status_call = IDisputeGame::statusCall {};
+    
+    
+        None
+    } else {
+        None
+    };
+
+    let input: Vec<u8> = bytemuck::pod_collect_to_vec(
+        &risc0_zkvm::serde::to_vec(&(
+            &proof_data_call_input,
+            &chain_id,
+            &users,
+            &markets,
+            &target_chain_ids,
+            &commitment,
+            &l1_block_call_input,
+            &linking_blocks,
+            &env_input_l1_inclusion,
         ))
         .unwrap(),
     );

@@ -20,8 +20,9 @@ fn main() {
         let sequencer_commitment: Option<SequencerCommitment> = env::read();
         let env_op_input: Option<EthEvmInput> = env::read();
         let linking_blocks: Vec<RlpHeader<Header>> = env::read();
+        let env_eth_input: Option<EthEvmInput> = env::read();
 
-        validate_get_proof_data_call(chain_id, account, asset, target_chain_ids, env_input, sequencer_commitment, env_op_input, linking_blocks, &mut output);
+        validate_get_proof_data_call(chain_id, account, asset, target_chain_ids, env_input, sequencer_commitment, env_op_input, linking_blocks, &mut output, env_eth_input);
     }
     env::commit_slice(&output.abi_encode());
 } 
