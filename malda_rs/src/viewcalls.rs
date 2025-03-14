@@ -27,8 +27,9 @@ use risc0_zkvm::{
     default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
 };
 
-use alloy::primitives::{Address, U256};
+use alloy::primitives::{Address, U256, U64};
 use alloy_consensus::Header;
+use alloy_sol_types::SolValue;
 
 use anyhow::{Error, Result};
 use bonsai_sdk;
@@ -640,19 +641,7 @@ pub async fn get_proof_data_zkvm_input_l1_inclusion(
         _ => panic!("Invalid chain ID"),
     };
 
-    let (linking_blocks, proof_data_call_input) = tokio::join!(
-        get_linking_blocks(chain_id, rpc_url, block),
-        get_proof_data_call_input(
-            chain_id,
-            rpc_url,
-            block,
-            users.clone(),
-            markets.clone(),
-            target_chain_ids.clone()
-        )
-    );
-
-    let env_input_l1_inclusion = if l1_inclusion {
+    let (env_input_l1_inclusion, l2_block_number_on_l1) = if l1_inclusion {
 
         let l1_rpc_url = match chain_id {
             OPTIMISM_CHAIN_ID => rpc_url_ethereum(),
@@ -716,14 +705,45 @@ pub async fn get_proof_data_zkvm_input_l1_inclusion(
         .call()
         .await
         .expect("Failed to execute l2 block number challenged call");
-    Some(env
+
+    let extra_data_call = IDisputeGame::extraDataCall {};
+        
+        let mut contract = Contract::preflight(game_address, &mut env);
+        let returns = contract
+            .call_builder(&extra_data_call)
+            .call()
+            .await
+            .expect("Failed to execute extra data call");
+        let extra_data = returns._0;
+        let l2_block_number = u64::abi_decode(&extra_data, true).unwrap();
+        println!("l2_block_number: {}", l2_block_number);
+
+    (Some(env
         .into_input()
         .await
-        .expect("Failed to convert environment to input"))
+        .expect("Failed to convert environment to input")), Some(l2_block_number))
     
     } else {
-        None
+        (None, None)
     };
+
+    let block = if l1_inclusion {
+        l2_block_number_on_l1.unwrap()
+    } else {
+        block
+    };
+
+    let (linking_blocks, proof_data_call_input) = tokio::join!(
+        get_linking_blocks(chain_id, rpc_url, block),
+        get_proof_data_call_input(
+            chain_id,
+            rpc_url,
+            block,
+            users.clone(),
+            markets.clone(),
+            target_chain_ids.clone()
+        )
+    );
 
     let input: Vec<u8> = bytemuck::pod_collect_to_vec(
         &risc0_zkvm::serde::to_vec(&(

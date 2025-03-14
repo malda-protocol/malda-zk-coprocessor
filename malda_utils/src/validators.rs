@@ -156,7 +156,9 @@ pub fn validate_get_proof_data_call(
 
             let l2_block_number_challenged = returns._0;
 
-            // assert_eq!(root_claim, env_state_root, "root claim mismatch");
+            let l2_block_number = env.header().inner().inner().number;
+            assert_eq!(l2_block_number, 1, "block number mismatch");
+            assert_eq!(root_claim, env_state_root, "root claim mismatch");
             assert_eq!(l2_block_number_challenged, false, "This L2 block has been challenged");
             assert!(U256::from(env_eth_timestamp) > created_at + U256::from(300), "Not enough time passed to challenge the claim");
 
