@@ -61,6 +61,13 @@ sol! {
         function extraData() external view returns (bytes memory);
     }
 
+    struct OutputRootProof {
+        bytes32 version;
+        bytes32 stateRoot;
+        bytes32 messagePasserStorageRoot;
+        bytes32 latestBlockhash;
+    }
+
     // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/dispute/lib/Types.sol
     enum GameStatus {
         IN_PROGRESS,

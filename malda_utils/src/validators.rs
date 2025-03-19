@@ -18,7 +18,7 @@ use crate::cryptography::{recover_signer, signature_from_bytes};
 use crate::types::*;
 use alloy_consensus::Header;
 use alloy_encode_packed::{abi, SolidityDataType, TakeLastXBytes};
-use alloy_primitives::{Address, Bytes, B256, U256, address};
+use alloy_primitives::{address, b256, keccak256, Address, Bytes, B256, U256};
 use alloy_sol_types::SolValue;
 use risc0_steel::{ethereum::EthEvmInput, serde::RlpHeader, Contract};
 
@@ -51,6 +51,7 @@ pub fn validate_get_proof_data_call(
     linking_blocks: Vec<RlpHeader<Header>>,
     output: &mut Vec<Bytes>,
     env_eth_input: Option<EthEvmInput>,
+    storage_hash: Option<B256>,
 ) {
     let validate_l1_inclusion = env_eth_input.is_some();
     let env = env_input.into_env();
@@ -102,74 +103,26 @@ pub fn validate_get_proof_data_call(
         || chain_id == BASE_SEPOLIA_CHAIN_ID
         || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
     {
+        let last_block_hash = last_block.hash_slow();
         if validate_l1_inclusion {
-            let last_block_hash = last_block.hash_slow();
             let env_state_root = env.header().inner().inner().clone().state_root;
             let ethereum_hash = get_ethereum_block_hash_via_opstack(
                 sequencer_commitment.unwrap(),
                 env_op_input.unwrap(),
                 chain_id,
             );
-            let env_eth = env_eth_input.unwrap().into_env();
-            let eth_hash = env_eth.header().seal();
-            let env_eth_timestamp = env_eth.header().inner().inner().timestamp;
-
-            assert_eq!(ethereum_hash, eth_hash, "last block hash mismatch");
-
-            let game_count_call = IDisputeGameFactory::gameCountCall {};
-
-            let contract = Contract::new(DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA, &env_eth);
-            let returns = contract
-                .call_builder(&game_count_call)
-                // .gas_price(U256::from(gas_price))
-                // .from(Address::ZERO)
-                .call();
-        
-            let latest_game_index = returns._0 - U256::from(1);
-        
-            let game_call = IDisputeGameFactory::gameAtIndexCall { index: latest_game_index };
-        
-            let contract = Contract::new(DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA, &env_eth);
-            let returns = contract
-                .call_builder(&game_call)
-                .call();
-        
-            let game_type = returns._0;
-            let created_at = returns._1;
-            let game_address = returns._2;
-        
-            let root_claim_call = IDisputeGame::rootClaimCall {};
-        
-            let contract = Contract::new(game_address, &env_eth);
-            let returns = contract
-                .call_builder(&root_claim_call)
-                .call();
-        
-            let root_claim = returns._0;
-        
-            let l2_block_number_challenged_call = IDisputeGame::l2BlockNumberChallengedCall {};
-        
-            let contract = Contract::new(game_address, &env_eth);
-            let returns = contract
-                .call_builder(&l2_block_number_challenged_call)
-                .call();
-
-            let l2_block_number_challenged = returns._0;
-
-            let l2_block_number = env.header().inner().inner().number;
-            assert_eq!(l2_block_number, 1, "block number mismatch");
-            assert_eq!(root_claim, env_state_root, "root claim mismatch");
-            assert_eq!(l2_block_number_challenged, false, "This L2 block has been challenged");
-            assert!(U256::from(env_eth_timestamp) > created_at + U256::from(300), "Not enough time passed to challenge the claim");
-
-
-
-            last_block_hash
+            validate_opstack_env_with_l1_inclusion(
+                chain_id,
+                env_state_root,
+                env_eth_input.unwrap(),
+                storage_hash.unwrap(),
+                ethereum_hash,
+                last_block_hash,
+            );
         } else {
-            let last_block_hash = last_block.hash_slow();
             validate_opstack_env(chain_id, &sequencer_commitment.unwrap(), last_block_hash);
-            last_block_hash
         }
+        last_block_hash
     } else if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
         let ethereum_hash = get_ethereum_block_hash_via_opstack(
             sequencer_commitment.unwrap(),
@@ -207,6 +160,83 @@ pub fn validate_get_proof_data_call(
             let (bytes, _hash) = abi::encode_packed(&input);
             output.push(bytes.into());
         },
+    );
+}
+
+pub fn validate_opstack_env_with_l1_inclusion(
+    chain_id: u64,
+    op_state_root: B256,
+    env_eth_input: EthEvmInput,
+    msg_passer_storage_hash: B256,
+    ethereum_hash: B256,
+    op_block_hash: B256,
+) {
+    let factory_adress = match chain_id {
+        OPTIMISM_SEPOLIA_CHAIN_ID => DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA,
+        BASE_SEPOLIA_CHAIN_ID => DISPUTE_GAME_FACTORY_BASE_SEPOLIA,
+        OPTIMISM_CHAIN_ID => DISPUTE_GAME_FACTORY_OPTIMISM,
+        BASE_CHAIN_ID => DISPUTE_GAME_FACTORY_BASE,
+        _ => panic!("invalid chain id"),
+    };
+    let env_eth = env_eth_input.into_env();
+    let eth_hash = env_eth.header().seal();
+    let env_eth_timestamp = env_eth.header().inner().inner().timestamp;
+
+    assert_eq!(ethereum_hash, eth_hash, "last block hash mismatch");
+
+    let game_count_call = IDisputeGameFactory::gameCountCall {};
+
+    let contract = Contract::new(factory_adress, &env_eth);
+    let returns = contract.call_builder(&game_count_call).call();
+
+    let latest_game_index = returns._0 - U256::from(1);
+
+    let game_call = IDisputeGameFactory::gameAtIndexCall {
+        index: latest_game_index,
+    };
+
+    let contract = Contract::new(factory_adress, &env_eth);
+    let returns = contract.call_builder(&game_call).call();
+
+    let game_type = returns._0;
+    assert_eq!(game_type, U256::from(0), "game type not respected game");
+    let created_at = returns._1;
+    let game_address = returns._2;
+
+    let root_claim_call = IDisputeGame::rootClaimCall {};
+
+    let contract = Contract::new(game_address, &env_eth);
+    let returns = contract.call_builder(&root_claim_call).call();
+
+    let root_claim = returns._0;
+
+    let l2_block_number_challenged_call = IDisputeGame::l2BlockNumberChallengedCall {};
+
+    let contract = Contract::new(game_address, &env_eth);
+    let returns = contract
+        .call_builder(&l2_block_number_challenged_call)
+        .call();
+
+    let l2_block_number_challenged = returns._0;
+
+    let output_root_proof = OutputRootProof {
+        version: ROOT_VERSION_OPSTACK,
+        stateRoot: op_state_root,
+        messagePasserStorageRoot: msg_passer_storage_hash,
+        latestBlockhash: op_block_hash,
+    };
+
+    let output_root_proof_hash = keccak256(output_root_proof.abi_encode());
+
+    // assert_eq!(l2_block_number, 1, "block number mismatch");
+    assert_eq!(root_claim, output_root_proof_hash, "root claim mismatch");
+    assert_eq!(
+        l2_block_number_challenged, false,
+        "This L2 block has been challenged"
+    );
+    assert!(
+        U256::from(env_eth_timestamp) > created_at + U256::from(TIME_DELAY_OP_CHALLENGE),
+        "Not enough time passed to challenge the claim"
     );
 }
 
@@ -315,7 +345,7 @@ pub fn get_ethereum_block_hash_via_opstack(
         OPTIMISM_SEPOLIA_CHAIN_ID
     };
     validate_opstack_env(verify_via_chain, &commitment, env_op.commitment().digest);
-    let l1_block = Contract::new(L1_BLOCK_ADDRESS_OPTIMISM, &env_op);
+    let l1_block = Contract::new(L1_BLOCK_ADDRESS_OPSTACK, &env_op);
     let call = IL1Block::hashCall {};
     l1_block.call_builder(&call).call()._0
 }

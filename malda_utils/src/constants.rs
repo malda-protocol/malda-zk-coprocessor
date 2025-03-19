@@ -3,7 +3,7 @@
 //! This module contains various constant definitions that are used across different chains
 //! and components of the Malda Protocol.
 
-use alloy_primitives::{address, Address, U256};
+use alloy_primitives::{address, b256, Address, B256, U256};
 
 pub const MULTICALL: Address = address!("cA11bde05977b3631167028862bE2a173976CA11");
 
@@ -46,13 +46,22 @@ pub const LINEA_SEPOLIA_SEQUENCER: Address = address!("a27342f1b74c0cfb2cda74bac
 
 /// The address of the L1Block contract on Optimism.
 /// This contract provides L1 block information to L2.
-pub const L1_BLOCK_ADDRESS_OPTIMISM: Address = address!("4200000000000000000000000000000000000015");
+pub const L1_BLOCK_ADDRESS_OPSTACK: Address = address!("4200000000000000000000000000000000000015");
+/// The address of the MessagePasser contract on Optimism.
+pub const MESSAGE_PASSER_ADDRESS_OPSTACK: Address =
+    address!("4200000000000000000000000000000000000016");
+pub const ROOT_VERSION_OPSTACK: B256 = B256::ZERO;
+pub const TIME_DELAY_OP_CHALLENGE: u64 = 300;
 
-pub const DISPUTE_GAME_FACTORY_OPTIMISM: Address = address!("e5965Ab5962eDc7477C8520243A95517CD252fA9");
-pub const OPTIMISM_PORTAL_ADDRESS: Address = address!("bEb5Fc579115071764c7423A4f12eDde41f106Ed");
+// pub const PORTAL_ADDRESS_OPTIMISM_SEPOLIA: Address = address!("bEb5Fc579115071764c7423A4f12eDde41f106Ed");
 
-pub const DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA: Address = address!("05F9613aDB30026FFd634f38e5C4dFd30a197Fa1");
-pub const OPTIMISM_PORTAL_ADDRESS_SEPOLIA: Address = address!("16Fc5058F25648194471939df75CF27A2fdC48BC");
+pub const DISPUTE_GAME_FACTORY_OPTIMISM: Address =
+    address!("e5965Ab5962eDc7477C8520243A95517CD252fA9");
+pub const DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA: Address =
+    address!("05F9613aDB30026FFd634f38e5C4dFd30a197Fa1");
+pub const DISPUTE_GAME_FACTORY_BASE: Address = address!("43edB88C4B80fDD2AdFF2412A7BebF9dF42cB40e");
+pub const DISPUTE_GAME_FACTORY_BASE_SEPOLIA: Address =
+    address!("d6E6dBf4F7EA0ac412fD8b65ED297e64BB7a06E1");
 
 /// Half of the secp256k1 curve order (n/2).
 ///

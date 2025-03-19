@@ -13,21 +13,24 @@
 //! - Base
 //! - Linea
 
-use core::panic;
-
 use crate::constants::*;
 use crate::elfs_ids::*;
-use crate::types::{Call3, IMulticall3, IDisputeGameFactory, IDisputeGame, IOptimismPortal2, GameStatus};
+use crate::types::{
+    Call3, GameStatus, IDisputeGame, IDisputeGameFactory, IMulticall3, IOptimismPortal2,
+};
 use crate::types::{ExecutionPayload, IL1Block, SequencerCommitment};
+use alloy::providers::{Provider, ProviderBuilder};
+use core::panic;
 
 use risc0_steel::{
-    ethereum::EthEvmEnv,ethereum::EthEvmInput, host::BlockNumberOrTag, serde::RlpHeader, Contract, EvmInput,
+    ethereum::EthEvmEnv, ethereum::EthEvmInput, host::BlockNumberOrTag, serde::RlpHeader, Contract,
+    EvmInput,
 };
 use risc0_zkvm::{
     default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
 };
 
-use alloy::primitives::{Address, U256, U64};
+use alloy::primitives::{Address, B256, U256, U64};
 use alloy_consensus::Header;
 use alloy_sol_types::SolValue;
 
@@ -179,6 +182,7 @@ pub async fn get_proof_data_exec(
     markets: Vec<Vec<Address>>,
     target_chain_id: Vec<Vec<u64>>,
     chain_ids: Vec<u64>,
+    l1_inclusion: bool,
 ) -> Result<SessionInfo, Error> {
     // Verify outer arrays have same length
     assert_eq!(
@@ -199,56 +203,8 @@ pub async fn get_proof_data_exec(
             let target_chain_id = target_chain_id[i].clone();
             let chain_id = chain_ids[i];
             tokio::spawn(async move {
-                get_proof_data_zkvm_input(users, markets, target_chain_id, chain_id).await
-            })
-        })
-        .collect();
-
-    let results = join_all(futures).await;
-    let all_inputs = results
-        .into_iter()
-        .map(|r| r.expect("Failed to join parallel execution task"))
-        .flatten()
-        .collect::<Vec<u8>>();
-
-    let env = ExecutorEnv::builder()
-        .write(&(chain_ids.len() as u64))
-        .expect("Failed to write chain count to executor environment")
-        .write_slice(&all_inputs)
-        .build()
-        .expect("Failed to build executor environment");
-
-    Ok(default_executor()
-        .execute(env, GET_PROOF_DATA_ELF)
-        .expect("Failed to execute ZKVM"))
-}
-
-pub async fn get_proof_data_exec_l1_inclusion(
-    users: Vec<Vec<Address>>,
-    markets: Vec<Vec<Address>>,
-    target_chain_id: Vec<Vec<u64>>,
-    chain_ids: Vec<u64>,
-) -> Result<SessionInfo, Error> {
-    // Verify outer arrays have same length
-    assert_eq!(
-        users.len(),
-        markets.len(),
-        "Users and markets array lengths must match"
-    );
-    assert_eq!(
-        users.len(),
-        chain_ids.len(),
-        "Users and chain_ids array lengths must match"
-    );
-
-    let futures: Vec<_> = (0..chain_ids.len())
-        .map(|i| {
-            let users = users[i].clone();
-            let markets = markets[i].clone();
-            let target_chain_id = target_chain_id[i].clone();
-            let chain_id = chain_ids[i];
-            tokio::spawn(async move {
-                get_proof_data_zkvm_input_l1_inclusion(users, markets, target_chain_id, chain_id, true).await
+                get_proof_data_zkvm_input(users, markets, target_chain_id, chain_id, l1_inclusion)
+                    .await
             })
         })
         .collect();
@@ -287,6 +243,7 @@ async fn get_proof_data_env(
     markets: Vec<Vec<Address>>,
     target_chain_ids: Vec<Vec<u64>>,
     chain_ids: Vec<u64>,
+    l1_inclusion: bool,
 ) -> ExecutorEnv<'static> {
     // Verify outer arrays have same length
     assert_eq!(users.len(), markets.len());
@@ -300,7 +257,8 @@ async fn get_proof_data_env(
             let chain_id = chain_ids[i];
             let target_chain_id = target_chain_ids[i].clone();
             tokio::spawn(async move {
-                get_proof_data_zkvm_input(users, markets, target_chain_id, chain_id).await
+                get_proof_data_zkvm_input(users, markets, target_chain_id, chain_id, l1_inclusion)
+                    .await
             })
         })
         .collect();
@@ -327,6 +285,7 @@ async fn get_proof_data_input(
     markets: Vec<Vec<Address>>,
     target_chain_ids: Vec<Vec<u64>>,
     chain_ids: Vec<u64>,
+    l1_inclusion: bool,
 ) -> Vec<u8> {
     // Verify outer arrays have same length
     assert_eq!(users.len(), markets.len());
@@ -340,7 +299,8 @@ async fn get_proof_data_input(
             let chain_id = chain_ids[i];
             let target_chain_id = target_chain_ids[i].clone();
             tokio::spawn(async move {
-                get_proof_data_zkvm_input(users, markets, target_chain_id, chain_id).await
+                get_proof_data_zkvm_input(users, markets, target_chain_id, chain_id, l1_inclusion)
+                    .await
             })
         })
         .collect();
@@ -383,6 +343,7 @@ pub async fn get_proof_data_prove(
     markets: Vec<Vec<Address>>,
     target_chain_ids: Vec<Vec<u64>>,
     chain_ids: Vec<u64>,
+    l1_inclusion: bool,
 ) -> Result<ProveInfo, Error> {
     // Move all the work including env creation into the blocking task
     let prove_info = tokio::task::spawn_blocking(move || {
@@ -396,6 +357,7 @@ pub async fn get_proof_data_prove(
             markets,
             target_chain_ids,
             chain_ids,
+            l1_inclusion,
         ));
         let duration = start_time.elapsed();
         println!("Env creation time: {:?}", duration);
@@ -417,6 +379,7 @@ pub async fn get_proof_data_prove_sdk(
     markets: Vec<Vec<Address>>,
     target_chain_ids: Vec<Vec<u64>>,
     chain_ids: Vec<u64>,
+    l1_inclusion: bool,
 ) -> Result<ProveInfo, Error> {
     // Move all the work including env creation into the blocking task
     let prove_info = tokio::task::spawn_blocking(move || {
@@ -430,6 +393,7 @@ pub async fn get_proof_data_prove_sdk(
             markets,
             target_chain_ids,
             chain_ids,
+            l1_inclusion,
         ));
         let duration = start_time.elapsed();
         println!("Env creation time: {:?}", duration);
@@ -461,110 +425,6 @@ pub async fn get_proof_data_prove_sdk(
 /// - Invalid chain ID is provided
 /// - RPC calls fail
 pub async fn get_proof_data_zkvm_input(
-    users: Vec<Address>,
-    markets: Vec<Address>,
-    target_chain_ids: Vec<u64>,
-    chain_id: u64,
-) -> Vec<u8> {
-    let rpc_url = match chain_id {
-        BASE_CHAIN_ID => rpc_url_base(),
-        OPTIMISM_CHAIN_ID => rpc_url_optimism(),
-        LINEA_CHAIN_ID => rpc_url_linea(),
-        ETHEREUM_CHAIN_ID => rpc_url_ethereum(),
-        OPTIMISM_SEPOLIA_CHAIN_ID => rpc_url_optimism_sepolia(),
-        BASE_SEPOLIA_CHAIN_ID => rpc_url_base_sepolia(),
-        LINEA_SEPOLIA_CHAIN_ID => rpc_url_linea_sepolia(),
-        ETHEREUM_SEPOLIA_CHAIN_ID => rpc_url_ethereum_sepolia(),
-        _ => panic!("Invalid chain ID"),
-    };
-
-    let (block, commitment) = if chain_id == OPTIMISM_CHAIN_ID
-        || chain_id == BASE_CHAIN_ID
-        || chain_id == ETHEREUM_CHAIN_ID
-        || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-        || chain_id == BASE_SEPOLIA_CHAIN_ID
-        || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID
-    {
-        let (commitment, block) = get_current_sequencer_commitment(chain_id).await;
-        (Some(block), Some(commitment))
-    } else if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
-        let block = EthEvmEnv::builder()
-            .rpc(Url::parse(rpc_url).unwrap())
-            .block_number_or_tag(BlockNumberOrTag::Latest)
-            .build()
-            .await
-            .unwrap()
-            .header()
-            .inner()
-            .inner()
-            .number;
-        (Some(block), None)
-    } else {
-        panic!("Invalid chain ID");
-    };
-
-    let (l1_block_call_input, ethereum_block) =
-        if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
-            let chain_id = if chain_id == ETHEREUM_CHAIN_ID {
-                OPTIMISM_CHAIN_ID
-            } else if chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
-                OPTIMISM_SEPOLIA_CHAIN_ID
-            } else {
-                panic!("Invalid chain ID");
-            };
-            let (l1_block_call_input, ethereum_block) =
-                get_l1block_call_input(BlockNumberOrTag::Number(block.unwrap()), chain_id).await;
-
-            (Some(l1_block_call_input), Some(ethereum_block))
-        } else {
-            (None, None)
-        };
-
-    let block = match chain_id {
-        BASE_CHAIN_ID => block.unwrap(),
-        OPTIMISM_CHAIN_ID => block.unwrap(),
-        LINEA_CHAIN_ID => block.unwrap(),
-        ETHEREUM_CHAIN_ID => ethereum_block.unwrap(),
-        ETHEREUM_SEPOLIA_CHAIN_ID => ethereum_block.unwrap(),
-        BASE_SEPOLIA_CHAIN_ID => block.unwrap(),
-        OPTIMISM_SEPOLIA_CHAIN_ID => block.unwrap(),
-        LINEA_SEPOLIA_CHAIN_ID => block.unwrap(),
-        _ => panic!("Invalid chain ID"),
-    };
-
-    let (linking_blocks, proof_data_call_input) = tokio::join!(
-        get_linking_blocks(chain_id, rpc_url, block),
-        get_proof_data_call_input(
-            chain_id,
-            rpc_url,
-            block,
-            users.clone(),
-            markets.clone(),
-            target_chain_ids.clone()
-        )
-    );
-
-    let env_input_l1_inclusion: Option<EthEvmInput> = None;
-
-    let input: Vec<u8> = bytemuck::pod_collect_to_vec(
-        &risc0_zkvm::serde::to_vec(&(
-            &proof_data_call_input,
-            &chain_id,
-            &users,
-            &markets,
-            &target_chain_ids,
-            &commitment,
-            &l1_block_call_input,
-            &linking_blocks,
-            &env_input_l1_inclusion,
-        ))
-        .unwrap(),
-    );
-
-    input
-}
-
-pub async fn get_proof_data_zkvm_input_l1_inclusion(
     users: Vec<Address>,
     markets: Vec<Address>,
     target_chain_ids: Vec<u64>,
@@ -614,9 +474,15 @@ pub async fn get_proof_data_zkvm_input_l1_inclusion(
                 OPTIMISM_CHAIN_ID
             } else if chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
                 OPTIMISM_SEPOLIA_CHAIN_ID
-            } else if chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID || chain_id == LINEA_CHAIN_ID {
+            } else if chain_id == OPTIMISM_CHAIN_ID
+                || chain_id == BASE_CHAIN_ID
+                || chain_id == LINEA_CHAIN_ID
+            {
                 OPTIMISM_CHAIN_ID
-            } else if chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
+            } else if chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
+                || chain_id == BASE_SEPOLIA_CHAIN_ID
+                || chain_id == LINEA_SEPOLIA_CHAIN_ID
+            {
                 OPTIMISM_SEPOLIA_CHAIN_ID
             } else {
                 panic!("Invalid chain ID");
@@ -641,8 +507,7 @@ pub async fn get_proof_data_zkvm_input_l1_inclusion(
         _ => panic!("Invalid chain ID"),
     };
 
-    let (env_input_l1_inclusion, l2_block_number_on_l1) = if l1_inclusion {
-
+    let (env_input_l1_inclusion, l2_block_number_on_l1, storage_hash) = if l1_inclusion {
         let l1_rpc_url = match chain_id {
             OPTIMISM_CHAIN_ID => rpc_url_ethereum(),
             BASE_CHAIN_ID => rpc_url_ethereum(),
@@ -653,61 +518,59 @@ pub async fn get_proof_data_zkvm_input_l1_inclusion(
             _ => panic!("Invalid chain ID"),
         };
         let mut env = EthEvmEnv::builder()
-        .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
-        .block_number_or_tag(BlockNumberOrTag::Number(ethereum_block.unwrap()))
-        .build()
-        .await
-        .expect("Failed to build EVM environment");
+            .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
+            .block_number_or_tag(BlockNumberOrTag::Number(ethereum_block.unwrap()))
+            .build()
+            .await
+            .expect("Failed to build EVM environment");
 
-    // Make single multicall
-    let game_count_call = IDisputeGameFactory::gameCountCall {};
+        // Make single multicall
+        let game_count_call = IDisputeGameFactory::gameCountCall {};
 
-    let mut contract = Contract::preflight(DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA, &mut env);
-    let returns = contract
-        .call_builder(&game_count_call)
-        // .gas_price(U256::from(gas_price))
-        // .from(Address::ZERO)
-        .call()
-        .await
-        .expect("Failed to execute game count call");
+        let mut contract = Contract::preflight(DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA, &mut env);
+        let returns = contract
+            .call_builder(&game_count_call)
+            // .gas_price(U256::from(gas_price))
+            // .from(Address::ZERO)
+            .call()
+            .await
+            .expect("Failed to execute game count call");
 
-    let latest_game_index = returns._0 - U256::from(1);
+        let latest_game_index = returns._0 - U256::from(1);
 
-    let game_call = IDisputeGameFactory::gameAtIndexCall { index: latest_game_index };
+        let game_call = IDisputeGameFactory::gameAtIndexCall {
+            index: latest_game_index,
+        };
 
-    let mut contract = Contract::preflight(DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA, &mut env);
-    let returns = contract
-        .call_builder(&game_call)
-        .call()
-        .await
-        .expect("Failed to execute game at index call");
+        let mut contract = Contract::preflight(DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA, &mut env);
+        let returns = contract
+            .call_builder(&game_call)
+            .call()
+            .await
+            .expect("Failed to execute game at index call");
 
-    let game_type = returns._0;
-    let created_at = returns._1;
-    let game_address = returns._2;
+        let game_address = returns._2;
 
-    let root_claim_call = IDisputeGame::rootClaimCall {};
+        let root_claim_call = IDisputeGame::rootClaimCall {};
 
-    let mut contract = Contract::preflight(game_address, &mut env);
-    let returns = contract
-        .call_builder(&root_claim_call)
-        .call()
-        .await
-        .expect("Failed to execute root claim call");
+        let mut contract = Contract::preflight(game_address, &mut env);
+        let _returns = contract
+            .call_builder(&root_claim_call)
+            .call()
+            .await
+            .expect("Failed to execute root claim call");
 
-    let root_claim = returns._0;
+        let l2_block_number_challenged_call = IDisputeGame::l2BlockNumberChallengedCall {};
 
-    let l2_block_number_challenged_call = IDisputeGame::l2BlockNumberChallengedCall {};
+        let mut contract = Contract::preflight(game_address, &mut env);
+        let _returns = contract
+            .call_builder(&l2_block_number_challenged_call)
+            .call()
+            .await
+            .expect("Failed to execute l2 block number challenged call");
 
-    let mut contract = Contract::preflight(game_address, &mut env);
-    let returns = contract
-        .call_builder(&l2_block_number_challenged_call)
-        .call()
-        .await
-        .expect("Failed to execute l2 block number challenged call");
+        let extra_data_call = IDisputeGame::extraDataCall {};
 
-    let extra_data_call = IDisputeGame::extraDataCall {};
-        
         let mut contract = Contract::preflight(game_address, &mut env);
         let returns = contract
             .call_builder(&extra_data_call)
@@ -718,13 +581,27 @@ pub async fn get_proof_data_zkvm_input_l1_inclusion(
         let l2_block_number = u64::abi_decode(&extra_data, true).unwrap();
         println!("l2_block_number: {}", l2_block_number);
 
-    (Some(env
-        .into_input()
-        .await
-        .expect("Failed to convert environment to input")), Some(l2_block_number))
-    
+        let provider = ProviderBuilder::new().on_http(Url::parse(rpc_url).unwrap());
+
+        let proof = provider
+            .get_proof(MESSAGE_PASSER_ADDRESS_OPSTACK, vec![])
+            .number(l2_block_number)
+            .await
+            .unwrap();
+
+        let storage_hash = proof.storage_hash;
+
+        (
+            Some(
+                env.into_input()
+                    .await
+                    .expect("Failed to convert environment to input"),
+            ),
+            Some(l2_block_number),
+            Some(storage_hash),
+        )
     } else {
-        (None, None)
+        (None, None, None)
     };
 
     let block = if l1_inclusion {
@@ -756,6 +633,7 @@ pub async fn get_proof_data_zkvm_input_l1_inclusion(
             &l1_block_call_input,
             &linking_blocks,
             &env_input_l1_inclusion,
+            &storage_hash,
         ))
         .unwrap(),
     );
@@ -931,7 +809,7 @@ pub async fn get_l1block_call_input(
         .expect("Failed to build EVM environment");
 
     let call = IL1Block::hashCall {};
-    let mut contract = Contract::preflight(L1_BLOCK_ADDRESS_OPTIMISM, &mut env);
+    let mut contract = Contract::preflight(L1_BLOCK_ADDRESS_OPSTACK, &mut env);
     contract
         .call_builder(&call)
         .call()
@@ -951,7 +829,7 @@ pub async fn get_l1block_call_input(
         .expect("Failed to build EVM environment");
 
     let call = IL1Block::numberCall {};
-    let mut contract = Contract::preflight(L1_BLOCK_ADDRESS_OPTIMISM, &mut env);
+    let mut contract = Contract::preflight(L1_BLOCK_ADDRESS_OPSTACK, &mut env);
     let l1_block = contract
         .call_builder(&call)
         .call()

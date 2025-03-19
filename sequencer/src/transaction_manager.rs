@@ -12,7 +12,7 @@ use tracing::{debug, error, info, warn};
 type Bytes4 = FixedBytes<4>;
 
 use crate::{
-    constants::{BATCH_SUBMITTER, sequencer_address, sequencer_private_key, TX_TIMEOUT},
+    constants::{sequencer_address, sequencer_private_key, BATCH_SUBMITTER, TX_TIMEOUT},
     create_provider,
     events::{MINT_EXTERNAL_SELECTOR_FB4, OUT_HERE_SELECTOR_FB4, REPAY_EXTERNAL_SELECTOR_FB4},
     proof_generator::ProofReadyEvent,
