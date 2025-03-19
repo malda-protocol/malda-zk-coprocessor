@@ -3,7 +3,7 @@
 //! This module contains various constant definitions that are used across different chains
 //! and components of the Malda Protocol.
 
-use alloy_primitives::{address, b256, Address, B256, U256};
+use alloy_primitives::{address, Address, B256, U256};
 
 pub const MULTICALL: Address = address!("cA11bde05977b3631167028862bE2a173976CA11");
 
@@ -53,8 +53,6 @@ pub const MESSAGE_PASSER_ADDRESS_OPSTACK: Address =
 pub const ROOT_VERSION_OPSTACK: B256 = B256::ZERO;
 pub const TIME_DELAY_OP_CHALLENGE: u64 = 300;
 
-// pub const PORTAL_ADDRESS_OPTIMISM_SEPOLIA: Address = address!("bEb5Fc579115071764c7423A4f12eDde41f106Ed");
-
 pub const DISPUTE_GAME_FACTORY_OPTIMISM: Address =
     address!("e5965Ab5962eDc7477C8520243A95517CD252fA9");
 pub const DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA: Address =
@@ -62,6 +60,9 @@ pub const DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA: Address =
 pub const DISPUTE_GAME_FACTORY_BASE: Address = address!("43edB88C4B80fDD2AdFF2412A7BebF9dF42cB40e");
 pub const DISPUTE_GAME_FACTORY_BASE_SEPOLIA: Address =
     address!("d6E6dBf4F7EA0ac412fD8b65ED297e64BB7a06E1");
+
+pub const L1_MESSAGE_SERVICE_LINEA: Address = address!("d19d4B5d358258f05D7B411E21A1460D11B0876F");
+pub const L1_MESSAGE_SERVICE_LINEA_SEPOLIA: Address = address!("B218f8A4Bc926cF1cA7b3423c154a0D627Bdb7E5");
 
 /// Half of the secp256k1 curve order (n/2).
 ///

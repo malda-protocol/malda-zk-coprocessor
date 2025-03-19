@@ -27,6 +27,11 @@ sol! {
         function getProofData(address account, uint32 dstChainId) external view returns (bytes memory);
     }
 
+    interface IL1MessageService {
+        function currentL2BlockNumber() external view returns (uint256);
+        function stateRootHashes(uint256 blockNumber) external view returns (bytes32);
+    }
+
     /// Interface for accessing L1 block information.
     interface IL1Block {
         /// Returns the hash of the current L1 block.
