@@ -62,7 +62,8 @@ pub const DISPUTE_GAME_FACTORY_BASE_SEPOLIA: Address =
     address!("d6E6dBf4F7EA0ac412fD8b65ED297e64BB7a06E1");
 
 pub const L1_MESSAGE_SERVICE_LINEA: Address = address!("d19d4B5d358258f05D7B411E21A1460D11B0876F");
-pub const L1_MESSAGE_SERVICE_LINEA_SEPOLIA: Address = address!("B218f8A4Bc926cF1cA7b3423c154a0D627Bdb7E5");
+pub const L1_MESSAGE_SERVICE_LINEA_SEPOLIA: Address =
+    address!("B218f8A4Bc926cF1cA7b3423c154a0D627Bdb7E5");
 
 /// Half of the secp256k1 curve order (n/2).
 ///

@@ -101,7 +101,7 @@ pub fn validate_get_proof_data_call(
 
     let validated_block_hash = if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
         if validate_l1_inclusion {
-            let env_state_root = keccak256(env.header().inner().inner().clone().state_root.to_vec());
+            let env_block_number = env.header().inner().inner().number;
             let ethereum_hash = get_ethereum_block_hash_via_opstack(
                 sequencer_commitment.unwrap(),
                 env_op_input.unwrap(),
@@ -109,13 +109,12 @@ pub fn validate_get_proof_data_call(
             );
             validate_linea_env_with_l1_inclusion(
                 chain_id,
-                env_state_root,
+                env_block_number,
                 env_eth_input.unwrap(),
-                ethereum_hash
+                ethereum_hash,
             );
-        } else {
-            validate_linea_env(chain_id, last_block.clone());
         }
+        validate_linea_env(chain_id, last_block.clone());
         last_block.hash_slow()
     } else if chain_id == OPTIMISM_CHAIN_ID
         || chain_id == BASE_CHAIN_ID
@@ -275,8 +274,9 @@ pub fn validate_opstack_env_with_l1_inclusion(
     );
 }
 
-pub fn validate_linea_env_with_l1_inclusion(    chain_id: u64,
-    linea_state_root: B256,
+pub fn validate_linea_env_with_l1_inclusion(
+    chain_id: u64,
+    env_block_number: u64,
     env_eth_input: EthEvmInput,
     ethereum_hash: B256,
 ) {
@@ -295,26 +295,14 @@ pub fn validate_linea_env_with_l1_inclusion(    chain_id: u64,
     let current_l2_block_number_call = IL1MessageService::currentL2BlockNumberCall {};
 
     let contract = Contract::new(msg_service_address, &env_eth);
-    let returns = contract
-        .call_builder(&current_l2_block_number_call)
-        .call();
+    let returns = contract.call_builder(&current_l2_block_number_call).call();
 
     let l2_block_number = returns._0;
 
-    let state_root_hashes_call = IL1MessageService::stateRootHashesCall {
-        blockNumber: l2_block_number,
-    };
-
-    let returns = contract
-        .call_builder(&state_root_hashes_call)
-        .call();
-
-    let state_root_from_l1 = returns._0;
-
-    assert_eq!(linea_state_root, state_root_from_l1, "state root mismatch");
-    
-    
-
+    assert!(
+        l2_block_number <= U256::from(env_block_number),
+        "Block number must be lower than the last one posted to L1"
+    );
 }
 
 /// Validates a Linea block header by verifying the sequencer signature

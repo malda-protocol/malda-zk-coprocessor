@@ -15,16 +15,13 @@
 
 use crate::constants::*;
 use crate::elfs_ids::*;
-use crate::types::{
-    Call3, IDisputeGame, IDisputeGameFactory, IMulticall3, IL1MessageService,
-};
+use crate::types::{Call3, IDisputeGame, IDisputeGameFactory, IL1MessageService, IMulticall3};
 use crate::types::{ExecutionPayload, IL1Block, SequencerCommitment};
 use alloy::providers::{Provider, ProviderBuilder};
 use core::panic;
 
 use risc0_steel::{
-    ethereum::EthEvmEnv, host::BlockNumberOrTag, serde::RlpHeader, Contract,
-    EvmInput,
+    ethereum::EthEvmEnv, host::BlockNumberOrTag, serde::RlpHeader, Contract, EvmInput,
 };
 use risc0_zkvm::{
     default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
@@ -498,7 +495,6 @@ pub async fn get_proof_data_zkvm_input(
         };
 
     let (env_input_l1_inclusion, l2_block_number_on_l1, storage_hash) = if l1_inclusion {
-
         let l1_rpc_url = match chain_id {
             OPTIMISM_CHAIN_ID => rpc_url_ethereum(),
             BASE_CHAIN_ID => rpc_url_ethereum(),
@@ -515,12 +511,11 @@ pub async fn get_proof_data_zkvm_input(
             .await
             .expect("Failed to build EVM environment");
 
-        if chain_id == OPTIMISM_CHAIN_ID 
-            || chain_id == BASE_CHAIN_ID 
-            || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID 
-            || chain_id == BASE_SEPOLIA_CHAIN_ID 
+        if chain_id == OPTIMISM_CHAIN_ID
+            || chain_id == BASE_CHAIN_ID
+            || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
+            || chain_id == BASE_SEPOLIA_CHAIN_ID
         {
-
             let factory_address = match chain_id {
                 OPTIMISM_CHAIN_ID => DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA,
                 BASE_CHAIN_ID => DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA,
@@ -644,9 +639,10 @@ pub async fn get_proof_data_zkvm_input(
                 None,
             )
         } else {
-            panic!("L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants");
+            panic!(
+                "L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants"
+            );
         }
-
     } else {
         (None, None, None)
     };
