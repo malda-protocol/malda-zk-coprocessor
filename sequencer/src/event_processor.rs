@@ -19,7 +19,7 @@ use crate::{
 
 // Import the chain ID constant from malda_rs
 use malda_rs::constants::{
-    rpc_url_optimism_sepolia, ETHEREUM_SEPOLIA_CHAIN_ID, L1_BLOCK_ADDRESS_OPTIMISM,
+    rpc_url_optimism_sepolia, ETHEREUM_SEPOLIA_CHAIN_ID, L1_BLOCK_ADDRESS_OPSTACK,
     LINEA_SEPOLIA_CHAIN_ID,
 };
 
@@ -82,7 +82,7 @@ impl EventProcessor {
             .await
             .map_err(|e| eyre::eyre!("Failed to create provider: {}", e))
             .unwrap();
-            let l1_block_contract = IL1Block::new(L1_BLOCK_ADDRESS_OPTIMISM, provider);
+            let l1_block_contract = IL1Block::new(L1_BLOCK_ADDRESS_OPSTACK, provider);
 
             loop {
                 interval.tick().await;

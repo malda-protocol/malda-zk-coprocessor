@@ -6624,6 +6624,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "sequencer_v2"
+version = "0.1.0"
+dependencies = [
+ "alloy 0.6.4",
+ "chrono",
+ "dotenvy",
+ "eyre",
+ "futures",
+ "futures-util",
+ "hex",
+ "lazy_static",
+ "malda_rs",
+ "rand",
+ "risc0-ethereum-contracts",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "toml 0.8.19",
+ "tracing",
+ "tracing-subscriber 0.3.19",
+ "url",
+]
+
+[[package]]
 name = "serde"
 version = "1.0.216"
 source = "registry+https://github.com/rust-lang/crates.io-index"

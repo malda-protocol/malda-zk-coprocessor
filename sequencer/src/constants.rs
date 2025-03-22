@@ -40,16 +40,17 @@ pub const WS_URL_LINEA_SEPOLIA: &str =
 
 // Sequencer configuration
 pub fn sequencer_address() -> Address {
-    let addr = dotenvy::var("SEQUENCER_ADDRESS")
-        .expect("SEQUENCER_ADDRESS must be set in environment");
-    Address::parse_checksummed(&addr, None)
-        .expect("Invalid sequencer address format")
+    let addr =
+        dotenvy::var("SEQUENCER_ADDRESS").expect("SEQUENCER_ADDRESS must be set in environment");
+    Address::parse_checksummed(&addr, None).expect("Invalid sequencer address format")
 }
 
 pub fn sequencer_private_key() -> &'static str {
-    Box::leak(dotenvy::var("SEQUENCER_PRIVATE_KEY")
-        .expect("SEQUENCER_PRIVATE_KEY must be set in environment")
-        .into_boxed_str())
+    Box::leak(
+        dotenvy::var("SEQUENCER_PRIVATE_KEY")
+            .expect("SEQUENCER_PRIVATE_KEY must be set in environment")
+            .into_boxed_str(),
+    )
 }
 
 // Timing configurations
@@ -63,4 +64,3 @@ pub const BATCH_SUBMITTER: Address = address!("b4282799022073790c8Ae500Ac6C91C62
 
 /// The time window to wait for additional events to batch together (in seconds)
 pub const BATCH_WINDOW: u64 = 2;
-

@@ -27,12 +27,57 @@ sol! {
         function getProofData(address account, uint32 dstChainId) external view returns (bytes memory);
     }
 
+    interface IL1MessageService {
+        function currentL2BlockNumber() external view returns (uint256);
+        function stateRootHashes(uint256 blockNumber) external view returns (bytes32);
+    }
+
     /// Interface for accessing L1 block information.
     interface IL1Block {
         /// Returns the hash of the current L1 block.
         function hash() external view returns (bytes32);
         /// Returns the number of the current L1 block.
         function number() external view returns (uint64);
+    }
+
+    // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/L1/interfaces/IOptimismPortal2.sol
+    interface IOptimismPortal2 {
+        function disputeGameBlacklist(address) external view returns (bool);
+        function disputeGameFactory() external view returns (address);
+        function proofMaturityDelaySeconds() external view returns (uint256);
+        function respectedGameType() external view returns (uint32);
+        function respectedGameTypeUpdatedAt() external view returns (uint64);
+        function version() external pure returns (string memory);
+    }
+
+    // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/dispute/interfaces/IDisputeGameFactory.sol
+    interface IDisputeGameFactory {
+        function gameCount() external view returns (uint256);
+        function gameAtIndex(uint256 index) external view returns (uint256, uint256, address);
+    }
+
+    // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/dispute/interfaces/IDisputeGame.sol
+    interface IDisputeGame {
+        function status() external view returns (GameStatus);
+        function resolvedAt() external view returns (uint64);
+        function rootClaim() external pure returns (bytes32);
+        function l2BlockNumberChallenged() external view returns (bool);
+        function l2BlockNumber() external view returns (uint256);
+        function extraData() external view returns (bytes memory);
+    }
+
+    struct OutputRootProof {
+        bytes32 version;
+        bytes32 stateRoot;
+        bytes32 messagePasserStorageRoot;
+        bytes32 latestBlockhash;
+    }
+
+    // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/dispute/lib/Types.sol
+    enum GameStatus {
+        IN_PROGRESS,
+        CHALLENGER_WINS,
+        DEFENDER_WINS
     }
 
     /// @title Multicall3 interface for batch calling contracts

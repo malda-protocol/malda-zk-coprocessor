@@ -342,6 +342,7 @@ impl ProofGeneratorWorker {
                 markets.clone(),
                 dst_chain_ids.clone(),
                 src_chain_ids.clone(),
+                false,
             )
             .await
             {

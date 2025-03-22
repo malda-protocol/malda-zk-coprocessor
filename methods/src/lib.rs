@@ -53,6 +53,7 @@ mod tests {
             vec![vec![asset]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![chain_id],
+            false,
         )
         .await
         .unwrap();
@@ -75,6 +76,32 @@ mod tests {
             vec![vec![asset]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![chain_id],
+            false,
+        )
+        .await
+        .unwrap();
+        let duration = start_time.elapsed();
+
+        let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
+        println!("journal: 0x{}", hex::encode(&session_info.journal));
+        println!("Cycles: {}", cycles);
+        println!("Duration: {:?}", duration);
+        panic!("test");
+    }
+
+    #[tokio::test]
+    async fn prove_sepolia_get_proof_data_on_linea_slow_lane() {
+        let user_linea = address!("2693946791da99dA78Ac441abA6D5Ce2Bccd96D3");
+        let asset = WETH_MARKET_SEPOLIA;
+        let chain_id = LINEA_SEPOLIA_CHAIN_ID;
+
+        let start_time = std::time::Instant::now();
+        let session_info = get_proof_data_exec(
+            vec![vec![user_linea]],
+            vec![vec![asset]],
+            vec![vec![OPTIMISM_CHAIN_ID]],
+            vec![chain_id],
+            true,
         )
         .await
         .unwrap();
@@ -98,6 +125,7 @@ mod tests {
             vec![vec![asset]],
             vec![vec![LINEA_CHAIN_ID]],
             vec![chain_id],
+            false,
         )
         .await
         .unwrap();
@@ -117,12 +145,35 @@ mod tests {
             vec![vec![asset]],
             vec![vec![LINEA_CHAIN_ID]],
             vec![chain_id],
+            false,
         )
         .await
         .unwrap();
 
         let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
         println!("Cycles: {}", cycles);
+        panic!("test");
+    }
+
+    #[tokio::test]
+    async fn prove_get_proof_data_on_optimism_sepolia_slow_lane() {
+        let user_optimism = address!("e50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8");
+        let asset = WETH_MARKET_SEPOLIA;
+        let chain_id = OPTIMISM_SEPOLIA_CHAIN_ID;
+
+        let session_info = get_proof_data_exec(
+            vec![vec![user_optimism]],
+            vec![vec![asset]],
+            vec![vec![LINEA_CHAIN_ID]],
+            vec![chain_id],
+            true,
+        )
+        .await
+        .unwrap();
+
+        let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
+        println!("Cycles: {}", cycles);
+        panic!("test");
     }
 
     #[tokio::test]
@@ -136,6 +187,7 @@ mod tests {
             vec![vec![market]],
             vec![vec![LINEA_CHAIN_ID]],
             vec![chain_id],
+            false,
         )
         .await
         .unwrap();
@@ -157,6 +209,7 @@ mod tests {
             vec![vec![market]],
             vec![vec![LINEA_CHAIN_ID]],
             vec![chain_id],
+            false,
         )
         .await
         .unwrap();
@@ -204,6 +257,7 @@ mod tests {
                         vec![vec![market]],
                         vec![vec![OPTIMISM_CHAIN_ID]],
                         vec![OPTIMISM_SEPOLIA_CHAIN_ID],
+                        false,
                     )
                     .await;
 
@@ -257,7 +311,7 @@ mod tests {
         let chain_ids = vec![LINEA_CHAIN_ID];
         let target_chain_ids = vec![vec![OPTIMISM_CHAIN_ID]];
 
-        let session_info = get_proof_data_exec(users, assets, target_chain_ids, chain_ids)
+        let session_info = get_proof_data_exec(users, assets, target_chain_ids, chain_ids, false)
             .await
             .unwrap();
 
@@ -275,7 +329,7 @@ mod tests {
         let chain_ids = vec![LINEA_CHAIN_ID, OPTIMISM_CHAIN_ID];
         let target_chain_ids = vec![vec![OPTIMISM_CHAIN_ID], vec![LINEA_CHAIN_ID]];
 
-        let session_info = get_proof_data_exec(users, assets, target_chain_ids, chain_ids)
+        let session_info = get_proof_data_exec(users, assets, target_chain_ids, chain_ids, false)
             .await
             .unwrap();
 
@@ -301,7 +355,7 @@ mod tests {
             vec![OPTIMISM_CHAIN_ID],
         ];
 
-        let session_info = get_proof_data_exec(users, assets, target_chain_ids, chain_ids)
+        let session_info = get_proof_data_exec(users, assets, target_chain_ids, chain_ids, false)
             .await
             .unwrap();
 
@@ -334,7 +388,7 @@ mod tests {
             vec![LINEA_CHAIN_ID],
         ];
 
-        let session_info = get_proof_data_exec(users, assets, target_chain_ids, chain_ids)
+        let session_info = get_proof_data_exec(users, assets, target_chain_ids, chain_ids, false)
             .await
             .unwrap();
 
@@ -391,15 +445,16 @@ mod tests {
                 .map(|_| vec![OPTIMISM_CHAIN_ID])
                 .collect::<Vec<_>>();
 
-            let prove_info = get_proof_data_exec(
+            let session_info = get_proof_data_exec(
                 users.clone(),
                 assets.clone(),
                 target_chain_ids,
                 chain_ids.clone(),
+                false,
             )
             .await
             .unwrap();
-            let cycles = prove_info.segments.iter().map(|s| s.cycles).sum::<u32>();
+            let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
             let duration = start_time.elapsed();
 
             // Create log entry
@@ -465,6 +520,7 @@ mod tests {
             vec![vec![asset]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![chain_id],
+            false,
         )
         .await
         .unwrap();
@@ -484,6 +540,7 @@ mod tests {
             vec![vec![asset]],
             vec![vec![LINEA_CHAIN_ID]],
             vec![chain_id],
+            false,
         )
         .await
         .unwrap();
@@ -503,6 +560,7 @@ mod tests {
             vec![vec![asset]],
             vec![vec![LINEA_CHAIN_ID]],
             vec![chain_id],
+            false,
         )
         .await
         .unwrap();
@@ -522,6 +580,7 @@ mod tests {
             vec![vec![asset]],
             vec![vec![LINEA_CHAIN_ID]],
             vec![chain_id],
+            false,
         )
         .await
         .unwrap();
@@ -542,6 +601,7 @@ mod tests {
             vec![vec![asset, asset]],
             vec![vec![LINEA_CHAIN_ID, OPTIMISM_CHAIN_ID]],
             vec![chain_id],
+            false,
         )
         .await
         .unwrap();
@@ -596,6 +656,7 @@ mod tests {
             vec![vec![asset]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![chain_id],
+            false,
         )
         .await
         .unwrap();
@@ -613,6 +674,7 @@ mod tests {
             vec![vec![asset]],
             vec![vec![LINEA_CHAIN_ID]],
             vec![chain_id],
+            false,
         )
         .await
         .unwrap();
@@ -630,6 +692,7 @@ mod tests {
             vec![vec![asset]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![chain_id],
+            false,
         )
         .await
         .unwrap();
@@ -647,6 +710,7 @@ mod tests {
             vec![vec![asset]],
             vec![vec![LINEA_CHAIN_ID]],
             vec![chain_id],
+            false,
         )
         .await
         .unwrap();
@@ -707,6 +771,7 @@ mod tests {
             vec![], // empty markets vectors
             vec![], // empty chain_ids vectors
             vec![], // empty target chain ids
+            false,
         )
         .await
         .unwrap();
