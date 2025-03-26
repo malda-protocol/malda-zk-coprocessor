@@ -454,8 +454,8 @@ pub fn validate_linea_env_with_l1_inclusion(
     let l2_block_number = returns._0;
 
     assert!(
-        l2_block_number <= U256::from(env_block_number),
-        "Block number must be lower than the last one posted to L1"
+        U256::from(env_block_number) <= l2_block_number,
+        "Block number must be lower than or equal to the last one posted to L1"
     );
 }
 
