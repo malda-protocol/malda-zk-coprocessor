@@ -725,7 +725,7 @@ mod tests {
         let http_url: Url = rpc_url_optimism().parse().unwrap();
         let provider = ProviderBuilder::new().on_http(http_url);
         let block_from_provider = provider
-            .get_block_by_number(BlockNumberOrTag::Latest, false.into())
+            .get_block_by_number(BlockNumberOrTag::Latest)
             .await
             .unwrap()
             .unwrap()
@@ -745,7 +745,7 @@ mod tests {
         let http_url: Url = rpc_url_base().parse().unwrap();
         let provider = ProviderBuilder::new().on_http(http_url);
         let block_from_provider = provider
-            .get_block_by_number(BlockNumberOrTag::Latest, false.into())
+            .get_block_by_number(BlockNumberOrTag::Latest)
             .await
             .unwrap()
             .unwrap()

@@ -37,7 +37,7 @@ consensus-core = { workspace = true }
 consensus = { workspace = true }
 
 reqwest = { version = "0.12.4", features = ["json"] }
-bonsai-sdk =  "1.2.2"
+bonsai-sdk =  "1.2.4"
 bincode = "1.3.3"
 tracing = "0.1.39"
 dotenvy = "0.15"

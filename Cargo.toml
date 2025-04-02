@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["malda_rs", "methods", "patch/ethereum_hashing", "sequencer", "sequencer_v2", "malda_utils"]
+members = ["malda_rs", "methods", "patch/ethereum_hashing", "malda_utils"]
 exclude = ["lib"]
 
 [workspace.package]
@@ -21,18 +21,18 @@ ethers = { version = "2.0" }
 hex = { version = "0.4" }
 log = { version = "0.4" }
 methods = { path = "./methods" }
-risc0-build = { version = "=1.2.1", features = ["docker", "unstable"] }
-risc0-build-ethereum = { git = "https://github.com/risc0/risc0-ethereum", tag = "v1.2.0" }
-risc0-ethereum-contracts = { git = "https://github.com/risc0/risc0-ethereum", tag = "v1.2.0" }
-risc0-steel = { git = "https://github.com/risc0/risc0-ethereum", tag = "v1.2.0" }
-risc0-zkvm = { version = "=1.2.1", default-features = false, features = ['unstable'] }
-risc0-zkp = { version = "1.1.2", default-features = false }
-risc0-core = { version = "1.1.2" }
+risc0-build = { version = "2.0.0", features = ["docker", "unstable"] }
+risc0-build-ethereum = { git = "https://github.com/risc0/risc0-ethereum", tag = "v2.0.0" }
+risc0-ethereum-contracts = { git = "https://github.com/risc0/risc0-ethereum", tag = "v2.0.0" }
+risc0-steel = { git = "https://github.com/risc0/risc0-ethereum", tag = "v2.0.0" }
+risc0-zkvm = { version = "2.0.0", default-features = false, features = ['unstable'] }
+risc0-zkp = { version = "2.0.0", default-features = false }
+risc0-core = { version = "2.0.0" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tokio = { version = "1", features = ["full"] }
 rand = "0.8"
-alloy = "0.6.4"
-alloy-consensus = "0.6.4"
+alloy = "0.12.4"
+alloy-consensus = "0.12.4"
 alloy-rlp = "0.3"
 alloy-primitives-old = { package = "alloy-primitives", version = "=0.7.7" }
 k256 = { version = "0.13.3", features = ["arithmetic", "serde", "expose-field", "std", "ecdsa"] }
@@ -46,6 +46,7 @@ ethereum_ssz = "0.7.0"
 revm = { version = "18.0", default-features = false, features = ["std"] }
 futures = "0.3"
 tree_hash = "0.7.0"
+derive_more = { version = "1.0.0", features = ["display"] }
 alloy-encode-packed = { version = "0.1" }
 consensus-core = { git = "https://github.com/a16z/helios", tag = "0.7.0" }
 consensus = { git = "https://github.com/a16z/helios", tag = "0.7.0" }

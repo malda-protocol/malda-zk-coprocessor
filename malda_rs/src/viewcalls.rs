@@ -24,7 +24,7 @@ use risc0_steel::{
     ethereum::EthEvmEnv, host::BlockNumberOrTag, serde::RlpHeader, Contract, EvmInput,
 };
 use risc0_zkvm::{
-    default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
+    default_executor, default_prover, ExecutorEnv, ProverOpts, ProveInfo, SessionInfo,
 };
 
 use alloy::primitives::{Address, U256, U64};
@@ -40,9 +40,25 @@ use url::Url;
 use std::time::Duration;
 
 use bonsai_sdk::blocking::Client;
-use risc0_zkvm::{Receipt, SessionStats};
+use risc0_zkvm::Receipt;
 
-fn run_bonsai(input_data: Vec<u8>) -> Result<ProveInfo, anyhow::Error> {
+// Our own versions of the non-exhaustive structs
+#[derive(Debug, Clone)]
+pub struct MaldaSessionStats {
+    pub segments: usize,
+    pub total_cycles: u64,
+    pub user_cycles: u64,
+    pub paging_cycles: u64,
+    pub reserved_cycles: u64,
+}
+
+#[derive(Debug)]
+pub struct MaldaProveInfo {
+    pub receipt: Receipt,
+    pub stats: MaldaSessionStats,
+}
+
+fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
     let start_total = std::time::Instant::now();
 
     let start = std::time::Instant::now();
@@ -94,7 +110,7 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<ProveInfo, anyhow::Error> {
                 stats.total_cycles
             );
 
-            break SessionStats {
+            break MaldaSessionStats {
                 segments: stats.segments,
                 total_cycles: stats.total_cycles,
                 user_cycles: stats.cycles,
@@ -152,7 +168,7 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<ProveInfo, anyhow::Error> {
 
     println!("Total time (groth16): {:?}", start_total.elapsed());
 
-    Ok(ProveInfo {
+    Ok(MaldaProveInfo {
         receipt: groth16_receipt,
         stats: succinct_stats,
     })
@@ -377,7 +393,7 @@ pub async fn get_proof_data_prove_sdk(
     target_chain_ids: Vec<Vec<u64>>,
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
-) -> Result<ProveInfo, Error> {
+) -> Result<MaldaProveInfo, Error> {
     // Move all the work including env creation into the blocking task
     let prove_info = tokio::task::spawn_blocking(move || {
         // Create a new runtime for async operations within the blocking task
