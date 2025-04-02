@@ -43,16 +43,6 @@ sol! {
         function number() external view returns (uint64);
     }
 
-    // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/L1/interfaces/IOptimismPortal2.sol
-    interface IOptimismPortal2 {
-        function disputeGameBlacklist(address) external view returns (bool);
-        function disputeGameFactory() external view returns (address);
-        function proofMaturityDelaySeconds() external view returns (uint256);
-        function respectedGameType() external view returns (uint32);
-        function respectedGameTypeUpdatedAt() external view returns (uint64);
-        function version() external pure returns (string memory);
-    }
-
     // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/dispute/interfaces/IDisputeGameFactory.sol
     interface IDisputeGameFactory {
         function gameCount() external view returns (uint256);
