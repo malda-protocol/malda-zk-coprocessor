@@ -59,6 +59,15 @@ sol! {
         function extraData() external view returns (bytes memory);
     }
 
+    // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/L1/OptimismPortal.sol
+    interface IOptimismPortal {
+        function respectedGameType() external view returns (uint256);
+        function respectedGameTypeUpdatedAt() external view returns (uint256);
+        function disputeGameBlacklist(address game) external view returns (bool);
+        function proofMaturityDelaySeconds() external view returns (uint256);
+        function disputeGameFactory() external view returns (address);
+    }
+
     struct OutputRootProof {
         bytes32 version;
         bytes32 stateRoot;
@@ -67,6 +76,7 @@ sol! {
     }
 
     // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/dispute/lib/Types.sol
+    #[derive(Debug, PartialEq)]
     enum GameStatus {
         IN_PROGRESS,
         CHALLENGER_WINS,

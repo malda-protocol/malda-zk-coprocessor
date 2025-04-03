@@ -13,7 +13,7 @@ fn main() {
     let length: u64 = env::read();
     for _i in 0..length {
         // Read the input data for this application.
-        let env_input: EthEvmInput = env::read();
+        let env_input: Option<EthEvmInput> = env::read();
         let chain_id: u64 = env::read();
         let account: Vec<Address> = env::read();
         let asset: Vec<Address> = env::read();

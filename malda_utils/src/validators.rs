@@ -60,10 +60,15 @@ pub fn validate_get_proof_data_call(
 ) {
     let validate_l1_inclusion = env_eth_input.is_some();
 
-    let env = if (chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID) && validate_l1_inclusion {
-        env_input.expect("env_input is None").into_env()
+    let (env, validate_chain_id) = if (chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID) && validate_l1_inclusion {
+        let env = env_eth_input.clone().expect("env_eth_input is None").into_env();
+        if chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID {
+            (env, ETHEREUM_CHAIN_ID)
+        } else {
+            (env, ETHEREUM_SEPOLIA_CHAIN_ID)
+        }
     } else {
-        env_eth_input.clone().expect("env_eth_input is None").into_env()
+        (env_input.expect("env_input is None").into_env(), chain_id)
     };
 
     let last_block = if linking_blocks.is_empty() {
@@ -76,7 +81,7 @@ pub fn validate_get_proof_data_call(
     let env_header = env.header().inner().inner().clone();
 
     let validated_block_hash = get_validated_block_hash(
-        chain_id,
+        validate_chain_id,
         env_header,
         sequencer_commitment,
         env_op_input,
@@ -86,7 +91,7 @@ pub fn validate_get_proof_data_call(
     );
 
     validate_chain_length(
-        chain_id,
+        validate_chain_id,
         env_header_hash,
         linking_blocks,
         validated_block_hash,
@@ -109,13 +114,6 @@ pub fn validate_opstack_dispute_game_commitment(
     env_eth_input: Option<EthEvmInput>,
     op_evm_input: Option<OpEvmInput>
 ) {
-    let factory_adress = match chain_id {
-        OPTIMISM_SEPOLIA_CHAIN_ID => DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA,
-        BASE_SEPOLIA_CHAIN_ID => DISPUTE_GAME_FACTORY_BASE_SEPOLIA,
-        OPTIMISM_CHAIN_ID => DISPUTE_GAME_FACTORY_OPTIMISM,
-        BASE_CHAIN_ID => DISPUTE_GAME_FACTORY_BASE,
-        _ => panic!("invalid chain id"),
-    };
 
     let eth_env = env_eth_input.expect("env_eth_input is None").into_env();
     let op_env = op_evm_input.expect("op_evm_input is None").into_env();
@@ -128,27 +126,73 @@ pub fn validate_opstack_dispute_game_commitment(
     let mask = U256::from(1) << 240;
     let game_index = id & (mask - U256::from(1));
 
+
+    let portal_adress = match chain_id {
+        OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
+        BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
+        OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
+        BASE_CHAIN_ID => BASE_PORTAL,
+        _ => panic!("invalid chain id"),
+    };
+
+    // Get the portal contract for additional checks
+    let portal_contract = Contract::new(portal_adress, &eth_env);
+
+    // Get factory address from portal
+    let factory_call = IOptimismPortal::disputeGameFactoryCall {};
+    let returns = portal_contract.call_builder(&factory_call).call();
+    let factory_address = returns._0;
+
     let game_call = IDisputeGameFactory::gameAtIndexCall {
         index: game_index,
     };
 
-    let contract = Contract::new(factory_adress, &eth_env);
+    let contract = Contract::new(factory_address, &eth_env);
     let returns = contract.call_builder(&game_call).call();
 
     let game_type = returns._0;
     assert_eq!(game_type, U256::from(0), "game type not respected game");
 
+    let created_at = returns._1;
     let game_address = returns._2;
 
+    // Check if game was created after respected game type update
+    let respected_game_type_updated_at_call = IOptimismPortal::respectedGameTypeUpdatedAtCall {};
+    let returns = portal_contract.call_builder(&respected_game_type_updated_at_call).call();
+    assert!(created_at >= returns._0, "game created before respected game type update");
+
+    // Get game contract for status checks
+    let game_contract = Contract::new(game_address, &eth_env);
+
+    // Check game status
+    let status_call = IDisputeGame::statusCall {};
+    let returns = game_contract.call_builder(&status_call).call();
+    assert_eq!(returns._0, GameStatus::DEFENDER_WINS, "game status not DEFENDER_WINS");
+
+    // Check if game is blacklisted
+    let blacklist_call = IOptimismPortal::disputeGameBlacklistCall { game: game_address };
+    let returns = portal_contract.call_builder(&blacklist_call).call();
+    assert!(!returns._0, "game is blacklisted");
+
+    // Check game resolution time
+    let resolved_at_call = IDisputeGame::resolvedAtCall {};
+    let returns = game_contract.call_builder(&resolved_at_call).call();
+    let resolved_at = returns._0;
+    
+    let proof_maturity_delay_call = IOptimismPortal::proofMaturityDelaySecondsCall {};
+    let returns = portal_contract.call_builder(&proof_maturity_delay_call).call();
+    let proof_maturity_delay = returns._0;
+    
+    let current_timestamp = eth_env.header().inner().inner().timestamp;
+    assert!(
+        U256::from(current_timestamp) - U256::from(resolved_at) > proof_maturity_delay,
+        "insufficient time passed since game resolution"
+    );
+
+    // Finally verify root claim matches
     let root_claim_call = IDisputeGame::rootClaimCall {};
-
-    let contract = Contract::new(game_address, &eth_env);
-    let returns = contract.call_builder(&root_claim_call).call();
-
-    let root_claim = returns._0;
-
-
-
+    let returns = game_contract.call_builder(&root_claim_call).call();
+    assert_eq!(returns._0, commitment.digest, "root claim mismatch");
 }
 
 /// Retrieves validated block hash based on chain type and validation requirements
@@ -249,13 +293,13 @@ pub fn get_validated_block_hash_opstack(
             env_op_input.unwrap(),
             chain_id,
         );
-        validate_opstack_env_with_l1_inclusion(
-            chain_id,
-            env_state_root,
-            env_eth_input.unwrap(),
-            ethereum_hash,
-            last_block_hash,
-        );
+        // validate_opstack_env_with_l1_inclusion(
+        //     chain_id,
+        //     env_state_root,
+        //     env_eth_input.unwrap(),
+        //     ethereum_hash,
+        //     last_block_hash,
+        // );
     } else {
         validate_opstack_env(chain_id, &sequencer_commitment.unwrap(), last_block_hash);
     }
@@ -384,97 +428,6 @@ pub fn batch_call_get_proof_data(
     );
 }
 
-/// Validates OpStack L2 block inclusion in L1 through dispute game verification
-///
-/// # Arguments
-/// * `chain_id` - The chain ID (Optimism or Base, mainnet or Sepolia)
-/// * `op_state_root` - The state root of the L2 block
-/// * `env_eth_input` - Ethereum L1 environment input
-/// * `msg_passer_storage_hash` - Storage hash of the message passer contract
-/// * `ethereum_hash` - Expected Ethereum block hash
-/// * `op_block_hash` - OpStack block hash to validate
-///
-/// # Panics
-/// * If chain ID is not an OpStack chain
-/// * If block hashes don't match
-/// * If game type is invalid
-/// * If L2 block has been challenged
-/// * If insufficient time has passed for challenge period
-pub fn validate_opstack_env_with_l1_inclusion(
-    chain_id: u64,
-    op_state_root: B256,
-    env_eth_input: EthEvmInput,
-    ethereum_hash: B256,
-    op_block_hash: B256,
-) {
-    let factory_adress = match chain_id {
-        OPTIMISM_SEPOLIA_CHAIN_ID => DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA,
-        BASE_SEPOLIA_CHAIN_ID => DISPUTE_GAME_FACTORY_BASE_SEPOLIA,
-        OPTIMISM_CHAIN_ID => DISPUTE_GAME_FACTORY_OPTIMISM,
-        BASE_CHAIN_ID => DISPUTE_GAME_FACTORY_BASE,
-        _ => panic!("invalid chain id"),
-    };
-    let env_eth = env_eth_input.into_env();
-    let eth_hash = env_eth.header().seal();
-    let env_eth_timestamp = env_eth.header().inner().inner().timestamp;
-
-    assert_eq!(ethereum_hash, eth_hash, "last block hash mismatch");
-
-    let game_count_call = IDisputeGameFactory::gameCountCall {};
-
-    let contract = Contract::new(factory_adress, &env_eth);
-    let returns = contract.call_builder(&game_count_call).call();
-
-    let latest_game_index = returns._0 - U256::from(1);
-
-    let game_call = IDisputeGameFactory::gameAtIndexCall {
-        index: latest_game_index,
-    };
-
-    let contract = Contract::new(factory_adress, &env_eth);
-    let returns = contract.call_builder(&game_call).call();
-
-    let game_type = returns._0;
-    assert_eq!(game_type, U256::from(0), "game type not respected game");
-    let created_at = returns._1;
-    let game_address = returns._2;
-
-    let root_claim_call = IDisputeGame::rootClaimCall {};
-
-    let contract = Contract::new(game_address, &env_eth);
-    let returns = contract.call_builder(&root_claim_call).call();
-
-    let root_claim = returns._0;
-
-    let l2_block_number_challenged_call = IDisputeGame::l2BlockNumberChallengedCall {};
-
-    let contract = Contract::new(game_address, &env_eth);
-    let returns = contract
-        .call_builder(&l2_block_number_challenged_call)
-        .call();
-
-    let l2_block_number_challenged = returns._0;
-
-    let output_root_proof = OutputRootProof {
-        version: ROOT_VERSION_OPSTACK,
-        stateRoot: op_state_root,
-        messagePasserStorageRoot: msg_passer_storage_hash,
-        latestBlockhash: op_block_hash,
-    };
-
-    let output_root_proof_hash = keccak256(output_root_proof.abi_encode());
-
-    // assert_eq!(l2_block_number, 1, "block number mismatch");
-    assert_eq!(root_claim, output_root_proof_hash, "root claim mismatch");
-    assert_eq!(
-        l2_block_number_challenged, false,
-        "This L2 block has been challenged"
-    );
-    assert!(
-        U256::from(env_eth_timestamp) > created_at + U256::from(TIME_DELAY_OP_CHALLENGE),
-        "Not enough time passed to challenge the claim"
-    );
-}
 
 pub fn validate_linea_env_with_l1_inclusion(
     chain_id: u64,
