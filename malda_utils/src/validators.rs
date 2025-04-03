@@ -20,8 +20,9 @@ use alloy_consensus::Header;
 use alloy_encode_packed::{abi, SolidityDataType, TakeLastXBytes};
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_sol_types::SolValue;
-use risc0_steel::{ethereum::EthEvmInput, serde::RlpHeader, Commitment, Contract};
+use risc0_steel::{ethereum::EthEvmInput, serde::RlpHeader, Commitment, Contract, EvmEnv, StateDb};
 use risc0_op_steel::optimism::OpEvmInput;
+use risc0_steel::EvmBlockHeader;
 
 /// Validates and executes proof data queries across multiple accounts and tokens using multicall
 ///
@@ -76,6 +77,9 @@ pub fn validate_get_proof_data_call(
     } else {
         linking_blocks[linking_blocks.len() - 1].clone()
     };
+
+    // let eth_env: risc0_steel::EvmEnv<risc0_steel::StateDb, RlpHeader<Header>, _> = env_eth_input.expect("env_eth_input is None").into_env();
+    // let op_env: risc0_steel::EvmEnv<risc0_steel::StateDb, risc0_op_steel::optimism::OpBlockHeader, _> = op_evm_input.expect("op_evm_input is None").into_env();
 
     let env_header_hash = env.header().seal();
     let env_header = env.header().inner().inner().clone();
@@ -365,15 +369,17 @@ pub fn get_validated_block_hash_linea(
 /// * If multicall execution fails
 /// * If return data decoding fails
 /// * If parameters are mismatched
-pub fn batch_call_get_proof_data(
+pub fn batch_call_get_proof_data<H>(
     chain_id: u64,
     account: Vec<Address>,
     asset: Vec<Address>,
     target_chain_ids: Vec<u64>,
-    env: risc0_steel::EvmEnv<risc0_steel::StateDb, RlpHeader<Header>, Commitment>,
+    env: EvmEnv<StateDb, H, Commitment>,
     validate_l1_inclusion: bool,
     output: &mut Vec<Bytes>,
-) {
+) where
+    H: Clone + std::fmt::Debug, H: EvmBlockHeader
+{
     // Create array of Call3 structs for each proof data check
     let mut calls = Vec::with_capacity(account.len());
     let batch_params = account
