@@ -12,6 +12,7 @@ ethers = { workspace = true }
 log = { workspace = true }
 risc0-ethereum-contracts = { workspace = true }
 risc0-steel = { workspace = true, features = ["host"] }
+risc0-op-steel = { workspace = true }
 risc0-zkvm = { workspace = true, features = ["client", "unstable", "bonsai"] }
 tracing-subscriber = { workspace = true }
 url = { workspace = true }

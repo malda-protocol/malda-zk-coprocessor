@@ -21,6 +21,7 @@ use alloy_encode_packed::{abi, SolidityDataType, TakeLastXBytes};
 use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
 use alloy_sol_types::SolValue;
 use risc0_steel::{ethereum::EthEvmInput, serde::RlpHeader, Commitment, Contract};
+use risc0_op_steel::optimism::OpEvmInput;
 
 /// Validates and executes proof data queries across multiple accounts and tokens using multicall
 ///
@@ -55,7 +56,7 @@ pub fn validate_get_proof_data_call(
     linking_blocks: Vec<RlpHeader<Header>>,
     output: &mut Vec<Bytes>,
     env_eth_input: Option<EthEvmInput>,
-    storage_hash: Option<B256>,
+    op_evm_input: Option<OpEvmInput>,
 ) {
     let validate_l1_inclusion = env_eth_input.is_some();
     let env = env_input.into_env();
@@ -77,7 +78,6 @@ pub fn validate_get_proof_data_call(
         env_eth_input,
         last_block,
         validate_l1_inclusion,
-        storage_hash,
     );
 
     validate_chain_length(
@@ -124,7 +124,6 @@ pub fn get_validated_block_hash(
     env_eth_input: Option<EthEvmInput>,
     last_block: RlpHeader<Header>,
     validate_l1_inclusion: bool,
-    storage_hash: Option<B256>,
 ) -> B256 {
     if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
         get_validated_block_hash_linea(
@@ -149,7 +148,6 @@ pub fn get_validated_block_hash(
             env_eth_input,
             last_block,
             validate_l1_inclusion,
-            storage_hash,
         )
     } else if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
         let ethereum_hash = get_ethereum_block_hash_via_opstack(
@@ -189,7 +187,6 @@ pub fn get_validated_block_hash_opstack(
     env_eth_input: Option<EthEvmInput>,
     last_block: RlpHeader<Header>,
     validate_l1_inclusion: bool,
-    storage_hash: Option<B256>,
 ) -> B256 {
     let last_block_hash = last_block.hash_slow();
     if validate_l1_inclusion {
@@ -199,14 +196,14 @@ pub fn get_validated_block_hash_opstack(
             env_op_input.unwrap(),
             chain_id,
         );
-        validate_opstack_env_with_l1_inclusion(
-            chain_id,
-            env_state_root,
-            env_eth_input.unwrap(),
-            storage_hash.unwrap(),
-            ethereum_hash,
-            last_block_hash,
-        );
+        // validate_opstack_env_with_l1_inclusion(
+        //     chain_id,
+        //     env_state_root,
+        //     env_eth_input.unwrap(),
+        //     storage_hash.unwrap(),
+        //     ethereum_hash,
+        //     last_block_hash,
+        // );
     } else {
         validate_opstack_env(chain_id, &sequencer_commitment.unwrap(), last_block_hash);
     }

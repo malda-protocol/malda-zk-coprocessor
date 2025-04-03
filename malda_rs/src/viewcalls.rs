@@ -23,6 +23,7 @@ use core::panic;
 use risc0_steel::{
     ethereum::EthEvmEnv, host::BlockNumberOrTag, serde::RlpHeader, Contract, EvmInput,
 };
+use risc0_op_steel::optimism::OpEvmInput;
 use risc0_zkvm::{
     default_executor, default_prover, ExecutorEnv, ProverOpts, ProveInfo, SessionInfo,
 };
@@ -631,18 +632,6 @@ pub async fn get_proof_data_zkvm_input(
                 .await
                 .expect("Failed to execute current l2 block number call");
 
-            let l2_block_number = returns._0;
-
-            let state_root_hashes_call = IL1MessageService::stateRootHashesCall {
-                blockNumber: l2_block_number,
-            };
-
-            let _returns = contract
-                .call_builder(&state_root_hashes_call)
-                .call()
-                .await
-                .expect("Failed to execute state root hashes call");
-
             let l2_block_number: u64 = U64::from(returns._0).try_into().unwrap();
 
             (
@@ -692,7 +681,7 @@ pub async fn get_proof_data_zkvm_input(
             &l1_block_call_input,
             &linking_blocks,
             &env_input_l1_inclusion,
-            &storage_hash,
+            &None::<OpEvmInput>,
         ))
         .unwrap(),
     );
