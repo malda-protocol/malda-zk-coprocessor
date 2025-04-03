@@ -713,7 +713,7 @@ pub async fn get_proof_data_call_input(
     users: Vec<Address>,
     markets: Vec<Address>,
     target_chain_ids: Vec<u64>,
-) -> EvmInput<RlpHeader<Header>> {
+) -> Option<EvmInput<RlpHeader<Header>>> {
     let reorg_protection_depth = match chain_id {
         OPTIMISM_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM,
         BASE_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE,
@@ -783,9 +783,9 @@ pub async fn get_proof_data_call_input(
         .await
         .expect("Failed to execute multicall");
 
-    env.into_input()
+    Some(env.into_input()
         .await
-        .expect("Failed to convert environment to input")
+        .expect("Failed to convert environment to input"))
 }
 
 /// Fetches the current sequencer commitment for L2 chains

@@ -50,7 +50,7 @@ pub fn validate_get_proof_data_call(
     account: Vec<Address>,
     asset: Vec<Address>,
     target_chain_ids: Vec<u64>,
-    env_input: EthEvmInput,
+    env_input: Option<EthEvmInput>,
     sequencer_commitment: Option<SequencerCommitment>,
     env_op_input: Option<EthEvmInput>,
     linking_blocks: Vec<RlpHeader<Header>>,
@@ -59,7 +59,12 @@ pub fn validate_get_proof_data_call(
     op_evm_input: Option<OpEvmInput>,
 ) {
     let validate_l1_inclusion = env_eth_input.is_some();
-    let env = env_input.into_env();
+
+    let env = if (chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID) && validate_l1_inclusion {
+        env_input.expect("env_input is None").into_env()
+    } else {
+        env_eth_input.clone().expect("env_eth_input is None").into_env()
+    };
 
     let last_block = if linking_blocks.is_empty() {
         env.header().inner().clone()
@@ -87,6 +92,7 @@ pub fn validate_get_proof_data_call(
         validated_block_hash,
     );
 
+
     batch_call_get_proof_data(
         chain_id,
         account,
@@ -96,6 +102,53 @@ pub fn validate_get_proof_data_call(
         validate_l1_inclusion,
         output,
     );
+}
+
+pub fn validate_opstack_dispute_game_commitment(
+    chain_id: u64,
+    env_eth_input: Option<EthEvmInput>,
+    op_evm_input: Option<OpEvmInput>
+) {
+    let factory_adress = match chain_id {
+        OPTIMISM_SEPOLIA_CHAIN_ID => DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA,
+        BASE_SEPOLIA_CHAIN_ID => DISPUTE_GAME_FACTORY_BASE_SEPOLIA,
+        OPTIMISM_CHAIN_ID => DISPUTE_GAME_FACTORY_OPTIMISM,
+        BASE_CHAIN_ID => DISPUTE_GAME_FACTORY_BASE,
+        _ => panic!("invalid chain id"),
+    };
+
+    let eth_env = env_eth_input.expect("env_eth_input is None").into_env();
+    let op_env = op_evm_input.expect("op_evm_input is None").into_env();
+
+    let commitment = op_env.commitment();
+    let id = commitment.id;
+    let root_claim = commitment.digest;
+
+    // Extract last 240 bits by masking with 0xFFFF...FFFF (240 bits)
+    let mask = U256::from(1) << 240;
+    let game_index = id & (mask - U256::from(1));
+
+    let game_call = IDisputeGameFactory::gameAtIndexCall {
+        index: game_index,
+    };
+
+    let contract = Contract::new(factory_adress, &eth_env);
+    let returns = contract.call_builder(&game_call).call();
+
+    let game_type = returns._0;
+    assert_eq!(game_type, U256::from(0), "game type not respected game");
+
+    let game_address = returns._2;
+
+    let root_claim_call = IDisputeGame::rootClaimCall {};
+
+    let contract = Contract::new(game_address, &eth_env);
+    let returns = contract.call_builder(&root_claim_call).call();
+
+    let root_claim = returns._0;
+
+
+
 }
 
 /// Retrieves validated block hash based on chain type and validation requirements
@@ -196,14 +249,13 @@ pub fn get_validated_block_hash_opstack(
             env_op_input.unwrap(),
             chain_id,
         );
-        // validate_opstack_env_with_l1_inclusion(
-        //     chain_id,
-        //     env_state_root,
-        //     env_eth_input.unwrap(),
-        //     storage_hash.unwrap(),
-        //     ethereum_hash,
-        //     last_block_hash,
-        // );
+        validate_opstack_env_with_l1_inclusion(
+            chain_id,
+            env_state_root,
+            env_eth_input.unwrap(),
+            ethereum_hash,
+            last_block_hash,
+        );
     } else {
         validate_opstack_env(chain_id, &sequencer_commitment.unwrap(), last_block_hash);
     }
@@ -352,7 +404,6 @@ pub fn validate_opstack_env_with_l1_inclusion(
     chain_id: u64,
     op_state_root: B256,
     env_eth_input: EthEvmInput,
-    msg_passer_storage_hash: B256,
     ethereum_hash: B256,
     op_block_hash: B256,
 ) {
