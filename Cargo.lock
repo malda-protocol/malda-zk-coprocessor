@@ -664,6 +664,7 @@ dependencies = [
  "const-hex",
  "derive_more 2.0.1",
  "foldhash",
+ "getrandom 0.2.15",
  "hashbrown 0.15.2",
  "indexmap 2.7.0",
  "itoa",
@@ -6838,6 +6839,7 @@ name = "risc0-op-steel"
 version = "0.3.0"
 source = "git+https://github.com/risc0/risc0-ethereum?tag=v2.0.0#38591d7a1302d437b76937bd3e0432005b33f616"
 dependencies = [
+ "alloy 0.12.6",
  "alloy-primitives 0.8.25",
  "alloy-sol-types 0.8.25",
  "anyhow",
@@ -6848,6 +6850,8 @@ dependencies = [
  "serde",
  "test-log",
  "thiserror 2.0.12",
+ "tokio",
+ "url",
 ]
 
 [[package]]
@@ -7036,6 +7040,9 @@ name = "rustc-hash"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7fb8039b3032c191086b10f11f319a6e99e1e82889c5cc6046f515c9db1d497"
+dependencies = [
+ "rand 0.8.5",
+]
 
 [[package]]
 name = "rustc-hex"
