@@ -20,12 +20,12 @@ use crate::types::{ExecutionPayload, IL1Block, SequencerCommitment};
 use alloy::providers::{Provider, ProviderBuilder};
 use core::panic;
 
+use risc0_op_steel::optimism::OpEvmInput;
 use risc0_steel::{
     ethereum::EthEvmEnv, host::BlockNumberOrTag, serde::RlpHeader, Contract, EvmInput,
 };
-use risc0_op_steel::optimism::OpEvmInput;
 use risc0_zkvm::{
-    default_executor, default_prover, ExecutorEnv, ProverOpts, ProveInfo, SessionInfo,
+    default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
 };
 
 use alloy::primitives::{Address, U256, U64};
@@ -783,9 +783,11 @@ pub async fn get_proof_data_call_input(
         .await
         .expect("Failed to execute multicall");
 
-    Some(env.into_input()
-        .await
-        .expect("Failed to convert environment to input"))
+    Some(
+        env.into_input()
+            .await
+            .expect("Failed to convert environment to input"),
+    )
 }
 
 /// Fetches the current sequencer commitment for L2 chains
