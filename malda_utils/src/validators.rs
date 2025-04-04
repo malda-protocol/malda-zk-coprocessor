@@ -23,6 +23,7 @@ use alloy_sol_types::SolValue;
 use risc0_steel::{ethereum::EthEvmInput, serde::RlpHeader, Commitment, Contract, EvmEnv, StateDb};
 use risc0_op_steel::optimism::OpEvmInput;
 use risc0_steel::EvmBlockHeader;
+use risc0_op_steel::optimism::OpBlockHeader;
 
 /// Validates and executes proof data queries across multiple accounts and tokens using multicall
 ///
@@ -59,9 +60,68 @@ pub fn validate_get_proof_data_call(
     env_input_eth_for_l1_inclusion: Option<EthEvmInput>,
     env_input_opstack_for_viewcall_with_l1_inclusion: Option<OpEvmInput>,
 ) {
+
+    let (env_to_verify, block_to_verify, hash_to_verify, header_to_verify, op_env, op_env_commitment, chain_id_for_validation, validate_l1_inclusion) = sort_and_verify_relevant_params(
+        chain_id,
+        env_input_for_viewcall,
+        linking_blocks.clone(),
+        env_input_eth_for_l1_inclusion.clone(),
+        env_input_opstack_for_viewcall_with_l1_inclusion,
+    );
+
+
+    let validated_block_hash = get_validated_block_hash(
+        chain_id_for_validation,
+        header_to_verify,
+        sequencer_commitment_opstack,
+        env_input_opstack_for_l1_block_call,
+        env_input_eth_for_l1_inclusion,
+        block_to_verify,
+        validate_l1_inclusion,
+        op_env_commitment.as_ref()
+    );
+
+    validate_chain_length(
+        chain_id_for_validation,
+        hash_to_verify,
+        linking_blocks,
+        validated_block_hash,
+    );
+
+    if op_env.is_some() {
+        batch_call_get_proof_data(
+            chain_id,
+            account,
+            asset,
+            target_chain_ids,
+            op_env.unwrap(),
+            validate_l1_inclusion,
+            output,
+        )
+    } else {
+        batch_call_get_proof_data(
+            chain_id,
+            account,
+            asset,
+            target_chain_ids,
+            env_to_verify,
+            validate_l1_inclusion,
+            output,
+        );
+    }
+}
+
+
+pub fn sort_and_verify_relevant_params(
+    chain_id: u64,
+    env_input_for_viewcall: Option<EthEvmInput>,
+    linking_blocks: Vec<RlpHeader<Header>>,
+    env_input_eth_for_l1_inclusion: Option<EthEvmInput>,
+    env_input_opstack_for_viewcall_with_l1_inclusion: Option<OpEvmInput>,
+) -> (EvmEnv<StateDb, RlpHeader<Header>, Commitment>, RlpHeader<Header>, B256, Header, Option<EvmEnv<StateDb, OpBlockHeader, Commitment>>, Option<Commitment>, u64, bool) {
     let validate_l1_inclusion = env_input_eth_for_l1_inclusion.is_some();
 
-    let (env, op_env, op_env_commitment, validate_chain_id) = if (chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID) && validate_l1_inclusion {
+    let (env_to_verify, op_env, op_env_commitment, validate_chain_id) = if (chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID) && validate_l1_inclusion {
         let env = env_input_eth_for_l1_inclusion.clone().expect("env_eth_input is None").into_env();
         let op_env = env_input_opstack_for_viewcall_with_l1_inclusion.expect("op_evm_input is None").into_env();
         let op_env_commitment = op_env.commitment().clone();
@@ -74,59 +134,17 @@ pub fn validate_get_proof_data_call(
         (env_input_for_viewcall.expect("env_input is None").into_env(), None, None, chain_id)
     };
 
-    let last_block = if linking_blocks.is_empty() {
-        env.header().inner().clone()
+    let block_to_verify = if linking_blocks.is_empty() {
+        env_to_verify.header().inner().clone()
     } else {
         linking_blocks[linking_blocks.len() - 1].clone()
     };
 
-    let env_header_hash = env.header().seal();
-    let env_header = env.header().inner().inner().clone();
+    let hash_to_verify = env_to_verify.header().seal();
+    let header_to_verify = env_to_verify.header().inner().inner().clone();
 
-    let validated_block_hash = get_validated_block_hash(
-        validate_chain_id,
-        env_header,
-        sequencer_commitment_opstack,
-        env_input_opstack_for_l1_block_call,
-        env_input_eth_for_l1_inclusion,
-        last_block,
-        validate_l1_inclusion,
-        op_env_commitment.as_ref()
-    );
+    (env_to_verify, block_to_verify, hash_to_verify, header_to_verify, op_env, op_env_commitment, validate_chain_id, validate_l1_inclusion)
 
-    validate_chain_length(
-        validate_chain_id,
-        env_header_hash,
-        linking_blocks,
-        validated_block_hash,
-    );
-
-    if (chain_id == OPTIMISM_CHAIN_ID
-        || chain_id == BASE_CHAIN_ID
-        || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-        || chain_id == BASE_SEPOLIA_CHAIN_ID)
-        && validate_l1_inclusion
-    {
-
-        batch_call_get_proof_data(
-            chain_id,
-            account,
-            asset,
-            target_chain_ids,
-            op_env.unwrap(),
-        validate_l1_inclusion,
-        output,
-    )} else {
-        batch_call_get_proof_data(
-            chain_id,
-            account,
-            asset,
-            target_chain_ids,
-            env,
-            validate_l1_inclusion,
-            output,
-        );
-    }
 }
 
 pub fn validate_opstack_dispute_game_commitment(
