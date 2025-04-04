@@ -570,31 +570,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn prove_get_proof_data_on_ethereum_sepolia_via_op_new_get_proof_data_exec() {
-        let user_ethereum = address!("F04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E");
-        let asset = GETPROOFDATA_MARKET_SEPOLIA;
-        let chain_id = LINEA_SEPOLIA_CHAIN_ID;
-
-        let session_info = get_proof_data_exec(
-            vec![vec![user_ethereum]],
-            vec![vec![asset]],
-            vec![vec![LINEA_CHAIN_ID]],
-            vec![chain_id],
-            false,
-        )
-        .await
-        .unwrap();
-
-        let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
-        println!("Cycles: {}", cycles);
-    }
-
-    #[tokio::test]
     async fn prove_get_proof_data_on_ethereum_sepolia_via_op_new_get_proof_data_prove() {
         let user_ethereum = address!("F04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E");
         let user_ethereum2 = address!("A04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E");
         let asset = GETPROOFDATA_MARKET_SEPOLIA;
-        let chain_id = LINEA_SEPOLIA_CHAIN_ID;
+        let chain_id = ETHEREUM_SEPOLIA_CHAIN_ID;
 
         let session_info = get_proof_data_prove(
             vec![vec![user_ethereum, user_ethereum2]],
