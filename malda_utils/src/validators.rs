@@ -779,7 +779,7 @@ pub fn validate_chain_length(
         "chain length is less than reorg protection"
     );
     let mut previous_hash = historical_hash;
-    for header in linking_blocks {
+    for header in linking_blocks.iter() {
         let parent_hash = header.parent_hash;
         assert_eq!(parent_hash, previous_hash, "blocks not hashlinked");
         previous_hash = header.hash_slow();
