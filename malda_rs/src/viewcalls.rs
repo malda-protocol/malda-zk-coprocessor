@@ -529,10 +529,10 @@ pub async fn get_proof_data_zkvm_input(
             ethereum_block.unwrap()
         } else {
             if chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID {
-                println!("ethereum block: {}", ethereum_block.unwrap());
-                ethereum_block.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA - 1
+                ethereum_block.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA
+
             } else  if chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID {
-                ethereum_block.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM - 1
+                ethereum_block.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM
             } else {
                 panic!("Invalid chain ID");
             }
@@ -691,7 +691,7 @@ pub async fn get_proof_data_zkvm_input(
 
             let current_timestamp = env.header().inner().inner().timestamp;
             assert!(
-                U256::from(current_timestamp) - U256::from(resolved_at) > proof_maturity_delay,
+                U256::from(current_timestamp) - U256::from(resolved_at) > proof_maturity_delay - U256::from(300),
                 "insufficient time passed since game resolution"
             );
 

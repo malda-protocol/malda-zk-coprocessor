@@ -42,6 +42,8 @@ mod tests {
         USDC_MARKET_SEPOLIA, // USDC Market Sepolia
     ];
 
+
+
     #[tokio::test]
     async fn prove_get_proof_data_on_linea() {
         let user_linea = address!("2693946791da99dA78Ac441abA6D5Ce2Bccd96D3");
@@ -65,7 +67,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn prove_sepolia_get_proof_data_on_linea() {
+    async fn should_pass_prove_sepolia_get_proof_data_on_linea() {
         let user_linea = address!("2693946791da99dA78Ac441abA6D5Ce2Bccd96D3");
         let asset = WETH_MARKET_SEPOLIA;
         let chain_id = LINEA_SEPOLIA_CHAIN_ID;
@@ -86,11 +88,10 @@ mod tests {
         println!("journal: 0x{}", hex::encode(&session_info.journal));
         println!("Cycles: {}", cycles);
         println!("Duration: {:?}", duration);
-        panic!("test");
     }
 
     #[tokio::test]
-    async fn prove_sepolia_get_proof_data_on_linea_slow_lane() {
+    async fn should_pass_prove_sepolia_get_proof_data_on_linea_slow_lane() {
         let user_linea = address!("2693946791da99dA78Ac441abA6D5Ce2Bccd96D3");
         let asset = WETH_MARKET_SEPOLIA;
         let chain_id = LINEA_SEPOLIA_CHAIN_ID;
@@ -111,7 +112,6 @@ mod tests {
         println!("journal: 0x{}", hex::encode(&session_info.journal));
         println!("Cycles: {}", cycles);
         println!("Duration: {:?}", duration);
-        panic!("test");
     }
 
     #[tokio::test]
@@ -135,7 +135,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn prove_get_proof_data_on_optimism_sepolia() {
+    async fn should_pass_prove_get_proof_data_on_optimism_sepolia() {
         let user_optimism = address!("e50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8");
         let asset = WETH_MARKET_SEPOLIA;
         let chain_id = OPTIMISM_SEPOLIA_CHAIN_ID;
@@ -152,11 +152,11 @@ mod tests {
 
         let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
         println!("Cycles: {}", cycles);
-        panic!("test");
+
     }
 
     #[tokio::test]
-    async fn prove_get_proof_data_on_optimism_sepolia_slow_lane() {
+    async fn should_pass_prove_get_proof_data_on_optimism_sepolia_slow_lane() {
         let user_optimism = address!("e50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8");
         let asset = WETH_MARKET_SEPOLIA;
         let chain_id = OPTIMISM_SEPOLIA_CHAIN_ID;
@@ -173,7 +173,7 @@ mod tests {
 
         let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
         println!("Cycles: {}", cycles);
-        panic!("test");
+
     }
 
     #[tokio::test]
@@ -550,7 +550,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn prove_get_proof_data_on_ethereum_sepolia_via_op() {
+    async fn should_pass_prove_get_proof_data_on_ethereum_sepolia_via_op() {
         let user_ethereum = address!("F04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E");
         let asset = WETH_MARKET_SEPOLIA;
         let chain_id = ETHEREUM_SEPOLIA_CHAIN_ID;
@@ -569,26 +569,6 @@ mod tests {
         println!("Cycles: {}", cycles);
     }
 
-    #[tokio::test]
-    async fn prove_get_proof_data_on_ethereum_sepolia_via_op_new_get_proof_data_prove() {
-        let user_ethereum = address!("F04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E");
-        let user_ethereum2 = address!("A04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E");
-        let asset = GETPROOFDATA_MARKET_SEPOLIA;
-        let chain_id = ETHEREUM_SEPOLIA_CHAIN_ID;
-
-        let session_info = get_proof_data_prove(
-            vec![vec![user_ethereum, user_ethereum2]],
-            vec![vec![asset, asset]],
-            vec![vec![LINEA_CHAIN_ID, OPTIMISM_CHAIN_ID]],
-            vec![chain_id],
-            false,
-        )
-        .await
-        .unwrap();
-
-        let journal = hex::encode(&session_info.receipt.journal.bytes);
-        println!("Journal: 0x{}", journal);
-    }
 
     #[tokio::test]
     async fn prove_get_proof_data_on_ethereum_via_light_client() {

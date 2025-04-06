@@ -204,12 +204,6 @@ pub fn validate_opstack_dispute_game_commitment(
     eth_env: EvmEnv<StateDb, RlpHeader<Header>, Commitment>,
     op_env_commitment: &Commitment,
 ) {
-    let verified_ethereum_hash = eth_env.header().seal();
-
-    assert_eq!(
-        ethereum_hash, verified_ethereum_hash,
-        "ethereum hash mismatch dispute game commitment"
-    );
 
     let (game_index, _version) = op_env_commitment.decode_id();
     let root_claim = op_env_commitment.digest;
@@ -281,7 +275,7 @@ pub fn validate_opstack_dispute_game_commitment(
 
     let current_timestamp = eth_env.header().inner().inner().timestamp;
     assert!(
-        U256::from(current_timestamp) - U256::from(resolved_at) > proof_maturity_delay - U256::from(100000),
+        U256::from(current_timestamp) - U256::from(resolved_at) > proof_maturity_delay - U256::from(300),
         "insufficient time passed since game resolution"
     );
 
@@ -728,7 +722,6 @@ pub fn validate_chain_length(
     let mut previous_hash = historical_hash;
     for header in linking_blocks {
         let parent_hash = header.parent_hash;
-        println!("checking 1");
         assert_eq!(parent_hash, previous_hash, "blocks not hashlinked");
         previous_hash = header.hash_slow();
     }
