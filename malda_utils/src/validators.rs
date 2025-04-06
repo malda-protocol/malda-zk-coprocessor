@@ -245,7 +245,6 @@ pub fn validate_opstack_dispute_game_commitment(
     eth_env: EvmEnv<StateDb, RlpHeader<Header>, Commitment>,
     op_env_commitment: &Commitment,
 ) {
-
     let (game_index, _version) = op_env_commitment.decode_id();
     let root_claim = op_env_commitment.digest;
 
@@ -380,7 +379,7 @@ pub fn get_validated_block_hash(
         )
     } else if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
         get_validated_ethereum_block_hash_via_opstack(
-            sequencer_commitment_opstack.unwrap(),
+            &sequencer_commitment_opstack.unwrap(),
             env_input_opstack_for_l1_block_call.unwrap(),
             chain_id,
         )
@@ -424,7 +423,7 @@ pub fn get_validated_block_hash_opstack(
             _ => panic!("invalid chain id"),
         };
         let ethereum_hash = get_validated_ethereum_block_hash_via_opstack(
-            sequencer_commitment.unwrap(),
+            &sequencer_commitment.unwrap(),
             env_input_opstack_for_l1_block_call.unwrap(),
             ethereum_chain_id,
         );
@@ -474,14 +473,14 @@ pub fn get_validated_block_hash_linea(
             _ => panic!("invalid chain id"),
         };
         let ethereum_hash = get_validated_ethereum_block_hash_via_opstack(
-            sequencer_commitment_opstack.unwrap(),
+            &sequencer_commitment_opstack.unwrap(),
             env_input_opstack_for_l1_block_call.unwrap(),
             ethereum_chain_id,
         );
         validate_linea_env_with_l1_inclusion(
             chain_id,
             env_header_to_validate.number,
-            env_input_eth_for_l1_inclusion.as_ref().unwrap().clone(),
+            env_input_eth_for_l1_inclusion.as_ref().unwrap(),
             ethereum_hash,
         );
     }
@@ -522,7 +521,7 @@ pub fn batch_call_get_proof_data<H>(
         .iter()
         .zip(asset.iter())
         .zip(target_chain_ids.iter());
-    for ((user, market), target_chain_id) in batch_params.clone() {
+    for ((user, market), target_chain_id) in batch_params {
         // Selector for getProofData(address,uint32)
         let selector = [0x07, 0xd9, 0x23, 0xe9];
         let user_bytes: [u8; 32] = user.into_word().into();
@@ -548,6 +547,12 @@ pub fn batch_call_get_proof_data<H>(
 
     let returns = multicall_contract.call_builder(&multicall).call();
 
+    // Create a new iterator for the batch parameters to avoid cloning
+    let batch_params = account
+        .iter()
+        .zip(asset.iter())
+        .zip(target_chain_ids.iter());
+    
     // Zip the batch parameters with returns.results for parallel iteration
     batch_params.zip(returns.results.iter()).for_each(
         |(((user, market), target_chain_id), result)| {
@@ -588,7 +593,7 @@ pub fn batch_call_get_proof_data<H>(
 pub fn validate_linea_env_with_l1_inclusion(
     chain_id: u64,
     env_block_number: u64,
-    env_eth_input: EthEvmInput,
+    env_eth_input: &EthEvmInput,
     ethereum_hash: B256,
 ) {
     let msg_service_address = match chain_id {
@@ -597,7 +602,7 @@ pub fn validate_linea_env_with_l1_inclusion(
         _ => panic!("invalid chain id"),
     };
 
-    let env_eth = env_eth_input.into_env();
+    let env_eth = env_eth_input.clone().into_env();
 
     let eth_hash = env_eth.header().seal();
 
@@ -717,7 +722,7 @@ pub fn validate_opstack_env(chain_id: u64, commitment: &SequencerCommitment, env
 /// * If chain ID is not an Ethereum chain
 
 pub fn get_validated_ethereum_block_hash_via_opstack(
-    commitment: SequencerCommitment,
+    commitment: &SequencerCommitment,
     input_op: EthEvmInput,
     chain_id: u64,
 ) -> B256 {
@@ -727,7 +732,7 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
     } else {
         OPTIMISM_SEPOLIA_CHAIN_ID
     };
-    validate_opstack_env(verify_via_chain, &commitment, env_op.commitment().digest);
+    validate_opstack_env(verify_via_chain, commitment, env_op.commitment().digest);
     let l1_block = Contract::new(L1_BLOCK_ADDRESS_OPSTACK, &env_op);
     let call = IL1Block::hashCall {};
     l1_block.call_builder(&call).call()._0
