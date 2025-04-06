@@ -1,7 +1,7 @@
 // Copyright notice...
 
 use malda_utils::{validators::validate_get_proof_data_call, types::SequencerCommitment};
-use alloy_primitives::{Address, Bytes, B256};
+use alloy_primitives::{Address, Bytes};
 use risc0_steel::{ethereum::EthEvmInput, serde::RlpHeader};
 use risc0_op_steel::optimism::OpEvmInput;
 use risc0_zkvm::guest::env;
@@ -24,7 +24,7 @@ fn main() {
         let env_eth_input: Option<EthEvmInput> = env::read();
         let op_evm_input: Option<OpEvmInput> = env::read();
 
-        validate_get_proof_data_call(chain_id, account, asset, target_chain_ids, env_input, sequencer_commitment, env_op_input, linking_blocks, &mut output, env_eth_input, op_evm_input);
+        validate_get_proof_data_call(chain_id, account, asset, target_chain_ids, env_input, sequencer_commitment, env_op_input, &linking_blocks, &mut output, &env_eth_input, op_evm_input);
     }
     env::commit_slice(&output.abi_encode());
 } 

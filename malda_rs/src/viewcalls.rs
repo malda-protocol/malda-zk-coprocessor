@@ -18,7 +18,6 @@ use crate::elfs_ids::*;
 use crate::types::*;
 use crate::types::{Call3, IDisputeGame, IDisputeGameFactory, IL1MessageService, IMulticall3};
 use crate::types::{ExecutionPayload, IL1Block, SequencerCommitment};
-use alloy::providers::{Provider, ProviderBuilder};
 use core::panic;
 
 use risc0_op_steel::optimism::OpEvmInput;
@@ -33,7 +32,6 @@ use risc0_op_steel::{optimism::OpEvmEnv, DisputeGameIndex};
 
 use alloy::primitives::{Address, U256, U64};
 use alloy_consensus::Header;
-use alloy_sol_types::SolValue;
 
 use anyhow::{Error, Result};
 use bonsai_sdk;

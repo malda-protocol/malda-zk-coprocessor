@@ -18,7 +18,7 @@ use crate::cryptography::{recover_signer, signature_from_bytes};
 use crate::types::*;
 use alloy_consensus::Header;
 use alloy_encode_packed::{abi, SolidityDataType, TakeLastXBytes};
-use alloy_primitives::{keccak256, Address, Bytes, B256, U256};
+use alloy_primitives::{Address, Bytes, B256, U256};
 use alloy_sol_types::SolValue;
 use risc0_op_steel::optimism::OpBlockHeader;
 use risc0_op_steel::optimism::OpEvmInput;
@@ -34,11 +34,11 @@ use risc0_steel::{ethereum::EthEvmInput, serde::RlpHeader, Commitment, Contract,
 /// * `target_chain_ids` - Vector of target chain IDs for each account
 /// * `env_input` - EVM environment input for the chain
 /// * `sequencer_commitment` - Optional sequencer commitment for L2 chains
-/// * `env_op_input` - Optional Optimism environment input for L1 validation
+/// * `env_input_opstack_for_l1_block_call` - Optional Optimism environment input for L1 validation
 /// * `linking_blocks` - Vector of blocks for reorg protection
 /// * `output` - Output vector for proof data results
-/// * `env_eth_input` - Optional Ethereum environment input for L1 inclusion validation
-/// * `storage_hash` - Optional storage hash for L1 inclusion validation
+/// * `env_input_eth_for_l1_inclusion` - Optional Ethereum environment input for L1 inclusion
+/// * `env_input_opstack_for_viewcall_with_l1_inclusion` - Optional OpStack environment input for L1 inclusion
 ///
 /// # Panics
 /// * If chain ID is invalid
@@ -55,9 +55,9 @@ pub fn validate_get_proof_data_call(
     env_input_for_viewcall: Option<EthEvmInput>,
     sequencer_commitment_opstack: Option<SequencerCommitment>,
     env_input_opstack_for_l1_block_call: Option<EthEvmInput>,
-    linking_blocks: Vec<RlpHeader<Header>>,
+    linking_blocks: &Vec<RlpHeader<Header>>,
     output: &mut Vec<Bytes>,
-    env_input_eth_for_l1_inclusion: Option<EthEvmInput>,
+    env_input_eth_for_l1_inclusion: &Option<EthEvmInput>,
     env_input_opstack_for_viewcall_with_l1_inclusion: Option<OpEvmInput>,
 ) {
     let (
@@ -72,8 +72,8 @@ pub fn validate_get_proof_data_call(
     ) = sort_and_verify_relevant_params(
         chain_id,
         env_input_for_viewcall,
-        linking_blocks.clone(),
-        env_input_eth_for_l1_inclusion.clone(),
+        linking_blocks,
+        env_input_eth_for_l1_inclusion,
         env_input_opstack_for_viewcall_with_l1_inclusion,
     );
 
@@ -118,11 +118,38 @@ pub fn validate_get_proof_data_call(
     }
 }
 
+/// Sorts and verifies relevant parameters for proof data validation
+///
+/// This function processes and validates input parameters for different chain types,
+/// handling both L1 and L2 validation scenarios.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to determine validation strategy
+/// * `env_input_for_viewcall` - Optional EVM input for view calls
+/// * `linking_blocks` - Vector of blocks for reorg protection
+/// * `env_input_eth_for_l1_inclusion` - Optional Ethereum input for L1 inclusion
+/// * `env_input_opstack_for_viewcall_with_l1_inclusion` - Optional OpStack input for L1 inclusion
+///
+/// # Returns
+/// A tuple containing:
+/// * `EvmEnv` - The validated EVM environment
+/// * `RlpHeader<Header>` - The block header to validate
+/// * `B256` - The header hash to validate
+/// * `Header` - The inner header to validate
+/// * `Option<EvmEnv>` - Optional OpStack EVM environment
+/// * `Option<Commitment>` - Optional commitment
+/// * `u64` - Chain ID for length validation
+/// * `bool` - Whether to validate L1 inclusion
+///
+/// # Panics
+/// * If chain ID is invalid
+/// * If required environment inputs are missing
+/// * If parameter validation fails
 pub fn sort_and_verify_relevant_params(
     chain_id: u64,
     env_input_for_viewcall: Option<EthEvmInput>,
-    linking_blocks: Vec<RlpHeader<Header>>,
-    env_input_eth_for_l1_inclusion: Option<EthEvmInput>,
+    linking_blocks: &Vec<RlpHeader<Header>>,
+    env_input_eth_for_l1_inclusion: &Option<EthEvmInput>,
     env_input_opstack_for_viewcall_with_l1_inclusion: Option<OpEvmInput>,
 ) -> (
     EvmEnv<StateDb, RlpHeader<Header>, Commitment>,
@@ -134,7 +161,6 @@ pub fn sort_and_verify_relevant_params(
     u64,
     bool,
 ) {
-
     let validate_l1_inclusion = env_input_eth_for_l1_inclusion.is_some();
 
     let (env_for_viewcall, op_env_for_viewcall_with_l1_inclusion, op_env_commitment, chain_id_for_length_validation) = if (chain_id
@@ -145,8 +171,9 @@ pub fn sort_and_verify_relevant_params(
         && validate_l1_inclusion
     {
         let env_for_viewcall = env_input_eth_for_l1_inclusion
-            .clone()
+            .as_ref()
             .expect("env_eth_input is None")
+            .clone()
             .into_env();
         let op_env_for_viewcall_with_l1_inclusion = env_input_opstack_for_viewcall_with_l1_inclusion
             .expect("op_evm_input is None")
@@ -157,13 +184,12 @@ pub fn sort_and_verify_relevant_params(
             OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID => ETHEREUM_SEPOLIA_CHAIN_ID,
             _ => panic!("invalid chain id"),
         };
-            (
-                env_for_viewcall,
-                Some(op_env_for_viewcall_with_l1_inclusion),
-                Some(op_env_commitment),
-                chain_id_for_length_validation,
-            )
-   
+        (
+            env_for_viewcall,
+            Some(op_env_for_viewcall_with_l1_inclusion),
+            Some(op_env_commitment),
+            chain_id_for_length_validation,
+        )
     } else {
         (
             env_input_for_viewcall
@@ -196,9 +222,26 @@ pub fn sort_and_verify_relevant_params(
     )
 }
 
+/// Validates an OpStack dispute game commitment
+///
+/// This function verifies the dispute game state and commitment for OpStack chains,
+/// ensuring the game is valid and properly resolved.
+///
+/// # Arguments
+/// * `chain_id` - The OpStack chain ID
+/// * `eth_env` - The Ethereum EVM environment
+/// * `op_env_commitment` - The OpStack commitment to validate
+///
+/// # Panics
+/// * If chain ID is invalid
+/// * If game type is not respected
+/// * If game was created before respected game type update
+/// * If game status is not DEFENDER_WINS
+/// * If game is blacklisted
+/// * If insufficient time has passed since game resolution
+/// * If root claim doesn't match
 pub fn validate_opstack_dispute_game_commitment(
     chain_id: u64,
-    ethereum_hash: B256,
     eth_env: EvmEnv<StateDb, RlpHeader<Header>, Commitment>,
     op_env_commitment: &Commitment,
 ) {
@@ -306,7 +349,7 @@ pub fn get_validated_block_hash(
     env_header_to_validate: Header,
     sequencer_commitment_opstack: Option<SequencerCommitment>,
     env_input_opstack_for_l1_block_call: Option<EthEvmInput>,
-    env_input_eth_for_l1_inclusion: Option<EthEvmInput>,
+    env_input_eth_for_l1_inclusion: &Option<EthEvmInput>,
     block_header_to_validate: RlpHeader<Header>,
     validate_l1_inclusion: bool,
     op_env_commitment: Option<&Commitment>,
@@ -341,7 +384,6 @@ pub fn get_validated_block_hash(
             env_input_opstack_for_l1_block_call.unwrap(),
             chain_id,
         )
-
     } else {
         panic!("invalid chain id");
     }
@@ -369,7 +411,7 @@ pub fn get_validated_block_hash_opstack(
     chain_id: u64,
     sequencer_commitment: Option<SequencerCommitment>,
     env_input_opstack_for_l1_block_call: Option<EthEvmInput>,
-    env_input_eth_for_l1_inclusion: Option<EthEvmInput>,
+    env_input_eth_for_l1_inclusion: &Option<EthEvmInput>,
     block_header_to_validate: RlpHeader<Header>,
     validate_l1_inclusion: bool,
     op_env_commitment: Option<&Commitment>,
@@ -390,8 +432,7 @@ pub fn get_validated_block_hash_opstack(
         assert_eq!(ethereum_hash, validated_hash, "hash mismatch  opstack");
         validate_opstack_dispute_game_commitment(
             chain_id,
-            ethereum_hash,
-            env_input_eth_for_l1_inclusion.unwrap().into_env(),
+            env_input_eth_for_l1_inclusion.as_ref().unwrap().clone().into_env(),
             op_env_commitment.unwrap(),
         )
     } else {
@@ -422,7 +463,7 @@ pub fn get_validated_block_hash_linea(
     env_header_to_validate: Header,
     sequencer_commitment_opstack: Option<SequencerCommitment>,
     env_input_opstack_for_l1_block_call: Option<EthEvmInput>,
-    env_input_eth_for_l1_inclusion: Option<EthEvmInput>,
+    env_input_eth_for_l1_inclusion: &Option<EthEvmInput>,
     block_header_to_validate: RlpHeader<Header>,
     validate_l1_inclusion: bool,
 ) -> B256 {
@@ -440,11 +481,11 @@ pub fn get_validated_block_hash_linea(
         validate_linea_env_with_l1_inclusion(
             chain_id,
             env_header_to_validate.number,
-            env_input_eth_for_l1_inclusion.unwrap(),
+            env_input_eth_for_l1_inclusion.as_ref().unwrap().clone(),
             ethereum_hash,
         );
     }
-    validate_linea_env(chain_id, block_header_to_validate.clone());
+    validate_linea_env(chain_id, &block_header_to_validate);
     block_header_to_validate.hash_slow()
 }
 
@@ -529,6 +570,21 @@ pub fn batch_call_get_proof_data<H>(
     );
 }
 
+/// Validates Linea environment with L1 inclusion verification
+///
+/// This function verifies that a Linea block is properly included in the L1 chain
+/// by checking block numbers and hashes.
+///
+/// # Arguments
+/// * `chain_id` - The Linea chain ID
+/// * `env_block_number` - The block number to validate
+/// * `env_eth_input` - The Ethereum EVM input for L1 validation
+/// * `ethereum_hash` - The Ethereum block hash to validate against
+///
+/// # Panics
+/// * If chain ID is invalid
+/// * If Ethereum hash doesn't match
+/// * If block number is higher than the last one posted to L1
 pub fn validate_linea_env_with_l1_inclusion(
     chain_id: u64,
     env_block_number: u64,
@@ -571,7 +627,7 @@ pub fn validate_linea_env_with_l1_inclusion(
 /// * If block is not signed by the official Linea sequencer
 /// * If signature recovery fails
 /// * If extra data format is invalid
-pub fn validate_linea_env(chain_id: u64, block_header_to_validate: RlpHeader<Header>) {
+pub fn validate_linea_env(chain_id: u64, block_header_to_validate: &RlpHeader<Header>) {
     let extra_data = block_header_to_validate.inner().extra_data.clone();
 
     let length = extra_data.len();
@@ -696,7 +752,7 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
 pub fn validate_chain_length(
     chain_id: u64,
     historical_hash: B256,
-    linking_blocks: Vec<RlpHeader<Header>>,
+    linking_blocks: &Vec<RlpHeader<Header>>,
     current_hash: B256,
 ) {
     let reorg_protection_depth = match chain_id {
