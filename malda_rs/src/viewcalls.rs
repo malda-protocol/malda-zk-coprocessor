@@ -470,15 +470,17 @@ pub async fn get_proof_data_zkvm_input(
     {
         if !l1_inclusion && (chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID) { 
             let (commitment, block) = get_current_sequencer_commitment(chain_id).await;
-            (Some(block), Some(commitment), None, None)
+            (Some(block), Some(commitment), None::<u64>, None::<SequencerCommitment>)
         } else if chain_id == ETHEREUM_SEPOLIA_CHAIN_ID || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
             let (commitment, block) = get_current_sequencer_commitment(OPTIMISM_SEPOLIA_CHAIN_ID).await;
-            let (commitment_2, block_2) = get_current_sequencer_commitment(BASE_SEPOLIA_CHAIN_ID).await;
-            (Some(block), Some(commitment), Some(block_2), Some(commitment_2))
+            // let (commitment_2, block_2) = get_current_sequencer_commitment(BASE_SEPOLIA_CHAIN_ID).await;
+            (Some(block), Some(commitment), None, None)
+            // (Some(block), Some(commitment), Some(block_2), Some(commitment_2))
         } else if chain_id == ETHEREUM_CHAIN_ID || chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID || chain_id == LINEA_CHAIN_ID {
             let (commitment, block) = get_current_sequencer_commitment(OPTIMISM_CHAIN_ID).await;
-            let (commitment_2, block_2) = get_current_sequencer_commitment(BASE_CHAIN_ID).await;
-            (Some(block), Some(commitment), Some(block_2), Some(commitment_2))
+            // let (commitment_2, block_2) = get_current_sequencer_commitment(BASE_CHAIN_ID).await;
+            (Some(block), Some(commitment), None, None)
+            // (Some(block), Some(commitment), Some(block_2), Some(commitment_2))
         } else {
             panic!("Invalid chain ID");
         }
@@ -498,7 +500,7 @@ pub async fn get_proof_data_zkvm_input(
         panic!("Invalid chain ID");
     };
 
-    let (l1_block_call_input_1, ethereum_block_1, l1_block_call_input_2, ethereum_block_2) =
+    let (l1_block_call_input_1, ethereum_block_1, l1_block_call_input_2, _ethereum_block_2) =
         if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID || l1_inclusion {
             let (chain_id_1, chain_id_2) = if chain_id == ETHEREUM_CHAIN_ID {
                 (OPTIMISM_CHAIN_ID, BASE_CHAIN_ID)
@@ -519,12 +521,11 @@ pub async fn get_proof_data_zkvm_input(
             };
             let (l1_block_call_input_1, ethereum_block_1) =
                 get_l1block_call_input(BlockNumberOrTag::Number(block.unwrap()), chain_id_1).await;
-            let (l1_block_call_input_2, ethereum_block_2) =
-                get_l1block_call_input(BlockNumberOrTag::Number(block_2.unwrap()), chain_id_2).await;
+            // let (l1_block_call_input_2, ethereum_block_2) =
+            //     get_l1block_call_input(BlockNumberOrTag::Number(block_2.unwrap()), chain_id_2).await;
 
-            println!("eth block optimism: {:?}", ethereum_block_1);
-            println!("eth block base: {:?}", ethereum_block_2);
-            (Some(l1_block_call_input_1), Some(ethereum_block_1), Some(l1_block_call_input_2), Some(ethereum_block_2))
+            (Some(l1_block_call_input_1), Some(ethereum_block_1), None::<EvmInput<RlpHeader<Header>>>, None::<u64>)
+            // (Some(l1_block_call_input_1), Some(ethereum_block_1), Some(l1_block_call_input_2), Some(ethereum_block_2))
         } else {
             (None, None, None, None)
         };
