@@ -42,8 +42,6 @@ mod tests {
         USDC_MARKET_SEPOLIA, // USDC Market Sepolia
     ];
 
-
-
     #[tokio::test]
     async fn prove_get_proof_data_on_linea() {
         let user_linea = address!("2693946791da99dA78Ac441abA6D5Ce2Bccd96D3");
@@ -152,7 +150,6 @@ mod tests {
 
         let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
         println!("Cycles: {}", cycles);
-
     }
 
     #[tokio::test]
@@ -173,7 +170,6 @@ mod tests {
 
         let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
         println!("Cycles: {}", cycles);
-
     }
 
     #[tokio::test]
@@ -568,7 +564,6 @@ mod tests {
         let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
         println!("Cycles: {}", cycles);
     }
-
 
     #[tokio::test]
     async fn prove_get_proof_data_on_ethereum_via_light_client() {

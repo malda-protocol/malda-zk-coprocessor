@@ -446,6 +446,11 @@ pub async fn get_proof_data_zkvm_input(
     chain_id: u64,
     l1_inclusion: bool,
 ) -> Vec<u8> {
+    let is_sepolia = chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
+        || chain_id == BASE_SEPOLIA_CHAIN_ID
+        || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID
+        || chain_id == LINEA_SEPOLIA_CHAIN_ID;
+
     let rpc_url = match chain_id {
         BASE_CHAIN_ID => rpc_url_base(),
         OPTIMISM_CHAIN_ID => rpc_url_optimism(),
@@ -458,313 +463,27 @@ pub async fn get_proof_data_zkvm_input(
         _ => panic!("Invalid chain ID"),
     };
 
-    let (block, commitment, block_2, commitment_2) = if chain_id == OPTIMISM_CHAIN_ID
-        || chain_id == BASE_CHAIN_ID
-        || chain_id == ETHEREUM_CHAIN_ID
-        || chain_id == OPTIMISM_CHAIN_ID
-        || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-        || chain_id == BASE_SEPOLIA_CHAIN_ID
-        || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID
-        || (chain_id == LINEA_CHAIN_ID && l1_inclusion)
-        || (chain_id == LINEA_SEPOLIA_CHAIN_ID && l1_inclusion)
-    {
-        if !l1_inclusion && (chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID) { 
-            let (commitment, block) = get_current_sequencer_commitment(chain_id).await;
-            (Some(block), Some(commitment), None::<u64>, None::<SequencerCommitment>)
-        } else if chain_id == ETHEREUM_SEPOLIA_CHAIN_ID || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
-            let (commitment, block) = get_current_sequencer_commitment(OPTIMISM_SEPOLIA_CHAIN_ID).await;
-            // let (commitment_2, block_2) = get_current_sequencer_commitment(BASE_SEPOLIA_CHAIN_ID).await;
-            (Some(block), Some(commitment), None, None)
-            // (Some(block), Some(commitment), Some(block_2), Some(commitment_2))
-        } else if chain_id == ETHEREUM_CHAIN_ID || chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID || chain_id == LINEA_CHAIN_ID {
-            let (commitment, block) = get_current_sequencer_commitment(OPTIMISM_CHAIN_ID).await;
-            // let (commitment_2, block_2) = get_current_sequencer_commitment(BASE_CHAIN_ID).await;
-            (Some(block), Some(commitment), None, None)
-            // (Some(block), Some(commitment), Some(block_2), Some(commitment_2))
-        } else {
-            panic!("Invalid chain ID");
-        }
-    } else if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
-        let block = EthEvmEnv::builder()
-            .rpc(Url::parse(rpc_url).unwrap())
-            .block_number_or_tag(BlockNumberOrTag::Latest)
-            .build()
-            .await
-            .unwrap()
-            .header()
-            .inner()
-            .inner()
-            .number;
-        (Some(block), None, None, None)
-    } else {
-        panic!("Invalid chain ID");
-    };
+    let (block, commitment, block_2, commitment_2) =
+        get_sequencer_commitments_and_blocks(chain_id, rpc_url, is_sepolia, l1_inclusion).await;
 
     let (l1_block_call_input_1, ethereum_block_1, l1_block_call_input_2, _ethereum_block_2) =
-        if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID || l1_inclusion {
-            let (chain_id_1, chain_id_2) = if chain_id == ETHEREUM_CHAIN_ID {
-                (OPTIMISM_CHAIN_ID, BASE_CHAIN_ID)
-            } else if chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
-                (OPTIMISM_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID)
-            } else if chain_id == OPTIMISM_CHAIN_ID
-                || chain_id == BASE_CHAIN_ID
-                || chain_id == LINEA_CHAIN_ID
-            {
-                (OPTIMISM_CHAIN_ID, BASE_CHAIN_ID)
-            } else if chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-                || chain_id == BASE_SEPOLIA_CHAIN_ID
-                || chain_id == LINEA_SEPOLIA_CHAIN_ID
-            {
-                (OPTIMISM_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID)
-            } else {
-                panic!("Invalid chain ID");
-            };
-            let (l1_block_call_input_1, ethereum_block_1) =
-                get_l1block_call_input(BlockNumberOrTag::Number(block.unwrap()), chain_id_1).await;
-            // let (l1_block_call_input_2, ethereum_block_2) =
-            //     get_l1block_call_input(BlockNumberOrTag::Number(block_2.unwrap()), chain_id_2).await;
+        get_l1block_call_inputs_and_l1_block_numbers(
+            chain_id,
+            is_sepolia,
+            l1_inclusion,
+            block,
+            block_2,
+        )
+        .await;
 
-            (Some(l1_block_call_input_1), Some(ethereum_block_1), None::<EvmInput<RlpHeader<Header>>>, None::<u64>)
-            // (Some(l1_block_call_input_1), Some(ethereum_block_1), Some(l1_block_call_input_2), Some(ethereum_block_2))
-        } else {
-            (None, None, None, None)
-        };
-
-    let (env_input_l1_inclusion, l2_block_number_on_l1) = if l1_inclusion {
-        let l1_rpc_url = match chain_id {
-            OPTIMISM_CHAIN_ID => rpc_url_ethereum(),
-            BASE_CHAIN_ID => rpc_url_ethereum(),
-            OPTIMISM_SEPOLIA_CHAIN_ID => rpc_url_ethereum_sepolia(),
-            BASE_SEPOLIA_CHAIN_ID => rpc_url_ethereum_sepolia(),
-            LINEA_CHAIN_ID => rpc_url_ethereum(),
-            LINEA_SEPOLIA_CHAIN_ID => rpc_url_ethereum_sepolia(),
-            _ => panic!("Invalid chain ID"),
-        };
-        let l1_block = if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
-            ethereum_block_1.unwrap()
-        } else {
-            if chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID {
-                ethereum_block_1.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA
-
-            } else  if chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID {
-                ethereum_block_1.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM
-            } else {
-                panic!("Invalid chain ID");
-            }
-        };
-        let mut env = EthEvmEnv::builder()
-            .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
-            .block_number_or_tag(BlockNumberOrTag::Number(l1_block))
-            .build()
-            .await
-            .expect("Failed to build EVM environment");
-
-        if chain_id == OPTIMISM_CHAIN_ID
-            || chain_id == BASE_CHAIN_ID
-            || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-            || chain_id == BASE_SEPOLIA_CHAIN_ID
-        {
-            let (l1_rpc_url, optimism_portal, l2_rpc_url) = match chain_id {
-                OPTIMISM_CHAIN_ID => (rpc_url_ethereum(), OPTIMISM_PORTAL, rpc_url_optimism()),
-                OPTIMISM_SEPOLIA_CHAIN_ID => (
-                    rpc_url_ethereum_sepolia(),
-                    OPTIMISM_SEPOLIA_PORTAL,
-                    rpc_url_optimism_sepolia(),
-                ),
-                BASE_CHAIN_ID => (rpc_url_ethereum(), BASE_PORTAL, rpc_url_base()),
-                BASE_SEPOLIA_CHAIN_ID => (
-                    rpc_url_ethereum_sepolia(),
-                    BASE_SEPOLIA_PORTAL,
-                    rpc_url_base_sepolia(),
-                ),
-                _ => panic!("Invalid chain ID"),
-            };
-            let builder = OpEvmEnv::builder()
-                .dispute_game_from_rpc(
-                    optimism_portal,
-                    Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"),
-                )
-                .game_index(DisputeGameIndex::Finalized);
-            let mut op_env = builder
-                .rpc(Url::parse(l2_rpc_url).expect("Failed to parse RPC URL"))
-                .build()
-                .await
-                .expect("Failed to build OP-EVM environment");
-
-            // This is just an arbitrary simple call needed in order to do into_env to get the game_index
-            let mut contract = Contract::preflight(L1_BLOCK_ADDRESS_OPSTACK, &mut op_env);
-            let block_hash_call = IL1Block::hashCall {};
-            let _returns = contract
-                .call_builder(&block_hash_call)
-                .call()
-                .await
-                .expect("Failed to execute factory call");
-
-            let input = op_env
-                .into_input()
-                .await
-                .expect("Failed to convert environment to input");
-            let op_env_commitment = input.clone().into_env().into_commitment();
-
-            let (game_index, _version) = op_env_commitment.decode_id();
-
-            let root_claim = op_env_commitment.digest;
-
-            let portal_adress = match chain_id {
-                OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
-                BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
-                OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
-                BASE_CHAIN_ID => BASE_PORTAL,
-                _ => panic!("invalid chain id"),
-            };
-
-            // Get the portal contract for additional checks
-            let mut contract = Contract::preflight(portal_adress, &mut env);
-
-            // Get factory address from portal
-            let factory_call = IOptimismPortal::disputeGameFactoryCall {};
-            let returns = contract
-                .call_builder(&factory_call)
-                .call()
-                .await
-                .expect("Failed to execute factory call");
-            let factory_address = returns._0;
-
-            let game_call = IDisputeGameFactory::gameAtIndexCall { index: game_index };
-
-            let mut contract = Contract::preflight(factory_address, &mut env);
-            let returns = contract
-                .call_builder(&game_call)
-                .call()
-                .await
-                .expect("Failed to execute game at index call");
-
-            let game_type = returns._0;
-            assert_eq!(game_type, U256::from(0), "game type not respected game");
-
-            let created_at = returns._1;
-            let game_address = returns._2;
-
-            // Check if game was created after respected game type update
-            let mut contract = Contract::preflight(portal_adress, &mut env);
-            let respected_game_type_updated_at_call =
-                IOptimismPortal::respectedGameTypeUpdatedAtCall {};
-            let returns = contract
-                .call_builder(&respected_game_type_updated_at_call)
-                .call()
-                .await
-                .expect("Failed to execute respected game type updated at call");
-            assert!(
-                created_at >= returns._0,
-                "game created before respected game type update"
-            );
-
-            // Get game contract for status checks
-            let mut contract = Contract::preflight(game_address, &mut env);
-
-            // Check game status
-            let status_call = IDisputeGame::statusCall {};
-            let returns = contract
-                .call_builder(&status_call)
-                .call()
-                .await
-                .expect("Failed to execute status call");
-            assert_eq!(
-                returns._0,
-                GameStatus::DEFENDER_WINS,
-                "game status not DEFENDER_WINS"
-            );
-
-            // Check if game is blacklisted
-            let mut contract = Contract::preflight(portal_adress, &mut env);
-            let blacklist_call = IOptimismPortal::disputeGameBlacklistCall { game: game_address };
-            let returns = contract
-                .call_builder(&blacklist_call)
-                .call()
-                .await
-                .expect("Failed to execute blacklist call");
-            assert!(!returns._0, "game is blacklisted");
-
-            // Check game resolution time
-            let mut contract = Contract::preflight(game_address, &mut env);
-            let resolved_at_call = IDisputeGame::resolvedAtCall {};
-            let returns = contract
-                .call_builder(&resolved_at_call)
-                .call()
-                .await
-                .expect("Failed to execute resolved at call");
-            let resolved_at = returns._0;
-
-            let mut contract = Contract::preflight(portal_adress, &mut env);
-            let proof_maturity_delay_call = IOptimismPortal::proofMaturityDelaySecondsCall {};
-            let returns = contract
-                .call_builder(&proof_maturity_delay_call)
-                .call()
-                .await
-                .expect("Failed to execute proof maturity delay call");
-            let proof_maturity_delay = returns._0;
-
-            let current_timestamp = env.header().inner().inner().timestamp;
-            assert!(
-                U256::from(current_timestamp) - U256::from(resolved_at) > proof_maturity_delay - U256::from(300),
-                "insufficient time passed since game resolution"
-            );
-
-            // Finally verify root claim matches
-            let mut contract = Contract::preflight(game_address, &mut env);
-            let root_claim_call = IDisputeGame::rootClaimCall {};
-            let returns = contract
-                .call_builder(&root_claim_call)
-                .call()
-                .await
-                .expect("Failed to execute root claim call");
-
-            assert_eq!(returns._0, root_claim, "root claim not respected");
-
-            (
-                Some(
-                    env.into_input()
-                        .await
-                        .expect("Failed to convert environment to input"),
-                ),
-                // irrelevant for l1 inclusion on opstack
-                Some(1),
-            )
-        } else if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
-            let message_service_address = match chain_id {
-                LINEA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA,
-                LINEA_SEPOLIA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA_SEPOLIA,
-                _ => panic!("Invalid chain ID"),
-            };
-
-            // Make single multicall
-            let current_l2_block_number_call = IL1MessageService::currentL2BlockNumberCall {};
-
-            let mut contract = Contract::preflight(message_service_address, &mut env);
-            let returns = contract
-                .call_builder(&current_l2_block_number_call)
-                .call()
-                .await
-                .expect("Failed to execute current l2 block number call");
-
-            let l2_block_number: u64 = U64::from(returns._0).try_into().unwrap();
-
-            (
-                Some(
-                    env.into_input()
-                        .await
-                        .expect("Failed to convert environment to input"),
-                ),
-                Some(l2_block_number),
-            )
-        } else {
-            panic!(
-                "L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants"
-            );
-        }
-    } else {
-        (None, None)
-    };
+    let (env_input_l1_inclusion, l2_block_number_on_l1) =
+        get_env_input_for_l1_inclusion_and_l2_block_number(
+            chain_id,
+            is_sepolia,
+            l1_inclusion,
+            ethereum_block_1,
+        )
+        .await;
 
     let block =
         if l1_inclusion && (chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID) {
@@ -829,6 +548,300 @@ pub async fn get_proof_data_zkvm_input(
     );
 
     input
+}
+
+pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
+    chain_id: u64,
+    is_sepolia: bool,
+    l1_inclusion: bool,
+    ethereum_block: Option<u64>,
+) -> (Option<EvmInput<RlpHeader<Header>>>, Option<u64>) {
+    if !l1_inclusion {
+        (None, None)
+    } else {
+        let l1_rpc_url = match is_sepolia {
+            true => rpc_url_ethereum_sepolia(),
+            false => rpc_url_ethereum(),
+        };
+        let l1_block = if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
+            ethereum_block.unwrap()
+        } else {
+            if is_sepolia {
+                ethereum_block.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA
+            } else if !is_sepolia {
+                ethereum_block.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM
+            } else {
+                panic!("Invalid chain ID");
+            }
+        };
+
+        if chain_id == OPTIMISM_CHAIN_ID
+            || chain_id == BASE_CHAIN_ID
+            || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
+            || chain_id == BASE_SEPOLIA_CHAIN_ID
+        {
+            get_env_input_for_opstack_dispute_game(chain_id, l1_block).await
+        } else if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
+            get_env_input_for_linea_l1_call(chain_id, l1_rpc_url, l1_block).await
+        } else {
+            panic!(
+                "L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants"
+            );
+        }
+    }
+}
+
+pub async fn get_env_input_for_linea_l1_call(
+    chain_id: u64,
+    l1_rpc_url: &str,
+    l1_block: u64,
+) -> (Option<EvmInput<RlpHeader<Header>>>, Option<u64>) {
+    let message_service_address = match chain_id {
+        LINEA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA,
+        LINEA_SEPOLIA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA_SEPOLIA,
+        _ => panic!("Invalid chain ID"),
+    };
+
+    let mut env = EthEvmEnv::builder()
+        .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
+        .block_number_or_tag(BlockNumberOrTag::Number(l1_block))
+        .build()
+        .await
+        .expect("Failed to build EVM environment");
+
+    // Make single multicall
+    let current_l2_block_number_call = IL1MessageService::currentL2BlockNumberCall {};
+
+    let mut contract = Contract::preflight(message_service_address, &mut env);
+    let returns = contract
+        .call_builder(&current_l2_block_number_call)
+        .call()
+        .await
+        .expect("Failed to execute current l2 block number call");
+
+    let l2_block_number: u64 = U64::from(returns._0).try_into().unwrap();
+
+    (
+        Some(
+            env.into_input()
+                .await
+                .expect("Failed to convert environment to input"),
+        ),
+        Some(l2_block_number),
+    )
+}
+
+pub async fn get_env_input_for_opstack_dispute_game(
+    chain_id: u64,
+    l1_block: u64,
+) -> (Option<EvmInput<RlpHeader<Header>>>, Option<u64>) {
+    let (l1_rpc_url, optimism_portal, l2_rpc_url) = match chain_id {
+        OPTIMISM_CHAIN_ID => (rpc_url_ethereum(), OPTIMISM_PORTAL, rpc_url_optimism()),
+        OPTIMISM_SEPOLIA_CHAIN_ID => (
+            rpc_url_ethereum_sepolia(),
+            OPTIMISM_SEPOLIA_PORTAL,
+            rpc_url_optimism_sepolia(),
+        ),
+        BASE_CHAIN_ID => (rpc_url_ethereum(), BASE_PORTAL, rpc_url_base()),
+        BASE_SEPOLIA_CHAIN_ID => (
+            rpc_url_ethereum_sepolia(),
+            BASE_SEPOLIA_PORTAL,
+            rpc_url_base_sepolia(),
+        ),
+        _ => panic!("Invalid chain ID"),
+    };
+
+    let mut env = EthEvmEnv::builder()
+        .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
+        .block_number_or_tag(BlockNumberOrTag::Number(l1_block))
+        .build()
+        .await
+        .expect("Failed to build EVM environment");
+    let builder = OpEvmEnv::builder()
+        .dispute_game_from_rpc(
+            optimism_portal,
+            Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"),
+        )
+        .game_index(DisputeGameIndex::Finalized);
+    let mut op_env = builder
+        .rpc(Url::parse(l2_rpc_url).expect("Failed to parse RPC URL"))
+        .build()
+        .await
+        .expect("Failed to build OP-EVM environment");
+
+    // This is just an arbitrary simple call needed in order to do into_env to get the game_index
+    let mut contract = Contract::preflight(L1_BLOCK_ADDRESS_OPSTACK, &mut op_env);
+    let block_hash_call = IL1Block::hashCall {};
+    let _returns = contract
+        .call_builder(&block_hash_call)
+        .call()
+        .await
+        .expect("Failed to execute factory call");
+
+    let input = op_env
+        .into_input()
+        .await
+        .expect("Failed to convert environment to input");
+    let op_env_commitment = input.clone().into_env().into_commitment();
+
+    let (game_index, _version) = op_env_commitment.decode_id();
+
+    let root_claim = op_env_commitment.digest;
+
+    let portal_adress = match chain_id {
+        OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
+        BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
+        OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
+        BASE_CHAIN_ID => BASE_PORTAL,
+        _ => panic!("invalid chain id"),
+    };
+
+    // Get the portal contract for additional checks
+    let mut contract = Contract::preflight(portal_adress, &mut env);
+
+    // Get factory address from portal
+    let factory_call = IOptimismPortal::disputeGameFactoryCall {};
+    let returns = contract
+        .call_builder(&factory_call)
+        .call()
+        .await
+        .expect("Failed to execute factory call");
+    let factory_address = returns._0;
+
+    let game_call = IDisputeGameFactory::gameAtIndexCall { index: game_index };
+
+    let mut contract = Contract::preflight(factory_address, &mut env);
+    let returns = contract
+        .call_builder(&game_call)
+        .call()
+        .await
+        .expect("Failed to execute game at index call");
+
+    let game_type = returns._0;
+    assert_eq!(game_type, U256::from(0), "game type not respected game");
+
+    let created_at = returns._1;
+    let game_address = returns._2;
+
+    // Check if game was created after respected game type update
+    let mut contract = Contract::preflight(portal_adress, &mut env);
+    let respected_game_type_updated_at_call = IOptimismPortal::respectedGameTypeUpdatedAtCall {};
+    let returns = contract
+        .call_builder(&respected_game_type_updated_at_call)
+        .call()
+        .await
+        .expect("Failed to execute respected game type updated at call");
+    assert!(
+        created_at >= returns._0,
+        "game created before respected game type update"
+    );
+
+    // Get game contract for status checks
+    let mut contract = Contract::preflight(game_address, &mut env);
+
+    // Check game status
+    let status_call = IDisputeGame::statusCall {};
+    let returns = contract
+        .call_builder(&status_call)
+        .call()
+        .await
+        .expect("Failed to execute status call");
+    assert_eq!(
+        returns._0,
+        GameStatus::DEFENDER_WINS,
+        "game status not DEFENDER_WINS"
+    );
+
+    // Check if game is blacklisted
+    let mut contract = Contract::preflight(portal_adress, &mut env);
+    let blacklist_call = IOptimismPortal::disputeGameBlacklistCall { game: game_address };
+    let returns = contract
+        .call_builder(&blacklist_call)
+        .call()
+        .await
+        .expect("Failed to execute blacklist call");
+    assert!(!returns._0, "game is blacklisted");
+
+    // Check game resolution time
+    let mut contract = Contract::preflight(game_address, &mut env);
+    let resolved_at_call = IDisputeGame::resolvedAtCall {};
+    let returns = contract
+        .call_builder(&resolved_at_call)
+        .call()
+        .await
+        .expect("Failed to execute resolved at call");
+    let resolved_at = returns._0;
+
+    let mut contract = Contract::preflight(portal_adress, &mut env);
+    let proof_maturity_delay_call = IOptimismPortal::proofMaturityDelaySecondsCall {};
+    let returns = contract
+        .call_builder(&proof_maturity_delay_call)
+        .call()
+        .await
+        .expect("Failed to execute proof maturity delay call");
+    let proof_maturity_delay = returns._0;
+
+    let current_timestamp = env.header().inner().inner().timestamp;
+    assert!(
+        U256::from(current_timestamp) - U256::from(resolved_at)
+            > proof_maturity_delay - U256::from(300),
+        "insufficient time passed since game resolution"
+    );
+
+    // Finally verify root claim matches
+    let mut contract = Contract::preflight(game_address, &mut env);
+    let root_claim_call = IDisputeGame::rootClaimCall {};
+    let returns = contract
+        .call_builder(&root_claim_call)
+        .call()
+        .await
+        .expect("Failed to execute root claim call");
+
+    assert_eq!(returns._0, root_claim, "root claim not respected");
+
+    (
+        Some(
+            env.into_input()
+                .await
+                .expect("Failed to convert environment to input"),
+        ),
+        // irrelevant for l1 inclusion on opstack
+        Some(1),
+    )
+}
+
+pub async fn get_l1block_call_inputs_and_l1_block_numbers(
+    chain_id: u64,
+    is_sepolia: bool,
+    l1_inclusion: bool,
+    block: Option<u64>,
+    block_2: Option<u64>,
+) -> (
+    Option<EvmInput<RlpHeader<Header>>>,
+    Option<u64>,
+    Option<EvmInput<RlpHeader<Header>>>,
+    Option<u64>,
+) {
+    if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID || l1_inclusion {
+        let (chain_id_1, chain_id_2) = match is_sepolia {
+            true => (OPTIMISM_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID),
+            false => (OPTIMISM_CHAIN_ID, BASE_CHAIN_ID),
+        };
+        let (l1_block_call_input_1, ethereum_block_1) =
+            get_l1block_call_input(BlockNumberOrTag::Number(block.unwrap()), chain_id_1).await;
+        // let (l1_block_call_input_2, ethereum_block_2) =
+        //     get_l1block_call_input(BlockNumberOrTag::Number(block_2.unwrap()), chain_id_2).await;
+
+        (
+            Some(l1_block_call_input_1),
+            Some(ethereum_block_1),
+            None::<EvmInput<RlpHeader<Header>>>,
+            None::<u64>,
+        )
+        // (Some(l1_block_call_input_1), Some(ethereum_block_1), Some(l1_block_call_input_2), Some(ethereum_block_2))
+    } else {
+        (None, None, None, None)
+    }
 }
 
 /// Prepares multicall input for batch proof data checking
@@ -982,6 +995,70 @@ pub async fn get_proof_data_call_input(
     }
 }
 
+pub async fn get_sequencer_commitments_and_blocks(
+    chain_id: u64,
+    rpc_url: &str,
+    is_sepolia: bool,
+    l1_inclusion: bool,
+) -> (
+    Option<u64>,
+    Option<SequencerCommitment>,
+    Option<u64>,
+    Option<SequencerCommitment>,
+) {
+    if chain_id == OPTIMISM_CHAIN_ID
+        || chain_id == BASE_CHAIN_ID
+        || chain_id == ETHEREUM_CHAIN_ID
+        || chain_id == OPTIMISM_CHAIN_ID
+        || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
+        || chain_id == BASE_SEPOLIA_CHAIN_ID
+        || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID
+        || (chain_id == LINEA_CHAIN_ID && l1_inclusion)
+        || (chain_id == LINEA_SEPOLIA_CHAIN_ID && l1_inclusion)
+    {
+        if !l1_inclusion
+            && (chain_id == OPTIMISM_CHAIN_ID
+                || chain_id == BASE_CHAIN_ID
+                || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
+                || chain_id == BASE_SEPOLIA_CHAIN_ID)
+        {
+            let (commitment, block) = get_current_sequencer_commitment(chain_id).await;
+            (
+                Some(block),
+                Some(commitment),
+                None::<u64>,
+                None::<SequencerCommitment>,
+            )
+        } else if is_sepolia {
+            let (commitment, block) =
+                get_current_sequencer_commitment(OPTIMISM_SEPOLIA_CHAIN_ID).await;
+            // let (commitment_2, block_2) = get_current_sequencer_commitment(BASE_SEPOLIA_CHAIN_ID).await;
+            (Some(block), Some(commitment), None, None)
+            // (Some(block), Some(commitment), Some(block_2), Some(commitment_2))
+        } else if !is_sepolia {
+            let (commitment, block) = get_current_sequencer_commitment(OPTIMISM_CHAIN_ID).await;
+            // let (commitment_2, block_2) = get_current_sequencer_commitment(BASE_CHAIN_ID).await;
+            (Some(block), Some(commitment), None, None)
+            // (Some(block), Some(commitment), Some(block_2), Some(commitment_2))
+        } else {
+            panic!("Invalid chain ID");
+        }
+    } else if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
+        let block = EthEvmEnv::builder()
+            .rpc(Url::parse(rpc_url).unwrap())
+            .block_number_or_tag(BlockNumberOrTag::Latest)
+            .build()
+            .await
+            .unwrap()
+            .header()
+            .inner()
+            .inner()
+            .number;
+        (Some(block), None, None, None)
+    } else {
+        panic!("Invalid chain ID");
+    }
+}
 /// Fetches the current sequencer commitment for L2 chains
 ///
 /// # Arguments

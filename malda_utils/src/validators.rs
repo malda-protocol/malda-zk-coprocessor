@@ -167,8 +167,12 @@ pub fn sort_and_verify_relevant_params(
 ) {
     let validate_l1_inclusion = env_input_eth_for_l1_inclusion.is_some();
 
-    let (env_for_viewcall, op_env_for_viewcall_with_l1_inclusion, op_env_commitment, chain_id_for_length_validation) = if (chain_id
-        == OPTIMISM_CHAIN_ID
+    let (
+        env_for_viewcall,
+        op_env_for_viewcall_with_l1_inclusion,
+        op_env_commitment,
+        chain_id_for_length_validation,
+    ) = if (chain_id == OPTIMISM_CHAIN_ID
         || chain_id == BASE_CHAIN_ID
         || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
         || chain_id == BASE_SEPOLIA_CHAIN_ID)
@@ -179,9 +183,10 @@ pub fn sort_and_verify_relevant_params(
             .expect("env_eth_input is None")
             .clone()
             .into_env();
-        let op_env_for_viewcall_with_l1_inclusion = env_input_opstack_for_viewcall_with_l1_inclusion
-            .expect("op_evm_input is None")
-            .into_env();
+        let op_env_for_viewcall_with_l1_inclusion =
+            env_input_opstack_for_viewcall_with_l1_inclusion
+                .expect("op_evm_input is None")
+                .into_env();
         let op_env_commitment = op_env_for_viewcall_with_l1_inclusion.commitment().clone();
         let chain_id_for_length_validation = match chain_id {
             OPTIMISM_CHAIN_ID | BASE_CHAIN_ID => ETHEREUM_CHAIN_ID,
@@ -319,7 +324,8 @@ pub fn validate_opstack_dispute_game_commitment(
 
     let current_timestamp = eth_env.header().inner().inner().timestamp;
     assert!(
-        U256::from(current_timestamp) - U256::from(resolved_at) > proof_maturity_delay - U256::from(300),
+        U256::from(current_timestamp) - U256::from(resolved_at)
+            > proof_maturity_delay - U256::from(300),
         "insufficient time passed since game resolution"
     );
 
@@ -447,7 +453,11 @@ pub fn get_validated_block_hash_opstack(
         assert_eq!(ethereum_hash, validated_hash, "hash mismatch  opstack");
         validate_opstack_dispute_game_commitment(
             chain_id,
-            env_input_eth_for_l1_inclusion.as_ref().unwrap().clone().into_env(),
+            env_input_eth_for_l1_inclusion
+                .as_ref()
+                .unwrap()
+                .clone()
+                .into_env(),
             op_env_commitment.unwrap(),
         )
     } else {
@@ -572,7 +582,7 @@ pub fn batch_call_get_proof_data<H>(
         .iter()
         .zip(asset.iter())
         .zip(target_chain_ids.iter());
-    
+
     // Zip the batch parameters with returns.results for parallel iteration
     batch_params.zip(returns.results.iter()).for_each(
         |(((user, market), target_chain_id), result)| {
@@ -748,19 +758,24 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
     sequencer_commitment_opstack_2: Option<&SequencerCommitment>,
     env_input_opstack_for_l1_block_call_2: Option<EthEvmInput>,
 ) -> B256 {
-    let env_op = env_input_opstack_for_l1_block_call_1.expect("env_input_opstack_for_l1_block_call_1 is None").into_env();
+    let env_op = env_input_opstack_for_l1_block_call_1
+        .expect("env_input_opstack_for_l1_block_call_1 is None")
+        .into_env();
 
     let (verify_via_chain_1, verify_via_chain_2) = if chain_id == ETHEREUM_CHAIN_ID {
         (OPTIMISM_CHAIN_ID, BASE_CHAIN_ID)
     } else {
         (OPTIMISM_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID)
     };
-    validate_opstack_env(verify_via_chain_1, sequencer_commitment_opstack_1.unwrap(), env_op.commitment().digest);
+    validate_opstack_env(
+        verify_via_chain_1,
+        sequencer_commitment_opstack_1.unwrap(),
+        env_op.commitment().digest,
+    );
 
     let l1_block = Contract::new(L1_BLOCK_ADDRESS_OPSTACK, &env_op);
     let call = IL1Block::hashCall {};
     let l1_hash_1 = l1_block.call_builder(&call).call()._0;
-
 
     // let env_op_2 = env_input_opstack_for_l1_block_call_2.expect("env_input_opstack_for_l1_block_call_2 is None").into_env();
     // validate_opstack_env(verify_via_chain_2, sequencer_commitment_opstack_2.unwrap(), env_op_2.commitment().digest);
