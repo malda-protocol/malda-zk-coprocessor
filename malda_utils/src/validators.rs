@@ -59,6 +59,8 @@ pub fn validate_get_proof_data_call(
     output: &mut Vec<Bytes>,
     env_input_eth_for_l1_inclusion: &Option<EthEvmInput>,
     env_input_opstack_for_viewcall_with_l1_inclusion: Option<OpEvmInput>,
+    sequencer_commitment_opstack_2: Option<SequencerCommitment>,
+    env_input_opstack_for_l1_block_call_2: Option<EthEvmInput>,
 ) {
     let (
         env_for_viewcall,
@@ -86,6 +88,8 @@ pub fn validate_get_proof_data_call(
         block_header_to_validate,
         validate_l1_inclusion,
         op_env_commitment.as_ref(),
+        sequencer_commitment_opstack_2,
+        env_input_opstack_for_l1_block_call_2,
     );
 
     validate_chain_length(
@@ -352,6 +356,8 @@ pub fn get_validated_block_hash(
     block_header_to_validate: RlpHeader<Header>,
     validate_l1_inclusion: bool,
     op_env_commitment: Option<&Commitment>,
+    sequencer_commitment_opstack_2: Option<SequencerCommitment>,
+    env_input_opstack_for_l1_block_call_2: Option<EthEvmInput>,
 ) -> B256 {
     if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
         get_validated_block_hash_linea(
@@ -362,6 +368,8 @@ pub fn get_validated_block_hash(
             env_input_eth_for_l1_inclusion,
             block_header_to_validate,
             validate_l1_inclusion,
+            sequencer_commitment_opstack_2,
+            env_input_opstack_for_l1_block_call_2,
         )
     } else if chain_id == OPTIMISM_CHAIN_ID
         || chain_id == BASE_CHAIN_ID
@@ -376,12 +384,16 @@ pub fn get_validated_block_hash(
             block_header_to_validate,
             validate_l1_inclusion,
             op_env_commitment,
+            sequencer_commitment_opstack_2,
+            env_input_opstack_for_l1_block_call_2,
         )
     } else if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
         get_validated_ethereum_block_hash_via_opstack(
-            &sequencer_commitment_opstack.unwrap(),
-            env_input_opstack_for_l1_block_call.unwrap(),
+            sequencer_commitment_opstack.as_ref(),
+            env_input_opstack_for_l1_block_call,
             chain_id,
+            sequencer_commitment_opstack_2.as_ref(),
+            env_input_opstack_for_l1_block_call_2,
         )
     } else {
         panic!("invalid chain id");
@@ -414,6 +426,8 @@ pub fn get_validated_block_hash_opstack(
     block_header_to_validate: RlpHeader<Header>,
     validate_l1_inclusion: bool,
     op_env_commitment: Option<&Commitment>,
+    sequencer_commitment_opstack_2: Option<SequencerCommitment>,
+    env_input_opstack_for_l1_block_call_2: Option<EthEvmInput>,
 ) -> B256 {
     let validated_hash = block_header_to_validate.hash_slow();
     if validate_l1_inclusion {
@@ -423,9 +437,11 @@ pub fn get_validated_block_hash_opstack(
             _ => panic!("invalid chain id"),
         };
         let ethereum_hash = get_validated_ethereum_block_hash_via_opstack(
-            &sequencer_commitment.unwrap(),
-            env_input_opstack_for_l1_block_call.unwrap(),
+            sequencer_commitment.as_ref(),
+            env_input_opstack_for_l1_block_call,
             ethereum_chain_id,
+            sequencer_commitment_opstack_2.as_ref(),
+            env_input_opstack_for_l1_block_call_2,
         );
 
         assert_eq!(ethereum_hash, validated_hash, "hash mismatch  opstack");
@@ -465,6 +481,8 @@ pub fn get_validated_block_hash_linea(
     env_input_eth_for_l1_inclusion: &Option<EthEvmInput>,
     block_header_to_validate: RlpHeader<Header>,
     validate_l1_inclusion: bool,
+    sequencer_commitment_opstack_2: Option<SequencerCommitment>,
+    env_input_opstack_for_l1_block_call_2: Option<EthEvmInput>,
 ) -> B256 {
     if validate_l1_inclusion {
         let ethereum_chain_id = match chain_id {
@@ -473,9 +491,11 @@ pub fn get_validated_block_hash_linea(
             _ => panic!("invalid chain id"),
         };
         let ethereum_hash = get_validated_ethereum_block_hash_via_opstack(
-            &sequencer_commitment_opstack.unwrap(),
-            env_input_opstack_for_l1_block_call.unwrap(),
+            sequencer_commitment_opstack.as_ref(),
+            env_input_opstack_for_l1_block_call,
             ethereum_chain_id,
+            sequencer_commitment_opstack_2.as_ref(),
+            env_input_opstack_for_l1_block_call_2,
         );
         validate_linea_env_with_l1_inclusion(
             chain_id,
@@ -722,20 +742,36 @@ pub fn validate_opstack_env(chain_id: u64, commitment: &SequencerCommitment, env
 /// * If chain ID is not an Ethereum chain
 
 pub fn get_validated_ethereum_block_hash_via_opstack(
-    commitment: &SequencerCommitment,
-    input_op: EthEvmInput,
+    sequencer_commitment_opstack_1: Option<&SequencerCommitment>,
+    env_input_opstack_for_l1_block_call_1: Option<EthEvmInput>,
     chain_id: u64,
+    sequencer_commitment_opstack_2: Option<&SequencerCommitment>,
+    env_input_opstack_for_l1_block_call_2: Option<EthEvmInput>,
 ) -> B256 {
-    let env_op = input_op.into_env();
-    let verify_via_chain = if chain_id == ETHEREUM_CHAIN_ID {
-        OPTIMISM_CHAIN_ID
+    let env_op = env_input_opstack_for_l1_block_call_1.expect("env_input_opstack_for_l1_block_call_1 is None").into_env();
+
+    let (verify_via_chain_1, verify_via_chain_2) = if chain_id == ETHEREUM_CHAIN_ID {
+        (OPTIMISM_CHAIN_ID, BASE_CHAIN_ID)
     } else {
-        OPTIMISM_SEPOLIA_CHAIN_ID
+        (OPTIMISM_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID)
     };
-    validate_opstack_env(verify_via_chain, commitment, env_op.commitment().digest);
+    validate_opstack_env(verify_via_chain_1, sequencer_commitment_opstack_1.unwrap(), env_op.commitment().digest);
+
     let l1_block = Contract::new(L1_BLOCK_ADDRESS_OPSTACK, &env_op);
     let call = IL1Block::hashCall {};
-    l1_block.call_builder(&call).call()._0
+    let l1_hash_1 = l1_block.call_builder(&call).call()._0;
+
+
+    // let env_op_2 = env_input_opstack_for_l1_block_call_2.expect("env_input_opstack_for_l1_block_call_2 is None").into_env();
+    // validate_opstack_env(verify_via_chain_2, sequencer_commitment_opstack_2.unwrap(), env_op_2.commitment().digest);
+
+    // let l1_block = Contract::new(L1_BLOCK_ADDRESS_OPSTACK, &env_op_2);
+    // let call = IL1Block::hashCall {};
+    // let l1_hash_2 = l1_block.call_builder(&call).call()._0;
+
+    // assert_eq!(l1_hash_1, l1_hash_2, "L1 hash 1 and 2 mismatch");
+
+    l1_hash_1
 }
 
 /// Validates block chain length and hash linking for reorg protection

@@ -458,7 +458,7 @@ pub async fn get_proof_data_zkvm_input(
         _ => panic!("Invalid chain ID"),
     };
 
-    let (block, commitment) = if chain_id == OPTIMISM_CHAIN_ID
+    let (block, commitment, block_2, commitment_2) = if chain_id == OPTIMISM_CHAIN_ID
         || chain_id == BASE_CHAIN_ID
         || chain_id == ETHEREUM_CHAIN_ID
         || chain_id == OPTIMISM_CHAIN_ID
@@ -468,8 +468,20 @@ pub async fn get_proof_data_zkvm_input(
         || (chain_id == LINEA_CHAIN_ID && l1_inclusion)
         || (chain_id == LINEA_SEPOLIA_CHAIN_ID && l1_inclusion)
     {
-        let (commitment, block) = get_current_sequencer_commitment(chain_id).await;
-        (Some(block), Some(commitment))
+        if !l1_inclusion && (chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID) { 
+            let (commitment, block) = get_current_sequencer_commitment(chain_id).await;
+            (Some(block), Some(commitment), None, None)
+        } else if chain_id == ETHEREUM_SEPOLIA_CHAIN_ID || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
+            let (commitment, block) = get_current_sequencer_commitment(OPTIMISM_SEPOLIA_CHAIN_ID).await;
+            let (commitment_2, block_2) = get_current_sequencer_commitment(BASE_SEPOLIA_CHAIN_ID).await;
+            (Some(block), Some(commitment), Some(block_2), Some(commitment_2))
+        } else if chain_id == ETHEREUM_CHAIN_ID || chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID || chain_id == LINEA_CHAIN_ID {
+            let (commitment, block) = get_current_sequencer_commitment(OPTIMISM_CHAIN_ID).await;
+            let (commitment_2, block_2) = get_current_sequencer_commitment(BASE_CHAIN_ID).await;
+            (Some(block), Some(commitment), Some(block_2), Some(commitment_2))
+        } else {
+            panic!("Invalid chain ID");
+        }
     } else if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
         let block = EthEvmEnv::builder()
             .rpc(Url::parse(rpc_url).unwrap())
@@ -481,36 +493,40 @@ pub async fn get_proof_data_zkvm_input(
             .inner()
             .inner()
             .number;
-        (Some(block), None)
+        (Some(block), None, None, None)
     } else {
         panic!("Invalid chain ID");
     };
 
-    let (l1_block_call_input, ethereum_block) =
+    let (l1_block_call_input_1, ethereum_block_1, l1_block_call_input_2, ethereum_block_2) =
         if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID || l1_inclusion {
-            let chain_id = if chain_id == ETHEREUM_CHAIN_ID {
-                OPTIMISM_CHAIN_ID
+            let (chain_id_1, chain_id_2) = if chain_id == ETHEREUM_CHAIN_ID {
+                (OPTIMISM_CHAIN_ID, BASE_CHAIN_ID)
             } else if chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
-                OPTIMISM_SEPOLIA_CHAIN_ID
+                (OPTIMISM_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID)
             } else if chain_id == OPTIMISM_CHAIN_ID
                 || chain_id == BASE_CHAIN_ID
                 || chain_id == LINEA_CHAIN_ID
             {
-                OPTIMISM_CHAIN_ID
+                (OPTIMISM_CHAIN_ID, BASE_CHAIN_ID)
             } else if chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
                 || chain_id == BASE_SEPOLIA_CHAIN_ID
                 || chain_id == LINEA_SEPOLIA_CHAIN_ID
             {
-                OPTIMISM_SEPOLIA_CHAIN_ID
+                (OPTIMISM_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID)
             } else {
                 panic!("Invalid chain ID");
             };
-            let (l1_block_call_input, ethereum_block) =
-                get_l1block_call_input(BlockNumberOrTag::Number(block.unwrap()), chain_id).await;
+            let (l1_block_call_input_1, ethereum_block_1) =
+                get_l1block_call_input(BlockNumberOrTag::Number(block.unwrap()), chain_id_1).await;
+            let (l1_block_call_input_2, ethereum_block_2) =
+                get_l1block_call_input(BlockNumberOrTag::Number(block_2.unwrap()), chain_id_2).await;
 
-            (Some(l1_block_call_input), Some(ethereum_block))
+            println!("eth block optimism: {:?}", ethereum_block_1);
+            println!("eth block base: {:?}", ethereum_block_2);
+            (Some(l1_block_call_input_1), Some(ethereum_block_1), Some(l1_block_call_input_2), Some(ethereum_block_2))
         } else {
-            (None, None)
+            (None, None, None, None)
         };
 
     let (env_input_l1_inclusion, l2_block_number_on_l1) = if l1_inclusion {
@@ -524,13 +540,13 @@ pub async fn get_proof_data_zkvm_input(
             _ => panic!("Invalid chain ID"),
         };
         let l1_block = if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
-            ethereum_block.unwrap()
+            ethereum_block_1.unwrap()
         } else {
             if chain_id == OPTIMISM_SEPOLIA_CHAIN_ID || chain_id == BASE_SEPOLIA_CHAIN_ID {
-                ethereum_block.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA
+                ethereum_block_1.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA
 
             } else  if chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID {
-                ethereum_block.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM
+                ethereum_block_1.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM
             } else {
                 panic!("Invalid chain ID");
             }
@@ -760,7 +776,7 @@ pub async fn get_proof_data_zkvm_input(
                 || chain_id == BASE_SEPOLIA_CHAIN_ID)
                 && l1_inclusion
         {
-            ethereum_block.unwrap()
+            ethereum_block_1.unwrap()
         } else {
             block.unwrap()
         };
@@ -801,10 +817,12 @@ pub async fn get_proof_data_zkvm_input(
             &markets,
             &target_chain_ids,
             &commitment,
-            &l1_block_call_input,
+            &l1_block_call_input_1,
             &linking_blocks,
             &env_input_l1_inclusion,
             &proof_data_call_input_op,
+            &commitment_2,
+            &l1_block_call_input_2,
         ))
         .unwrap(),
     );
@@ -979,12 +997,8 @@ pub async fn get_current_sequencer_commitment(chain_id: u64) -> (SequencerCommit
     let req = match chain_id {
         BASE_CHAIN_ID => sequencer_request_base(),
         OPTIMISM_CHAIN_ID => sequencer_request_optimism(),
-        ETHEREUM_CHAIN_ID => sequencer_request_optimism(),
         OPTIMISM_SEPOLIA_CHAIN_ID => sequencer_request_optimism_sepolia(),
         BASE_SEPOLIA_CHAIN_ID => sequencer_request_base_sepolia(),
-        ETHEREUM_SEPOLIA_CHAIN_ID => sequencer_request_optimism_sepolia(),
-        LINEA_CHAIN_ID => sequencer_request_optimism(),
-        LINEA_SEPOLIA_CHAIN_ID => sequencer_request_optimism_sepolia(),
         _ => panic!("Invalid chain ID: {}", chain_id),
     };
 
