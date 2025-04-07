@@ -33,6 +33,7 @@ sol! {
         /// This function is used to query the last L2 block number that has been processed by L1.
         /// Note: This value is not updated by proof and relies on trust in the Linea team.
         function currentL2BlockNumber() external view returns (uint256);
+        function stateRootHashes(uint256 blockNumber) external view returns (bytes32);
     }
 
     /// Interface for accessing L1 block information.

@@ -29,7 +29,7 @@ use risc0_zkvm::{
 
 use alloy::primitives::{Address, U256, U64};
 use alloy_consensus::Header;
-use alloy_sol_types::SolValue;
+use alloy_sol_types::{SolValue, SolCall};
 
 use anyhow::{Error, Result};
 use bonsai_sdk;
@@ -41,6 +41,9 @@ use std::time::Duration;
 
 use bonsai_sdk::blocking::Client;
 use risc0_zkvm::Receipt;
+
+use serde_json;
+
 
 // Our own versions of the non-exhaustive structs
 #[derive(Debug, Clone)]
@@ -785,14 +788,33 @@ pub async fn get_proof_data_call_input(
     //     10000000000u64
     // };
 
-    let mut contract = Contract::preflight(MULTICALL, &mut env);
-    let _returns = contract
-        .call_builder(&multicall)
-        // .gas_price(U256::from(gas_price))
-        // .from(Address::ZERO)
-        .call()
-        .await
-        .expect("Failed to execute multicall");
+    if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
+        let mut contract = Contract::preflight(MULTICALL, &mut env);
+        let call_builder = contract.call_builder(&multicall);
+
+        let addr = dotenvy::var("SEQUENCER_ADDRESS")
+        .expect("SEQUENCER_ADDRESS must be set in environment");
+        let sequencer_address = Address::parse_checksummed(&addr, None)
+            .expect("Invalid sequencer address format");
+        // Prepare the transaction parameters (ensure addresses and data are formatted as hex strings)
+        let encoded_data = multicall.abi_encode();
+            // .expect("Failed to encode aggregate3 call");
+
+        let tx_params = serde_json::json!({
+            "from": sequencer_address.to_string(),
+            "to": MULTICALL.to_string(),
+            "data": format!("0x{}", hex::encode(&encoded_data)),
+            "value": U256::ZERO.to_string(),
+        });
+        
+        let gas = linea_estimate_gas(chain_url, tx_params).await.expect("Failed to estimate gas");
+        
+        let _returns = call_builder
+            .gas(gas)
+            .call()
+            .await
+            .expect("Failed to execute multicall");
+    }
 
     env.into_input()
         .await
@@ -956,4 +978,27 @@ pub async fn get_linking_blocks(
         .into_iter()
         .map(|r| r.expect("Failed to join block fetch task"))
         .collect()
+}
+
+async fn linea_estimate_gas(rpc_url: &str, tx: serde_json::Value) -> Result<u64, Error> {
+    let client = reqwest::Client::new();
+    let payload = serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "linea_estimateGas",
+        "params": [tx],
+        "id": 1
+    });
+    
+    let response = client.post(rpc_url)
+        .json(&payload)
+        .send()
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
+        
+    let gas_str = response["result"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Missing result in gas estimate response"))?;
+    
+    Ok(U64::from_str_radix(gas_str.trim_start_matches("0x"), 16)?.to::<u64>())
 }

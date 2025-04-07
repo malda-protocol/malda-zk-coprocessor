@@ -5033,6 +5033,7 @@ dependencies = [
  "risc0-steel",
  "risc0-zkvm",
  "serde",
+ "serde_json",
  "snap",
  "ssz_types 0.8.0",
  "tokio",
