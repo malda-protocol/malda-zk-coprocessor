@@ -28,8 +28,11 @@ sol! {
     }
 
     interface IL1MessageService {
+        /// Returns the latest L2 block number known to L1.
+        ///
+        /// This function is used to query the last L2 block number that has been processed by L1.
+        /// Note: This value is not updated by proof and relies on trust in the Linea team.
         function currentL2BlockNumber() external view returns (uint256);
-        function stateRootHashes(uint256 blockNumber) external view returns (bytes32);
     }
 
     /// Interface for accessing L1 block information.
@@ -38,16 +41,6 @@ sol! {
         function hash() external view returns (bytes32);
         /// Returns the number of the current L1 block.
         function number() external view returns (uint64);
-    }
-
-    // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/L1/interfaces/IOptimismPortal2.sol
-    interface IOptimismPortal2 {
-        function disputeGameBlacklist(address) external view returns (bool);
-        function disputeGameFactory() external view returns (address);
-        function proofMaturityDelaySeconds() external view returns (uint256);
-        function respectedGameType() external view returns (uint32);
-        function respectedGameTypeUpdatedAt() external view returns (uint64);
-        function version() external pure returns (string memory);
     }
 
     // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/dispute/interfaces/IDisputeGameFactory.sol
@@ -66,6 +59,15 @@ sol! {
         function extraData() external view returns (bytes memory);
     }
 
+    // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/L1/OptimismPortal.sol
+    interface IOptimismPortal {
+        function respectedGameType() external view returns (uint256);
+        function respectedGameTypeUpdatedAt() external view returns (uint256);
+        function disputeGameBlacklist(address game) external view returns (bool);
+        function proofMaturityDelaySeconds() external view returns (uint256);
+        function disputeGameFactory() external view returns (address);
+    }
+
     struct OutputRootProof {
         bytes32 version;
         bytes32 stateRoot;
@@ -74,6 +76,7 @@ sol! {
     }
 
     // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/dispute/lib/Types.sol
+    #[derive(Debug, PartialEq)]
     enum GameStatus {
         IN_PROGRESS,
         CHALLENGER_WINS,
