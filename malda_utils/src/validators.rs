@@ -194,10 +194,15 @@ pub fn get_validated_block_hash_opstack(
     let last_block_hash = last_block.hash_slow();
     if validate_l1_inclusion {
         let env_state_root = env_header.state_root;
+        let ethereum_chain_id = match chain_id {
+            OPTIMISM_CHAIN_ID | BASE_CHAIN_ID => ETHEREUM_CHAIN_ID,
+            OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID => ETHEREUM_SEPOLIA_CHAIN_ID,
+            _ => panic!("invalid chain id"),
+        };
         let ethereum_hash = get_ethereum_block_hash_via_opstack(
             sequencer_commitment.unwrap(),
             env_op_input.unwrap(),
-            chain_id,
+            ethereum_chain_id,
         );
         validate_opstack_env_with_l1_inclusion(
             chain_id,
@@ -241,10 +246,15 @@ pub fn get_validated_block_hash_linea(
 ) -> B256 {
     if validate_l1_inclusion {
         let env_block_number = env_header.number;
+        let ethereum_chain_id = match chain_id {
+            LINEA_CHAIN_ID => ETHEREUM_CHAIN_ID,
+            LINEA_SEPOLIA_CHAIN_ID => ETHEREUM_SEPOLIA_CHAIN_ID,
+            _ => panic!("invalid chain id"),
+        };
         let ethereum_hash = get_ethereum_block_hash_via_opstack(
             sequencer_commitment.unwrap(),
             env_op_input.unwrap(),
-            chain_id,
+            ethereum_chain_id,
         );
         validate_linea_env_with_l1_inclusion(
             chain_id,
