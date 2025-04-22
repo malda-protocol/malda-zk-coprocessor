@@ -69,13 +69,14 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
 
     let start = std::time::Instant::now();
     // Convert Vec<u32> to Vec<u8> before encoding
-    let id_bytes: Vec<u8> = GET_PROOF_DATA_ID
-        .iter()
-        .flat_map(|&x| x.to_le_bytes())
-        .collect();
-    let _image_id_hex = hex::encode(id_bytes);
+    // let id_bytes: Vec<u8> = GET_PROOF_DATA_ID
+    //     .iter()
+    //     .flat_map(|&x| x.to_le_bytes())
+    //     .collect();
+    // let _image_id_hex = hex::encode(id_bytes);
+
     let image_id_hex: String =
-        "2df73778d83db383511ada84662a60342c5106a66cfb3ecb09e2b45a97887863".to_string();
+        "54e7d2d0d934ed2fbdd782a72e2a4dbbdb601edf15bbb87fe764ee08c3eb0931".to_string();
     println!("Image ID: {}", image_id_hex);
     println!("Image read time: {:?}", start.elapsed());
 

@@ -16,6 +16,7 @@ use ssz_types::{typenum, FixedVector, VariableList};
 use crate::cryptography::signature_msg;
 use alloy_primitives::{Address, Bytes, PrimitiveSignature as Signature, B256, U256};
 
+
 sol! {
     /// Interface for querying proof data from the Malda Market.
     interface IMaldaMarket {
@@ -29,7 +30,7 @@ sol! {
 
     interface IL1MessageService {
         /// Returns the latest L2 block number known to L1.
-        ///
+        /// 
         /// This function is used to query the last L2 block number that has been processed by L1.
         /// Note: This value is not updated by proof and relies on trust in the Linea team.
         function currentL2BlockNumber() external view returns (uint256);
@@ -57,15 +58,6 @@ sol! {
         function l2BlockNumberChallenged() external view returns (bool);
         function l2BlockNumber() external view returns (uint256);
         function extraData() external view returns (bytes memory);
-    }
-
-    // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/L1/OptimismPortal.sol
-    interface IOptimismPortal {
-        function respectedGameType() external view returns (uint256);
-        function respectedGameTypeUpdatedAt() external view returns (uint256);
-        function disputeGameBlacklist(address game) external view returns (bool);
-        function proofMaturityDelaySeconds() external view returns (uint256);
-        function disputeGameFactory() external view returns (address);
     }
 
     struct OutputRootProof {
@@ -113,6 +105,22 @@ sol! {
     struct Amounts {
         uint256 amountIn;
         uint256 amountOut;
+    }
+
+    /// @title Interface for the Optimism Portal
+    interface IOptimismPortal {
+        /// @notice Returns the address of the DisputeGameFactory
+        function disputeGameFactory() external view returns (address);
+        
+        /// @notice Returns the timestamp when the respected game type was last updated
+        function respectedGameTypeUpdatedAt() external view returns (uint256);
+        
+        /// @notice Checks if a dispute game is blacklisted
+        /// @param game The address of the dispute game
+        function disputeGameBlacklist(address game) external view returns (bool);
+        
+        /// @notice Returns the proof maturity delay in seconds
+        function proofMaturityDelaySeconds() external view returns (uint256);
     }
 }
 
@@ -177,7 +185,7 @@ impl TryFrom<&SequencerCommitment> for ExecutionPayload {
     /// * `Result<Self>` - The converted payload or an error
     fn try_from(value: &SequencerCommitment) -> Result<Self> {
         let payload_bytes = &value.data[32..];
-        ExecutionPayload::from_ssz_bytes(payload_bytes).map_err(|_| eyre::eyre!("decode failed"))
+        ssz::Decode::from_ssz_bytes(payload_bytes).map_err(|_| eyre::eyre!("decode failed"))
     }
 }
 
@@ -218,6 +226,8 @@ pub struct ExecutionPayload {
     pub blob_gas_used: u64,
     /// Excess blob gas in the block
     pub excess_blob_gas: u64,
+    /// Root of withdrawals - optional to match Go implementation for Bedrock, Canyon, Delta, Ecotone, Fjord, Granite, Holocene
+    pub withdrawals_root: B256,
 }
 
 /// Type alias for a transaction, represented as a variable-length byte list
