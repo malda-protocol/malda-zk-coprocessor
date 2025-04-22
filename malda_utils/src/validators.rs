@@ -442,6 +442,7 @@ pub fn get_validated_block_hash_opstack(
             OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID => ETHEREUM_SEPOLIA_CHAIN_ID,
             _ => panic!("invalid chain id"),
         };
+
         let ethereum_hash = get_validated_ethereum_block_hash_via_opstack(
             sequencer_commitment.as_ref(),
             env_input_opstack_for_l1_block_call,
