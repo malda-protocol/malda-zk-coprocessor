@@ -816,7 +816,7 @@ pub async fn get_l1block_call_inputs_and_l1_block_numbers(
     is_sepolia: bool,
     l1_inclusion: bool,
     block: Option<u64>,
-    block_2: Option<u64>,
+    _block_2: Option<u64>,
 ) -> (
     Option<EvmInput<RlpHeader<Header>>>,
     Option<u64>,
@@ -824,7 +824,7 @@ pub async fn get_l1block_call_inputs_and_l1_block_numbers(
     Option<u64>,
 ) {
     if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID || l1_inclusion {
-        let (chain_id_1, chain_id_2) = match is_sepolia {
+        let (chain_id_1, _chain_id_2) = match is_sepolia {
             true => (OPTIMISM_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID),
             false => (OPTIMISM_CHAIN_ID, BASE_CHAIN_ID),
         };

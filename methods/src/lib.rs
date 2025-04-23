@@ -138,7 +138,7 @@ mod tests {
         let asset = WETH_MARKET_SEPOLIA;
         let chain_id = OPTIMISM_SEPOLIA_CHAIN_ID;
 
-        let session_info = get_proof_data_prove_sdk(
+        let _session_info = get_proof_data_prove_sdk(
             vec![vec![user_optimism]],
             vec![vec![asset]],
             vec![vec![LINEA_CHAIN_ID]],

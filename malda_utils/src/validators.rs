@@ -756,14 +756,14 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
     sequencer_commitment_opstack_1: Option<&SequencerCommitment>,
     env_input_opstack_for_l1_block_call_1: Option<EthEvmInput>,
     chain_id: u64,
-    sequencer_commitment_opstack_2: Option<&SequencerCommitment>,
-    env_input_opstack_for_l1_block_call_2: Option<EthEvmInput>,
+    _sequencer_commitment_opstack_2: Option<&SequencerCommitment>,
+    _env_input_opstack_for_l1_block_call_2: Option<EthEvmInput>,
 ) -> B256 {
     let env_op = env_input_opstack_for_l1_block_call_1
         .expect("env_input_opstack_for_l1_block_call_1 is None")
         .into_env();
 
-    let (verify_via_chain_1, verify_via_chain_2) = if chain_id == ETHEREUM_CHAIN_ID {
+    let (verify_via_chain_1, _verify_via_chain_2) = if chain_id == ETHEREUM_CHAIN_ID {
         (OPTIMISM_CHAIN_ID, BASE_CHAIN_ID)
     } else {
         (OPTIMISM_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID)

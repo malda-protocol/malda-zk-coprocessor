@@ -9,7 +9,6 @@ use eyre::Result;
 use serde::{Deserialize, Serialize};
 
 use alloy_rlp::RlpEncodable;
-use ssz::Decode;
 use ssz_derive::{Decode, Encode};
 use ssz_types::{typenum, FixedVector, VariableList};
 
