@@ -43,6 +43,7 @@ use std::time::Duration;
 
 use bonsai_sdk::blocking::Client;
 use risc0_zkvm::Receipt;
+use tracing::info;
 
 // Our own versions of the non-exhaustive structs
 #[derive(Debug, Clone)]
@@ -65,7 +66,7 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
 
     let start = std::time::Instant::now();
     let client = Client::from_env(risc0_zkvm::VERSION)?;
-    println!("Client creation time: {:?}", start.elapsed());
+    info!("Client creation time: {:?}", start.elapsed());
 
     let start = std::time::Instant::now();
     // Convert Vec<u32> to Vec<u8> before encoding
@@ -73,16 +74,16 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
     //     .iter()
     //     .flat_map(|&x| x.to_le_bytes())
     //     .collect();
-    // let _image_id_hex = hex::encode(id_bytes);
+    // let image_id_hex = hex::encode(id_bytes);
 
     let image_id_hex: String =
-        "54e7d2d0d934ed2fbdd782a72e2a4dbbdb601edf15bbb87fe764ee08c3eb0931".to_string();
-    println!("Image ID: {}", image_id_hex);
-    println!("Image read time: {:?}", start.elapsed());
+        "d6d8248d1e786f29a2523024755fec278834380b35606307682d1411b65adba6".to_string();
+    info!("Image ID: {}", image_id_hex);
+    info!("Image read time: {:?}", start.elapsed());
 
     let start = std::time::Instant::now();
     let input_id = client.upload_input(input_data)?;
-    println!("Input upload time: {:?}", start.elapsed());
+    info!("Input upload time: {:?}", start.elapsed());
 
     let assumptions: Vec<String> = vec![];
     let execute_only = false;
@@ -91,7 +92,7 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
     let session = client.create_session(image_id_hex, input_id, assumptions, execute_only)?;
 
     tracing::debug!("Bonsai proving SessionID: {}", session.uuid);
-    println!("Bonsai proving SessionID: {}", session.uuid);
+    info!("Bonsai proving SessionID: {}", session.uuid);
 
     let polling_interval = Duration::from_millis(100);
 
@@ -102,7 +103,7 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
             continue;
         }
         if res.status == "SUCCEEDED" {
-            println!("Proving time: {:?}", start.elapsed());
+            info!("Proving time: {:?}", start.elapsed());
 
             let stats = res
                 .stats
@@ -133,7 +134,7 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
 
     let start = std::time::Instant::now();
     let snark_session = client.create_snark(session.uuid)?;
-    println!("Snark session creation time: {:?}", start.elapsed());
+    info!("Snark session creation time: {:?}", start.elapsed());
 
     let start = std::time::Instant::now();
     let snark_receipt_url = loop {
@@ -162,14 +163,14 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
             }
         }
     };
-    println!("Snark proving time: {:?}", start.elapsed());
+    info!("Snark proving time: {:?}", start.elapsed());
 
     let start = std::time::Instant::now();
     let receipt_buf = client.download(&snark_receipt_url)?;
     let groth16_receipt: Receipt = bincode::deserialize(&receipt_buf)?;
-    println!("Receipt download time: {:?}", start.elapsed());
+    info!("Receipt download time: {:?}", start.elapsed());
 
-    println!("Total time (groth16): {:?}", start_total.elapsed());
+    info!("Total time (groth16): {:?}", start_total.elapsed());
 
     Ok(MaldaProveInfo {
         receipt: groth16_receipt,
@@ -376,13 +377,13 @@ pub async fn get_proof_data_prove(
             l1_inclusion,
         ));
         let duration = start_time.elapsed();
-        println!("Env creation time: {:?}", duration);
+        info!("Env creation time: {:?}", duration);
 
         let start_time = std::time::Instant::now();
         let proof =
             default_prover().prove_with_opts(env, GET_PROOF_DATA_ELF, &ProverOpts::groth16());
         let duration = start_time.elapsed();
-        println!("Bonsai proof time: {:?}", duration);
+        info!("Bonsai proof time: {:?}", duration);
         proof
     })
     .await?;
@@ -412,12 +413,12 @@ pub async fn get_proof_data_prove_sdk(
             l1_inclusion,
         ));
         let duration = start_time.elapsed();
-        println!("Env creation time: {:?}", duration);
+        info!("Env creation time: {:?}", duration);
 
         let start_time = std::time::Instant::now();
         let proof = run_bonsai(input);
         let duration = start_time.elapsed();
-        println!("Bonsai proof time: {:?}", duration);
+        info!("Bonsai proof time: {:?}", duration);
         proof
     })
     .await?;
