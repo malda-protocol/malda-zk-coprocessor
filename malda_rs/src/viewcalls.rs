@@ -59,6 +59,9 @@ pub struct MaldaSessionStats {
 pub struct MaldaProveInfo {
     pub receipt: Receipt,
     pub stats: MaldaSessionStats,
+    pub uuid: String,
+    pub stark_time: u64,
+    pub snark_time: u64,
 }
 
 fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
@@ -78,23 +81,17 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
 
     let image_id_hex: String =
         "d6d8248d1e786f29a2523024755fec278834380b35606307682d1411b65adba6".to_string();
-    info!("Image ID: {}", image_id_hex);
-    info!("Image read time: {:?}", start.elapsed());
+    // info!("Image ID: {}", image_id_hex);
+    // info!("Image read time: {:?}", start.elapsed());
 
-    let start = std::time::Instant::now();
     let input_id = client.upload_input(input_data)?;
-    info!("Input upload time: {:?}", start.elapsed());
 
     let assumptions: Vec<String> = vec![];
     let execute_only = false;
 
-    let start = std::time::Instant::now();
     let session = client.create_session(image_id_hex, input_id, assumptions, execute_only)?;
 
-    tracing::debug!("Bonsai proving SessionID: {}", session.uuid);
-    info!("Bonsai proving SessionID: {}", session.uuid);
-
-    let polling_interval = Duration::from_millis(100);
+    let polling_interval = Duration::from_millis(500);
 
     let succinct_stats = loop {
         let res = session.status(&client)?;
@@ -103,7 +100,7 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
             continue;
         }
         if res.status == "SUCCEEDED" {
-            info!("Proving time: {:?}", start.elapsed());
+            // info!("Proving time: {:?}", start.elapsed());
 
             let stats = res
                 .stats
@@ -132,9 +129,11 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
         }
     };
 
-    let start = std::time::Instant::now();
-    let snark_session = client.create_snark(session.uuid)?;
-    info!("Snark session creation time: {:?}", start.elapsed());
+    let stark_time = start.elapsed();
+
+    // let start = std::time::Instant::now();
+    let snark_session = client.create_snark(session.uuid.clone())?;
+    // info!("Snark session creation time: {:?}", start.elapsed());
 
     let start = std::time::Instant::now();
     let snark_receipt_url = loop {
@@ -163,7 +162,8 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
             }
         }
     };
-    info!("Snark proving time: {:?}", start.elapsed());
+    let snark_time = start.elapsed();
+    // info!("Snark proving time: {:?}", start.elapsed());
 
     let start = std::time::Instant::now();
     let receipt_buf = client.download(&snark_receipt_url)?;
@@ -175,6 +175,9 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
     Ok(MaldaProveInfo {
         receipt: groth16_receipt,
         stats: succinct_stats,
+        uuid: session.uuid,
+        stark_time: stark_time.as_secs(),
+        snark_time: snark_time.as_secs(),
     })
 }
 
