@@ -29,24 +29,27 @@ use risc0_steel::{ethereum::EthEvmInput, serde::RlpHeader, Commitment, Contract,
 ///
 /// # Arguments
 /// * `chain_id` - The chain ID to validate against
-/// * `accounts` - Vector of account addresses to query
-/// * `assets` - Vector of token contract addresses to query
+/// * `account` - Vector of account addresses to query
+/// * `asset` - Vector of token contract addresses to query
 /// * `target_chain_ids` - Vector of target chain IDs for each account
-/// * `env_input` - EVM environment input for the chain
-/// * `sequencer_commitment` - Optional sequencer commitment for L2 chains
+/// * `env_input_for_viewcall` - Optional EVM environment input for the chain
+/// * `sequencer_commitment_opstack` - Optional sequencer commitment for L2 chains
 /// * `env_input_opstack_for_l1_block_call` - Optional Optimism environment input for L1 validation
 /// * `linking_blocks` - Vector of blocks for reorg protection
 /// * `output` - Output vector for proof data results
 /// * `env_input_eth_for_l1_inclusion` - Optional Ethereum environment input for L1 inclusion
 /// * `env_input_opstack_for_viewcall_with_l1_inclusion` - Optional OpStack environment input for L1 inclusion
+/// * `sequencer_commitment_opstack_2` - Optional second sequencer commitment for L2 chains
+/// * `env_input_opstack_for_l1_block_call_2` - Optional second Optimism environment input for L1 validation
 ///
 /// # Panics
-/// * If chain ID is invalid
-/// * If environment validation fails
-/// * If chain length is insufficient
-/// * If block hashes don't match
-/// * If multicall execution fails
-/// * If return data decoding fails
+/// Panics if:
+/// * Chain ID is invalid
+/// * Environment validation fails
+/// * Chain length is insufficient
+/// * Block hashes don't match
+/// * Multicall execution fails
+/// * Return data decoding fails
 pub fn validate_get_proof_data_call(
     chain_id: u64,
     account: Vec<Address>,
@@ -122,7 +125,7 @@ pub fn validate_get_proof_data_call(
     }
 }
 
-/// Sorts and verifies relevant parameters for proof data validation
+/// Sorts and verifies relevant parameters for proof data validation.
 ///
 /// This function processes and validates input parameters for different chain types,
 /// handling both L1 and L2 validation scenarios.
@@ -135,7 +138,7 @@ pub fn validate_get_proof_data_call(
 /// * `env_input_opstack_for_viewcall_with_l1_inclusion` - Optional OpStack input for L1 inclusion
 ///
 /// # Returns
-/// A tuple containing:
+/// Returns a tuple containing:
 /// * `EvmEnv` - The validated EVM environment
 /// * `RlpHeader<Header>` - The block header to validate
 /// * `B256` - The header hash to validate
@@ -146,9 +149,10 @@ pub fn validate_get_proof_data_call(
 /// * `bool` - Whether to validate L1 inclusion
 ///
 /// # Panics
-/// * If chain ID is invalid
-/// * If required environment inputs are missing
-/// * If parameter validation fails
+/// Panics if:
+/// * Chain ID is invalid
+/// * Required environment inputs are missing
+/// * Parameter validation fails
 pub fn sort_and_verify_relevant_params(
     chain_id: u64,
     env_input_for_viewcall: Option<EthEvmInput>,
@@ -231,7 +235,7 @@ pub fn sort_and_verify_relevant_params(
     )
 }
 
-/// Validates an OpStack dispute game commitment
+/// Validates an OpStack dispute game commitment.
 ///
 /// This function verifies the dispute game state and commitment for OpStack chains,
 /// ensuring the game is valid and properly resolved.
@@ -242,13 +246,14 @@ pub fn sort_and_verify_relevant_params(
 /// * `op_env_commitment` - The OpStack commitment to validate
 ///
 /// # Panics
-/// * If chain ID is invalid
-/// * If game type is not respected
-/// * If game was created before respected game type update
-/// * If game status is not DEFENDER_WINS
-/// * If game is blacklisted
-/// * If insufficient time has passed since game resolution
-/// * If root claim doesn't match
+/// Panics if:
+/// * Chain ID is invalid
+/// * Game type is not respected
+/// * Game was created before respected game type update
+/// * Game status is not DEFENDER_WINS
+/// * Game is blacklisted
+/// * Insufficient time has passed since game resolution
+/// * Root claim doesn't match
 pub fn validate_opstack_dispute_game_commitment(
     chain_id: u64,
     eth_env: EvmEnv<StateDb, RlpHeader<Header>, Commitment>,
@@ -335,24 +340,27 @@ pub fn validate_opstack_dispute_game_commitment(
     assert_eq!(returns._0, root_claim, "root claim mismatch");
 }
 
-/// Retrieves validated block hash based on chain type and validation requirements
+/// Retrieves validated block hash based on chain type and validation requirements.
 ///
 /// # Arguments
 /// * `chain_id` - The chain ID to determine validation strategy
-/// * `env_header` - The block header to validate
-/// * `sequencer_commitment` - Optional sequencer commitment for L2 chains
-/// * `env_op_input` - Optional Optimism environment input for L1 validation
-/// * `env_eth_input` - Optional Ethereum environment input for L1 inclusion validation
-/// * `last_block` - Last block in the chain for hash validation
+/// * `env_header_to_validate` - The block header to validate
+/// * `sequencer_commitment_opstack` - Optional sequencer commitment for L2 chains
+/// * `env_input_opstack_for_l1_block_call` - Optional Optimism environment input for L1 validation
+/// * `env_input_eth_for_l1_inclusion` - Optional Ethereum environment input for L1 inclusion validation
+/// * `block_header_to_validate` - Last block in the chain for hash validation
 /// * `validate_l1_inclusion` - Whether to validate L1 inclusion
-/// * `storage_hash` - Optional storage hash for L1 inclusion validation
+/// * `op_env_commitment` - Optional storage hash for L1 inclusion validation
+/// * `sequencer_commitment_opstack_2` - Optional second sequencer commitment for L2 chains
+/// * `env_input_opstack_for_l1_block_call_2` - Optional second Optimism environment input for L1 validation
 ///
 /// # Returns
 /// * `B256` - The validated block hash
 ///
 /// # Panics
-/// * If chain ID is invalid or unsupported
-/// * If validation fails for the specific chain type
+/// Panics if:
+/// * Chain ID is invalid or unsupported
+/// * Validation fails for the specific chain type
 pub fn get_validated_block_hash(
     chain_id: u64,
     env_header_to_validate: Header,
@@ -406,24 +414,26 @@ pub fn get_validated_block_hash(
     }
 }
 
-/// Validates OpStack block hash with optional L1 inclusion verification
+/// Validates OpStack block hash with optional L1 inclusion verification.
 ///
 /// # Arguments
 /// * `chain_id` - The OpStack chain ID (Optimism/Base)
-/// * `env_header` - The block header to validate
 /// * `sequencer_commitment` - Optional sequencer commitment
-/// * `env_op_input` - Optional Optimism environment input
-/// * `env_eth_input` - Optional Ethereum environment input
-/// * `last_block` - Last block for hash validation
+/// * `env_input_opstack_for_l1_block_call` - Optional Optimism environment input
+/// * `env_input_eth_for_l1_inclusion` - Optional Ethereum environment input
+/// * `block_header_to_validate` - Last block for hash validation
 /// * `validate_l1_inclusion` - Whether to validate L1 inclusion
-/// * `storage_hash` - Optional storage hash for L1 validation
+/// * `op_env_commitment` - Optional storage hash for L1 validation
+/// * `sequencer_commitment_opstack_2` - Optional second sequencer commitment
+/// * `env_input_opstack_for_l1_block_call_2` - Optional second Optimism environment input
 ///
 /// # Returns
 /// * `B256` - The validated block hash
 ///
 /// # Panics
-/// * If validation fails for OpStack environment
-/// * If L1 inclusion validation fails when requested
+/// Panics if:
+/// * Validation fails for OpStack environment
+/// * L1 inclusion validation fails when requested
 pub fn get_validated_block_hash_opstack(
     chain_id: u64,
     sequencer_commitment: Option<SequencerCommitment>,
@@ -467,23 +477,26 @@ pub fn get_validated_block_hash_opstack(
     validated_hash
 }
 
-/// Validates Linea block hash with optional L1 inclusion verification
+/// Validates Linea block hash with optional L1 inclusion verification.
 ///
 /// # Arguments
 /// * `chain_id` - The Linea chain ID
-/// * `env_header` - The block header to validate
-/// * `sequencer_commitment` - Optional sequencer commitment
-/// * `env_op_input` - Optional Optimism environment input
-/// * `env_eth_input` - Optional Ethereum environment input
-/// * `last_block` - Last block for hash validation
+/// * `env_header_to_validate` - The block header to validate
+/// * `sequencer_commitment_opstack` - Optional sequencer commitment
+/// * `env_input_opstack_for_l1_block_call` - Optional Optimism environment input
+/// * `env_input_eth_for_l1_inclusion` - Optional Ethereum environment input
+/// * `block_header_to_validate` - Last block for hash validation
 /// * `validate_l1_inclusion` - Whether to validate L1 inclusion
+/// * `sequencer_commitment_opstack_2` - Optional second sequencer commitment
+/// * `env_input_opstack_for_l1_block_call_2` - Optional second Optimism environment input
 ///
 /// # Returns
 /// * `B256` - The validated block hash
 ///
 /// # Panics
-/// * If validation fails for Linea environment
-/// * If L1 inclusion validation fails when requested
+/// Panics if:
+/// * Validation fails for Linea environment
+/// * L1 inclusion validation fails when requested
 pub fn get_validated_block_hash_linea(
     chain_id: u64,
     env_header_to_validate: Header,
@@ -519,7 +532,7 @@ pub fn get_validated_block_hash_linea(
     block_header_to_validate.hash_slow()
 }
 
-/// Executes batch multicall for proof data queries
+/// Executes batch multicall for proof data queries.
 ///
 /// # Arguments
 /// * `chain_id` - The chain ID for validation
@@ -531,9 +544,10 @@ pub fn get_validated_block_hash_linea(
 /// * `output` - Output vector for proof data results
 ///
 /// # Panics
-/// * If multicall execution fails
-/// * If return data decoding fails
-/// * If parameters are mismatched
+/// Panics if:
+/// * Multicall execution fails
+/// * Return data decoding fails
+/// * Parameters are mismatched
 pub fn batch_call_get_proof_data<H>(
     chain_id: u64,
     account: Vec<Address>,
@@ -606,7 +620,7 @@ pub fn batch_call_get_proof_data<H>(
     );
 }
 
-/// Validates Linea environment with L1 inclusion verification
+/// Validates Linea environment with L1 inclusion verification.
 ///
 /// This function verifies that a Linea block is properly included in the L1 chain
 /// by checking block numbers and hashes.
@@ -618,9 +632,10 @@ pub fn batch_call_get_proof_data<H>(
 /// * `ethereum_hash` - The Ethereum block hash to validate against
 ///
 /// # Panics
-/// * If chain ID is invalid
-/// * If Ethereum hash doesn't match
-/// * If block number is higher than the last one posted to L1
+/// Panics if:
+/// * Chain ID is invalid
+/// * Ethereum hash doesn't match
+/// * Block number is higher than the last one posted to L1
 pub fn validate_linea_env_with_l1_inclusion(
     chain_id: u64,
     env_block_number: u64,
@@ -652,17 +667,18 @@ pub fn validate_linea_env_with_l1_inclusion(
     );
 }
 
-/// Validates a Linea block header by verifying the sequencer signature
+/// Validates a Linea block header by verifying the sequencer signature.
 ///
 /// # Arguments
 /// * `chain_id` - The chain ID (Linea mainnet or Sepolia)
-/// * `header` - The Linea block header to validate
+/// * `block_header_to_validate` - The Linea block header to validate
 ///
 /// # Panics
-/// * If chain ID is not a Linea chain
-/// * If block is not signed by the official Linea sequencer
-/// * If signature recovery fails
-/// * If extra data format is invalid
+/// Panics if:
+/// * Chain ID is not a Linea chain
+/// * Block is not signed by the official Linea sequencer
+/// * Signature recovery fails
+/// * Extra data format is invalid
 pub fn validate_linea_env(chain_id: u64, block_header_to_validate: &RlpHeader<Header>) {
     let extra_data = block_header_to_validate.inner().extra_data.clone();
 
@@ -700,7 +716,7 @@ pub fn validate_linea_env(chain_id: u64, block_header_to_validate: &RlpHeader<He
     }
 }
 
-/// Validates an OpStack (Optimism/Base) environment through sequencer commitments
+/// Validates an OpStack (Optimism/Base) environment through sequencer commitments.
 ///
 /// # Arguments
 /// * `chain_id` - The chain ID (Optimism or Base, mainnet or Sepolia)
@@ -708,11 +724,12 @@ pub fn validate_linea_env(chain_id: u64, block_header_to_validate: &RlpHeader<He
 /// * `env_block_hash` - The block hash to validate against
 ///
 /// # Panics
-/// * If chain ID is not an OpStack chain
-/// * If commitment verification fails
-/// * If block hash doesn't match commitment
-/// * If sequencer signature is invalid
-/// * If execution payload conversion fails
+/// Panics if:
+/// * Chain ID is not an OpStack chain
+/// * Commitment verification fails
+/// * Block hash doesn't match commitment
+/// * Sequencer signature is invalid
+/// * Execution payload conversion fails
 pub fn validate_opstack_env(chain_id: u64, commitment: &SequencerCommitment, env_block_hash: B256) {
     match chain_id {
         OPTIMISM_CHAIN_ID => commitment
@@ -734,24 +751,26 @@ pub fn validate_opstack_env(chain_id: u64, commitment: &SequencerCommitment, env
     assert_eq!(payload.block_hash, env_block_hash, "block hash mismatch");
 }
 
-/// Retrieves and validates Ethereum L1 block hash through OpStack L2
+/// Retrieves and validates Ethereum L1 block hash through OpStack L2.
 ///
 /// Uses Optimism's L1Block contract to fetch and verify the L1 block hash.
 /// This provides a secure way to verify L1 block hashes through L2 commitments.
 ///
 /// # Arguments
-/// * `commitment` - The Optimism sequencer commitment
-/// * `input_op` - The Optimism EVM input containing environment data
+/// * `sequencer_commitment_opstack_1` - The Optimism sequencer commitment
+/// * `env_input_opstack_for_l1_block_call_1` - The Optimism EVM input containing environment data
 /// * `chain_id` - The Ethereum chain ID (mainnet or Sepolia)
+/// * `_sequencer_commitment_opstack_2` - (Unused) Optional second sequencer commitment
+/// * `_env_input_opstack_for_l1_block_call_2` - (Unused) Optional second Optimism EVM input
 ///
 /// # Returns
 /// * `B256` - The validated Ethereum block hash
 ///
 /// # Panics
-/// * If OpStack environment validation fails
-/// * If L1Block contract call fails
-/// * If chain ID is not an Ethereum chain
-
+/// Panics if:
+/// * OpStack environment validation fails
+/// * L1Block contract call fails
+/// * Chain ID is not an Ethereum chain
 pub fn get_validated_ethereum_block_hash_via_opstack(
     sequencer_commitment_opstack_1: Option<&SequencerCommitment>,
     env_input_opstack_for_l1_block_call_1: Option<EthEvmInput>,
@@ -790,7 +809,7 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
     l1_hash_1
 }
 
-/// Validates block chain length and hash linking for reorg protection
+/// Validates block chain length and hash linking for reorg protection.
 ///
 /// Ensures sufficient block confirmations and proper hash linking between blocks
 /// to prevent reorganization attacks.
@@ -802,10 +821,11 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
 /// * `current_hash` - The expected current block hash
 ///
 /// # Panics
-/// * If chain length is less than required reorg protection depth
-/// * If blocks are not properly hash-linked
-/// * If final hash doesn't match current hash
-/// * If chain ID is invalid or unsupported
+/// Panics if:
+/// * Chain length is less than required reorg protection depth
+/// * Blocks are not properly hash-linked
+/// * Final hash doesn't match current hash
+/// * Chain ID is invalid or unsupported
 pub fn validate_chain_length(
     chain_id: u64,
     historical_hash: B256,

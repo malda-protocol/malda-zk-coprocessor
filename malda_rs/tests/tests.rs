@@ -23,6 +23,8 @@ mod tests {
     // Arbitrary values for testing
     const USER: Address = address!("Ad7f33984bed10518012013D4aB0458D37FEE6F3");
 
+    pub const WETH_MARKET_SEPOLIA: Address = address!("B84644c24B4D0823A0770ED698f7C20B88Bcf824");
+
     /// Tests Linea environment validation with correct input parameters
     ///
     /// # Test Steps
@@ -35,7 +37,7 @@ mod tests {
     #[tokio::test]
     async fn test_validate_linea_env_correct_input() {
         let latest_block = EthEvmEnv::builder()
-            .rpc(Url::parse(RPC_URL_LINEA).unwrap())
+            .rpc(Url::parse(rpc_url_linea()).unwrap())
             .block_number_or_tag(BlockRisc0::Latest)
             .build()
             .await
@@ -47,16 +49,17 @@ mod tests {
 
         let proof_data_call_input = get_proof_data_call_input(
             LINEA_CHAIN_ID,
-            RPC_URL_LINEA,
+            rpc_url_linea(),
             latest_block,
             vec![USER],
             vec![WETH_MARKET_SEPOLIA],
             vec![OPTIMISM_CHAIN_ID],
+            false,
         )
         .await;
 
-        let env = proof_data_call_input.into_env();
-        validate_linea_env(LINEA_CHAIN_ID, env.header().inner().clone());
+        let env = proof_data_call_input.0.as_ref().unwrap().clone().into_env();
+        validate_linea_env(LINEA_CHAIN_ID, &env.header().inner().clone());
     }
 
     /// Tests Linea environment validation with wrong chain input
@@ -71,7 +74,7 @@ mod tests {
     #[tokio::test]
     async fn test_validate_linea_env_input_of_wrong_chain_panics() {
         let latest_block = EthEvmEnv::builder()
-            .rpc(Url::parse(RPC_URL_OPTIMISM).unwrap())
+            .rpc(Url::parse(rpc_url_optimism()).unwrap())
             .block_number_or_tag(BlockRisc0::Latest)
             .build()
             .await
@@ -83,17 +86,18 @@ mod tests {
 
         let proof_data_call_input = get_proof_data_call_input(
             OPTIMISM_CHAIN_ID,
-            RPC_URL_OPTIMISM,
+            rpc_url_optimism(),
             latest_block,
             vec![USER],
             vec![WETH_MARKET_SEPOLIA],
             vec![LINEA_CHAIN_ID],
+            false,
         )
         .await;
 
-        let env = proof_data_call_input.into_env();
+        let env = proof_data_call_input.0.as_ref().unwrap().clone().into_env();
         assert!(std::panic::catch_unwind(|| {
-            validate_linea_env(LINEA_CHAIN_ID, env.header().inner().clone());
+            validate_linea_env(LINEA_CHAIN_ID, &env.header().inner().clone());
         })
         .is_err());
     }
@@ -110,7 +114,7 @@ mod tests {
     #[tokio::test]
     async fn test_validate_linea_env_input_manipulated_panics() {
         let latest_block = EthEvmEnv::builder()
-            .rpc(Url::parse(RPC_URL_LINEA).unwrap())
+            .rpc(Url::parse(rpc_url_linea()).unwrap())
             .block_number_or_tag(BlockRisc0::Latest)
             .build()
             .await
@@ -122,19 +126,20 @@ mod tests {
 
         let proof_data_call_input = get_proof_data_call_input(
             LINEA_CHAIN_ID,
-            RPC_URL_LINEA,
+            rpc_url_linea(),
             latest_block,
             vec![USER],
             vec![WETH_MARKET_SEPOLIA],
             vec![OPTIMISM_CHAIN_ID],
+            false,
         )
         .await;
 
-        let env = proof_data_call_input.into_env();
+        let env = proof_data_call_input.0.as_ref().unwrap().clone().into_env();
         let mut header = env.header().inner().inner().clone();
         header.number = 1;
         assert!(std::panic::catch_unwind(|| {
-            validate_linea_env(LINEA_CHAIN_ID, RlpHeader::new(header));
+            validate_linea_env(LINEA_CHAIN_ID, &RlpHeader::new(header));
         })
         .is_err());
     }
@@ -153,11 +158,11 @@ mod tests {
         let (sequencer_commitment, block) =
             get_current_sequencer_commitment(OPTIMISM_CHAIN_ID).await;
 
-        let http_url: Url = RPC_URL_OPTIMISM.parse().unwrap();
+        let http_url: Url = rpc_url_optimism().parse().unwrap();
 
         let provider = ProviderBuilder::new().on_http(http_url);
         let correct_hash = provider
-            .get_block_by_number(BlockNumberOrTag::Number(block), false.into())
+            .get_block_by_number(BlockNumberOrTag::Number(block))
             .await
             .unwrap()
             .unwrap()
@@ -181,13 +186,13 @@ mod tests {
         let (sequencer_commitment, block) =
             get_current_sequencer_commitment(OPTIMISM_CHAIN_ID).await;
 
-        let http_url: Url = RPC_URL_OPTIMISM.parse().unwrap();
+        let http_url: Url = rpc_url_optimism().parse().unwrap();
 
         let provider = ProviderBuilder::new().on_http(http_url);
 
         // get hash of previous block here
         let wrong_hash = provider
-            .get_block_by_number(BlockNumberOrTag::Number(block - 1), false.into())
+            .get_block_by_number(BlockNumberOrTag::Number(block - 1))
             .await
             .unwrap()
             .unwrap()
@@ -214,13 +219,13 @@ mod tests {
         let (sequencer_commitment, block) =
             get_current_sequencer_commitment(OPTIMISM_CHAIN_ID).await;
 
-        let http_url: Url = RPC_URL_OPTIMISM.parse().unwrap();
+        let http_url: Url = rpc_url_optimism().parse().unwrap();
 
         let provider = ProviderBuilder::new().on_http(http_url);
 
         // get hash of previous block here
         let correct_hash = provider
-            .get_block_by_number(BlockNumberOrTag::Number(block), false.into())
+            .get_block_by_number(BlockNumberOrTag::Number(block))
             .await
             .unwrap()
             .unwrap()
@@ -247,13 +252,13 @@ mod tests {
         // get commitment from base chain here
         let (sequencer_commitment, block) = get_current_sequencer_commitment(BASE_CHAIN_ID).await;
 
-        let http_url: Url = RPC_URL_OPTIMISM.parse().unwrap();
+        let http_url: Url = rpc_url_optimism().parse().unwrap();
 
         let provider = ProviderBuilder::new().on_http(http_url);
 
         // get hash of previous block here
         let correct_hash = provider
-            .get_block_by_number(BlockNumberOrTag::Number(block), false.into())
+            .get_block_by_number(BlockNumberOrTag::Number(block))
             .await
             .unwrap()
             .unwrap()
@@ -289,13 +294,13 @@ mod tests {
         let mut manipulated_commitment_data = sequencer_commitment.clone();
         manipulated_commitment_data.data = wrong_sequencer_commitment.data;
 
-        let http_url: Url = RPC_URL_OPTIMISM.parse().unwrap();
+        let http_url: Url = rpc_url_optimism().parse().unwrap();
 
         let provider = ProviderBuilder::new().on_http(http_url);
 
         // get hash of previous block here
         let correct_hash = provider
-            .get_block_by_number(BlockNumberOrTag::Number(block), false.into())
+            .get_block_by_number(BlockNumberOrTag::Number(block))
             .await
             .unwrap()
             .unwrap()
@@ -334,13 +339,17 @@ mod tests {
     async fn test_validate_chain_length_input_correct() {
         let block_number = 21193475;
         let linking_blocks =
-            get_linking_blocks(ETHEREUM_CHAIN_ID, RPC_URL_ETHEREUM, block_number).await;
+            get_linking_blocks(ETHEREUM_CHAIN_ID, rpc_url_ethereum(), block_number).await;
+        if linking_blocks.is_empty() {
+            // No linking blocks needed when reorg protection is zero
+            return;
+        }
         let historical_hash = linking_blocks[0].inner().parent_hash;
         let current_hash = linking_blocks[linking_blocks.len() - 1].hash_slow();
         validate_chain_length(
             ETHEREUM_CHAIN_ID,
             historical_hash,
-            linking_blocks,
+            &linking_blocks,
             current_hash,
         );
     }
@@ -358,7 +367,11 @@ mod tests {
     async fn test_validate_chain_length_panics_if_chain_too_short() {
         let block_number = 21193475;
         let linking_blocks =
-            get_linking_blocks(ETHEREUM_CHAIN_ID, RPC_URL_ETHEREUM, block_number).await;
+            get_linking_blocks(ETHEREUM_CHAIN_ID, rpc_url_ethereum(), block_number).await;
+        if linking_blocks.is_empty() {
+            // No linking blocks needed when reorg protection is zero
+            return;
+        }
         let historical_hash = linking_blocks[0].inner().parent_hash;
         let current_hash = linking_blocks[linking_blocks.len() - 1].hash_slow();
 
@@ -366,7 +379,7 @@ mod tests {
             validate_chain_length(
                 ETHEREUM_CHAIN_ID,
                 historical_hash,
-                linking_blocks[0..linking_blocks.len() - 2].to_vec(),
+                &linking_blocks[0..linking_blocks.len() - 2].to_vec(),
                 current_hash,
             );
         })
@@ -386,14 +399,18 @@ mod tests {
     async fn test_validate_chain_length_panics_if_hash_doesnt_match() {
         let block_number = 21193475;
         let linking_blocks =
-            get_linking_blocks(ETHEREUM_CHAIN_ID, RPC_URL_ETHEREUM, block_number).await;
+            get_linking_blocks(ETHEREUM_CHAIN_ID, rpc_url_ethereum(), block_number).await;
+        if linking_blocks.is_empty() {
+            // No linking blocks needed when reorg protection is zero
+            return;
+        }
         let historical_hash = linking_blocks[0].inner().parent_hash;
 
         assert!(std::panic::catch_unwind(|| {
             validate_chain_length(
                 ETHEREUM_CHAIN_ID,
                 historical_hash,
-                linking_blocks[0..linking_blocks.len() - 2].to_vec(),
+                &linking_blocks[0..linking_blocks.len() - 2].to_vec(),
                 historical_hash,
             );
         })
