@@ -45,7 +45,8 @@ use bonsai_sdk::blocking::Client;
 use risc0_zkvm::Receipt;
 use tracing::info;
 
-// Our own versions of the non-exhaustive structs
+use dotenvy;
+
 #[derive(Debug, Clone)]
 pub struct MaldaSessionStats {
     pub segments: usize,
@@ -64,25 +65,29 @@ pub struct MaldaProveInfo {
     pub snark_time: u64,
 }
 
+/// Runs a Bonsai ZK proof session with the provided input data.
+///
+/// # Arguments
+/// * `input_data` - The serialized input data for the ZKVM session.
+///
+/// # Returns
+/// * `Result<MaldaProveInfo, anyhow::Error>` - Proof information and statistics if successful, or an error.
+///
+/// # Errors
+/// Returns an error if:
+/// - The Bonsai client fails to initialize.
+/// - The input upload, session creation, or polling fails.
+/// - The SNARK proof or receipt download fails.
+/// - The receipt cannot be deserialized.
+///
+/// # Panics
+/// Panics if the required environment variable `IMAGE_ID_BONSAI` is not set.
 fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
-    let start_total = std::time::Instant::now();
 
-    let start = std::time::Instant::now();
     let client = Client::from_env(risc0_zkvm::VERSION)?;
-    info!("Client creation time: {:?}", start.elapsed());
 
-    let start = std::time::Instant::now();
-    // Convert Vec<u32> to Vec<u8> before encoding
-    // let id_bytes: Vec<u8> = GET_PROOF_DATA_ID
-    //     .iter()
-    //     .flat_map(|&x| x.to_le_bytes())
-    //     .collect();
-    // let image_id_hex = hex::encode(id_bytes);
-
-    let image_id_hex: String =
-        "d6d8248d1e786f29a2523024755fec278834380b35606307682d1411b65adba6".to_string();
-    // info!("Image ID: {}", image_id_hex);
-    // info!("Image read time: {:?}", start.elapsed());
+    let image_id_hex: String = dotenvy::var("IMAGE_ID_BONSAI")
+        .expect("IMAGE_ID_BONSAI must be set in environment");
 
     let input_id = client.upload_input(input_data)?;
 
@@ -93,6 +98,7 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
 
     let polling_interval = Duration::from_millis(500);
 
+    let stark_time = std::time::Instant::now();
     let succinct_stats = loop {
         let res = session.status(&client)?;
         if res.status == "RUNNING" {
@@ -100,7 +106,6 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
             continue;
         }
         if res.status == "SUCCEEDED" {
-            // info!("Proving time: {:?}", start.elapsed());
 
             let stats = res
                 .stats
@@ -128,12 +133,8 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
             )));
         }
     };
-
-    let stark_time = start.elapsed();
-
-    // let start = std::time::Instant::now();
+    let stark_time = stark_time.elapsed();
     let snark_session = client.create_snark(session.uuid.clone())?;
-    // info!("Snark session creation time: {:?}", start.elapsed());
 
     let start = std::time::Instant::now();
     let snark_receipt_url = loop {
@@ -162,15 +163,12 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
             }
         }
     };
-    let snark_time = start.elapsed();
-    // info!("Snark proving time: {:?}", start.elapsed());
 
-    let start = std::time::Instant::now();
+    let snark_time = start.elapsed();
+
     let receipt_buf = client.download(&snark_receipt_url)?;
     let groth16_receipt: Receipt = bincode::deserialize(&receipt_buf)?;
-    info!("Receipt download time: {:?}", start.elapsed());
 
-    info!("Total time (groth16): {:?}", start_total.elapsed());
 
     Ok(MaldaProveInfo {
         receipt: groth16_receipt,
@@ -181,22 +179,23 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
     })
 }
 
-/// Executes proof data queries across multiple chains in parallel
+/// Executes proof data queries across multiple chains in parallel.
 ///
 /// # Arguments
-/// * `users` - Vector of user address vectors, one per chain
-/// * `markets` - Vector of market contract address vectors, one per chain
-/// * `target_chain_ids` - Vector of target chain IDs to query
-/// * `chain_ids` - Vector of chain IDs to query
+/// * `users` - Vector of user address vectors, one per chain.
+/// * `markets` - Vector of market contract address vectors, one per chain.
+/// * `target_chain_id` - Vector of target chain IDs to query (vector of vectors).
+/// * `chain_ids` - Vector of chain IDs to query.
+/// * `l1_inclusion` - Whether to include L1 data in the proof.
 ///
 /// # Returns
-/// * `Result<SessionInfo, Error>` - Session info from the ZKVM execution
+/// * `Result<SessionInfo, Error>` - Session info from the ZKVM execution.
 ///
 /// # Errors
 /// Returns an error if:
-/// - Array lengths don't match
-/// - RPC calls fail
-/// - ZKVM execution fails
+/// - Array lengths don't match.
+/// - RPC calls fail.
+/// - ZKVM execution fails.
 pub async fn get_proof_data_exec(
     users: Vec<Vec<Address>>,
     markets: Vec<Vec<Address>>,
@@ -204,7 +203,7 @@ pub async fn get_proof_data_exec(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
 ) -> Result<SessionInfo, Error> {
-    // Verify outer arrays have same length
+
     assert_eq!(
         users.len(),
         markets.len(),
@@ -248,16 +247,21 @@ pub async fn get_proof_data_exec(
         .expect("Failed to execute ZKVM"))
 }
 
-/// Creates the executor environment with proof data from multiple chains
+/// Creates the executor environment with proof data from multiple chains.
 ///
 /// # Arguments
-/// * `users` - Vector of user address vectors, one per chain
-/// * `markets` - Vector of market contract address vectors, one per chain
-/// * `target_chain_ids` - Vector of target chain IDs to query
-/// * `chain_ids` - Vector of chain IDs to query
+/// * `users` - Vector of user address vectors, one per chain.
+/// * `markets` - Vector of market contract address vectors, one per chain.
+/// * `target_chain_ids` - Vector of target chain IDs to query (vector of vectors).
+/// * `chain_ids` - Vector of chain IDs to query.
+/// * `l1_inclusion` - Whether to include L1 data in the proof.
 ///
 /// # Returns
-/// * `ExecutorEnv` - Environment configured with proof data inputs
+/// * `ExecutorEnv<'static>` - Environment configured with proof data inputs.
+///
+/// # Panics
+/// Panics if:
+/// - Array lengths don't match.
 async fn get_proof_data_env(
     users: Vec<Vec<Address>>,
     markets: Vec<Vec<Address>>,
@@ -265,11 +269,10 @@ async fn get_proof_data_env(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
 ) -> ExecutorEnv<'static> {
-    // Verify outer arrays have same length
+
     assert_eq!(users.len(), markets.len());
     assert_eq!(users.len(), chain_ids.len());
 
-    // Create futures using tokio::spawn for true parallelism
     let futures: Vec<_> = (0..chain_ids.len())
         .map(|i| {
             let users = users[i].clone();
@@ -283,15 +286,13 @@ async fn get_proof_data_env(
         })
         .collect();
 
-    // Execute all futures in parallel and collect results
     let results = join_all(futures).await;
     let all_inputs = results
         .into_iter()
-        .filter_map(|r| r.ok()) // Handle any JoinError
+        .filter_map(|r| r.ok())
         .flat_map(|input| input)
         .collect::<Vec<_>>();
 
-    // Create environment with inputs
     ExecutorEnv::builder()
         .write(&(chain_ids.len() as u64))
         .unwrap()
@@ -300,6 +301,21 @@ async fn get_proof_data_env(
         .unwrap()
 }
 
+/// Prepares input data for the ZKVM for multiple chains' proof data queries.
+///
+/// # Arguments
+/// * `users` - Vector of user address vectors, one per chain.
+/// * `markets` - Vector of market contract address vectors, one per chain.
+/// * `target_chain_ids` - Vector of target chain IDs to query (vector of vectors).
+/// * `chain_ids` - Vector of chain IDs to query.
+/// * `l1_inclusion` - Whether to include L1 data in the proof.
+///
+/// # Returns
+/// * `Vec<u8>` - Serialized input data for the ZKVM.
+///
+/// # Panics
+/// Panics if:
+/// - Array lengths don't match.
 async fn get_proof_data_input(
     users: Vec<Vec<Address>>,
     markets: Vec<Vec<Address>>,
@@ -307,11 +323,10 @@ async fn get_proof_data_input(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
 ) -> Vec<u8> {
-    // Verify outer arrays have same length
+
     assert_eq!(users.len(), markets.len());
     assert_eq!(users.len(), chain_ids.len());
 
-    // Create futures using tokio::spawn for true parallelism
     let futures: Vec<_> = (0..chain_ids.len())
         .map(|i| {
             let users = users[i].clone();
@@ -325,39 +340,37 @@ async fn get_proof_data_input(
         })
         .collect();
 
-    // Execute all futures in parallel and collect results
     let results = join_all(futures).await;
     let all_inputs = results
         .into_iter()
-        .filter_map(|r| r.ok()) // Handle any JoinError
+        .filter_map(|r| r.ok())
         .flat_map(|input| input)
         .collect::<Vec<_>>();
 
-    // Create input with chain count
     let input: Vec<u8> = bytemuck::pod_collect_to_vec(
         &risc0_zkvm::serde::to_vec(&(chain_ids.len() as u64)).unwrap(),
     );
 
-    // Concatenate the chain count input with all the chain-specific inputs
     [input, all_inputs].concat()
 }
 
-/// Generates ZK proofs for proof data queries across multiple chains
+/// Generates ZK proofs for proof data queries across multiple chains.
 ///
 /// # Arguments
-/// * `users` - Vector of user address vectors, one per chain
-/// * `markets` - Vector of market contract address vectors, one per chain
-/// * `target_chain_ids` - Vector of target chain IDs to query
-/// * `chain_ids` - Vector of chain IDs to query
+/// * `users` - Vector of user address vectors, one per chain.
+/// * `markets` - Vector of market contract address vectors, one per chain.
+/// * `target_chain_ids` - Vector of target chain IDs to query (vector of vectors).
+/// * `chain_ids` - Vector of chain IDs to query.
+/// * `l1_inclusion` - Whether to include L1 data in the proof.
 ///
 /// # Returns
-/// * `Result<ProveInfo, Error>` - Proof information from the ZKVM
+/// * `Result<ProveInfo, Error>` - Proof information from the ZKVM.
 ///
 /// # Errors
 /// Returns an error if:
-/// - Array lengths don't match
-/// - RPC calls fail
-/// - Proof generation fails
+/// - Array lengths don't match.
+/// - RPC calls fail.
+/// - Proof generation fails.
 pub async fn get_proof_data_prove(
     users: Vec<Vec<Address>>,
     markets: Vec<Vec<Address>>,
@@ -365,12 +378,11 @@ pub async fn get_proof_data_prove(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
 ) -> Result<ProveInfo, Error> {
-    // Move all the work including env creation into the blocking task
+
     let prove_info = tokio::task::spawn_blocking(move || {
-        // Create a new runtime for async operations within the blocking task
+
         let rt = tokio::runtime::Runtime::new().unwrap();
 
-        // Execute all async operations in the new runtime
         let start_time = std::time::Instant::now();
         let env = rt.block_on(get_proof_data_env(
             users,
@@ -394,6 +406,23 @@ pub async fn get_proof_data_prove(
     prove_info
 }
 
+/// Generates ZK proofs for proof data queries across multiple chains using the Bonsai SDK.
+///
+/// # Arguments
+/// * `users` - Vector of user address vectors, one per chain.
+/// * `markets` - Vector of market contract address vectors, one per chain.
+/// * `target_chain_ids` - Vector of target chain IDs to query (vector of vectors).
+/// * `chain_ids` - Vector of chain IDs to query.
+/// * `l1_inclusion` - Whether to include L1 data in the proof.
+///
+/// # Returns
+/// * `Result<MaldaProveInfo, Error>` - Proof information from the Bonsai SDK.
+///
+/// # Errors
+/// Returns an error if:
+/// - Array lengths don't match.
+/// - RPC calls fail.
+/// - Proof generation fails.
 pub async fn get_proof_data_prove_sdk(
     users: Vec<Vec<Address>>,
     markets: Vec<Vec<Address>>,
@@ -401,12 +430,11 @@ pub async fn get_proof_data_prove_sdk(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
 ) -> Result<MaldaProveInfo, Error> {
-    // Move all the work including env creation into the blocking task
+
     let prove_info = tokio::task::spawn_blocking(move || {
-        // Create a new runtime for async operations within the blocking task
+
         let rt = tokio::runtime::Runtime::new().unwrap();
 
-        // Execute all async operations in the new runtime
         let start_time = std::time::Instant::now();
         let input = rt.block_on(get_proof_data_input(
             users,
@@ -429,21 +457,22 @@ pub async fn get_proof_data_prove_sdk(
     prove_info
 }
 
-/// Prepares input data for the ZKVM for a single chain's proof data queries
+/// Prepares input data for the ZKVM for a single chain's proof data queries.
 ///
 /// # Arguments
-/// * `users` - Vector of user addresses to query
-/// * `markets` - Vector of market contract addresses to query
-/// * `target_chain_ids` - Vector of target chain IDs to query
-/// * `chain_id` - Chain ID for the queries
+/// * `users` - Vector of user addresses to query.
+/// * `markets` - Vector of market contract addresses to query.
+/// * `target_chain_ids` - Vector of target chain IDs to query.
+/// * `chain_id` - Chain ID for the queries.
+/// * `l1_inclusion` - Whether to include L1 data in the proof.
 ///
 /// # Returns
-/// * `Vec<u8>` - Serialized input data for the ZKVM
+/// * `Vec<u8>` - Serialized input data for the ZKVM.
 ///
 /// # Panics
 /// Panics if:
-/// - Invalid chain ID is provided
-/// - RPC calls fail
+/// - Invalid chain ID is provided.
+/// - RPC calls fail.
 pub async fn get_proof_data_zkvm_input(
     users: Vec<Address>,
     markets: Vec<Address>,
@@ -555,6 +584,20 @@ pub async fn get_proof_data_zkvm_input(
     input
 }
 
+/// Returns the environment input for L1 inclusion and the L2 block number for a given chain.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to query.
+/// * `is_sepolia` - Whether the chain is a Sepolia testnet variant.
+/// * `l1_inclusion` - Whether to include L1 data in the proof.
+/// * `ethereum_block` - The Ethereum block number (optional).
+///
+/// # Returns
+/// * `(Option<EvmInput<RlpHeader<Header>>>, Option<u64>)` - The environment input and L2 block number, if available.
+///
+/// # Panics
+/// Panics if:
+/// - L1 inclusion is requested for an unsupported chain.
 pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
     chain_id: u64,
     is_sepolia: bool,
@@ -596,6 +639,19 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
     }
 }
 
+/// Returns the environment input and L2 block number for Linea L1 call.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to query.
+/// * `l1_rpc_url` - The L1 RPC URL.
+/// * `l1_block` - The L1 block number.
+///
+/// # Returns
+/// * `(Option<EvmInput<RlpHeader<Header>>>, Option<u64>)` - The environment input and L2 block number, if available.
+///
+/// # Panics
+/// Panics if:
+/// - Invalid chain ID is provided.
 pub async fn get_env_input_for_linea_l1_call(
     chain_id: u64,
     l1_rpc_url: &str,
@@ -636,6 +692,18 @@ pub async fn get_env_input_for_linea_l1_call(
     )
 }
 
+/// Returns the environment input for OpStack dispute game and a dummy L2 block number.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to query.
+/// * `l1_block` - The L1 block number.
+///
+/// # Returns
+/// * `(Option<EvmInput<RlpHeader<Header>>>, Option<u64>)` - The environment input and a dummy L2 block number.
+///
+/// # Panics
+/// Panics if:
+/// - Invalid chain ID is provided.
 pub async fn get_env_input_for_opstack_dispute_game(
     chain_id: u64,
     l1_block: u64,
@@ -815,6 +883,21 @@ pub async fn get_env_input_for_opstack_dispute_game(
     )
 }
 
+/// Returns L1 block call inputs and L1 block numbers for a given chain.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to query.
+/// * `is_sepolia` - Whether the chain is a Sepolia testnet variant.
+/// * `l1_inclusion` - Whether to include L1 data in the proof.
+/// * `block` - The block number (optional).
+/// * `_block_2` - The second block number (optional, unused).
+///
+/// # Returns
+/// * Tuple of optional L1 block call inputs and block numbers.
+///
+/// # Panics
+/// Panics if:
+/// - Block number is not provided when required.
 pub async fn get_l1block_call_inputs_and_l1_block_numbers(
     chain_id: u64,
     is_sepolia: bool,
@@ -849,23 +932,24 @@ pub async fn get_l1block_call_inputs_and_l1_block_numbers(
     }
 }
 
-/// Prepares multicall input for batch proof data checking
+/// Prepares multicall input for batch proof data checking.
 ///
 /// # Arguments
-/// * `chain_id` - Chain ID for the queries
-/// * `chain_url` - RPC URL for the chain
-/// * `block` - Block number to query at
-/// * `users` - Vector of user addresses
-/// * `markets` - Vector of market contract addresses
-/// * `target_chain_ids` - Vector of target chain IDs to query
+/// * `chain_id` - Chain ID for the queries.
+/// * `chain_url` - RPC URL for the chain.
+/// * `block` - Block number to query at.
+/// * `users` - Vector of user addresses.
+/// * `markets` - Vector of market contract addresses.
+/// * `target_chain_ids` - Vector of target chain IDs to query.
+/// * `validate_l1_inclusion` - Whether to validate L1 inclusion for OpStack chains.
 ///
 /// # Returns
-/// * `EvmInput<RlpHeader<Header>>` - Formatted EVM input for the multicall
+/// * `(Option<EvmInput<RlpHeader<Header>>>, Option<OpEvmInput>)` - Formatted EVM input for the multicall and optional OpEvmInput.
 ///
 /// # Panics
 /// Panics if:
-/// - Invalid chain ID is provided
-/// - RPC connection fails
+/// - Invalid chain ID is provided.
+/// - RPC connection fails.
 pub async fn get_proof_data_call_input(
     chain_id: u64,
     chain_url: &str,
@@ -921,12 +1005,6 @@ pub async fn get_proof_data_call_input(
 
     // Make single multicall
     let multicall = IMulticall3::aggregate3Call { calls };
-
-    // let gas_price = if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
-    //     50000000000u64
-    // } else {
-    //     10000000000u64
-    // };
 
     // Use separate code paths for each environment type
     if (chain_id == OPTIMISM_CHAIN_ID
@@ -1000,6 +1078,22 @@ pub async fn get_proof_data_call_input(
     }
 }
 
+/// Fetches sequencer commitments and block numbers for a given chain, handling L1 inclusion and Sepolia/mainnet variants.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to query.
+/// * `rpc_url` - The RPC URL for the chain.
+/// * `is_sepolia` - Whether the chain is a Sepolia testnet variant.
+/// * `l1_inclusion` - Whether to include L1 data in the proof.
+///
+/// # Returns
+/// * `(Option<u64>, Option<SequencerCommitment>, Option<u64>, Option<SequencerCommitment>)` -
+///   Tuple of (block, commitment, block_2, commitment_2), where the second pair is only relevant for some Sepolia/mainnet cases.
+///
+/// # Panics
+/// Panics if:
+/// - An invalid chain ID is provided.
+/// - RPC calls fail.
 pub async fn get_sequencer_commitments_and_blocks(
     chain_id: u64,
     rpc_url: &str,
@@ -1064,18 +1158,18 @@ pub async fn get_sequencer_commitments_and_blocks(
         panic!("Invalid chain ID");
     }
 }
-/// Fetches the current sequencer commitment for L2 chains
+/// Fetches the current sequencer commitment for L2 chains.
 ///
 /// # Arguments
-/// * `chain_id` - Chain ID (Optimism, Base, or their Sepolia variants)
+/// * `chain_id` - Chain ID (Optimism, Base, or their Sepolia variants).
 ///
 /// # Returns
-/// * `(SequencerCommitment, u64)` - Tuple of sequencer commitment and block number
+/// * `(SequencerCommitment, u64)` - Tuple of sequencer commitment and block number.
 ///
 /// # Panics
 /// Panics if:
-/// - Invalid chain ID is provided
-/// - Sequencer API request fails
+/// - Invalid chain ID is provided.
+/// - Sequencer API request fails.
 pub async fn get_current_sequencer_commitment(chain_id: u64) -> (SequencerCommitment, u64) {
     let req = match chain_id {
         BASE_CHAIN_ID => sequencer_request_base(),
@@ -1099,19 +1193,19 @@ pub async fn get_current_sequencer_commitment(chain_id: u64) -> (SequencerCommit
     (commitment, block)
 }
 
-/// Retrieves L1 block information for L2 chains
+/// Retrieves L1 block information for L2 chains.
 ///
 /// # Arguments
-/// * `block` - Block number or tag to query
-/// * `chain_id` - Chain ID (Optimism, Base, or their Sepolia variants)
+/// * `block` - Block number or tag to query.
+/// * `chain_id` - Chain ID (Optimism, Base, or their Sepolia variants).
 ///
 /// # Returns
-/// * `(EvmInput<RlpHeader<Header>>, u64)` - Tuple of L1 block input and block number
+/// * `(EvmInput<RlpHeader<Header>>, u64)` - Tuple of L1 block input and block number.
 ///
 /// # Panics
 /// Panics if:
-/// - Invalid chain ID is provided
-/// - RPC calls fail
+/// - Invalid chain ID is provided.
+/// - RPC calls fail.
 pub async fn get_l1block_call_input(
     block: BlockNumberOrTag,
     chain_id: u64,
@@ -1162,20 +1256,20 @@ pub async fn get_l1block_call_input(
     (view_call_input_l1_block, l1_block)
 }
 
-/// Fetches a sequence of blocks for reorg protection
+/// Fetches a sequence of blocks for reorg protection.
 ///
 /// # Arguments
-/// * `chain_id` - Chain ID to query
-/// * `rpc_url` - RPC URL for the chain
-/// * `current_block` - Latest block number to start from
+/// * `chain_id` - Chain ID to query.
+/// * `rpc_url` - RPC URL for the chain.
+/// * `current_block` - Latest block number to start from.
 ///
 /// # Returns
-/// * `Vec<RlpHeader<Header>>` - Vector of block headers within the reorg protection window
+/// * `Vec<RlpHeader<Header>>` - Vector of block headers within the reorg protection window.
 ///
 /// # Panics
 /// Panics if:
-/// - Invalid chain ID is provided
-/// - RPC calls fail
+/// - Invalid chain ID is provided.
+/// - RPC calls fail.
 pub async fn get_linking_blocks(
     chain_id: u64,
     rpc_url: &str,
