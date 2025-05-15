@@ -108,6 +108,7 @@ mod tests {
         let user_optimism = address!("e50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8");
         let asset = WETH_MARKET_SEPOLIA;
         let chain_id = OPTIMISM_SEPOLIA_CHAIN_ID;
+        let retries_before_fallback = 1;
 
         let _session_info = get_proof_data_prove_sdk(
             vec![vec![user_optimism]],
@@ -115,6 +116,7 @@ mod tests {
             vec![vec![LINEA_CHAIN_ID]],
             vec![chain_id],
             false,
+            retries_before_fallback,
         )
         .await
         .unwrap();
