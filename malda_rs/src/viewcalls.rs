@@ -222,7 +222,7 @@ pub async fn get_proof_data_exec(
             let target_chain_id = target_chain_id[i].clone();
             let chain_id = chain_ids[i];
             tokio::spawn(async move {
-                get_proof_data_zkvm_input(users, markets, target_chain_id, chain_id, l1_inclusion, 10)
+                get_proof_data_zkvm_input(users, markets, target_chain_id, chain_id, l1_inclusion, false)
                     .await
             })
         })
@@ -280,7 +280,7 @@ async fn get_proof_data_env(
             let chain_id = chain_ids[i];
             let target_chain_id = target_chain_ids[i].clone();
             tokio::spawn(async move {
-                get_proof_data_zkvm_input(users, markets, target_chain_id, chain_id, l1_inclusion, 10)
+                get_proof_data_zkvm_input(users, markets, target_chain_id, chain_id, l1_inclusion, false)
                     .await
             })
         })
@@ -322,7 +322,7 @@ async fn get_proof_data_input(
     target_chain_ids: Vec<Vec<u64>>,
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
-    retry_before_fallback: u32,
+    fallback: bool,
 ) -> Vec<u8> {
 
     assert_eq!(users.len(), markets.len());
@@ -335,7 +335,7 @@ async fn get_proof_data_input(
             let chain_id = chain_ids[i];
             let target_chain_id = target_chain_ids[i].clone();
             tokio::spawn(async move {
-                get_proof_data_zkvm_input(users, markets, target_chain_id, chain_id, l1_inclusion, retry_before_fallback)
+                get_proof_data_zkvm_input(users, markets, target_chain_id, chain_id, l1_inclusion, fallback)
                     .await
             })
         })
@@ -430,7 +430,7 @@ pub async fn get_proof_data_prove_sdk(
     target_chain_ids: Vec<Vec<u64>>,
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
-    retry_before_fallback: u32,
+    fallback: bool,
 ) -> Result<MaldaProveInfo, Error> {
 
     let prove_info = tokio::task::spawn_blocking(move || {
@@ -444,7 +444,7 @@ pub async fn get_proof_data_prove_sdk(
             target_chain_ids,
             chain_ids,
             l1_inclusion,
-            retry_before_fallback,
+            fallback,
         ));
         let duration = start_time.elapsed();
         info!("Env creation time: {:?}", duration);
@@ -482,37 +482,37 @@ pub async fn get_proof_data_zkvm_input(
     target_chain_ids: Vec<u64>,
     chain_id: u64,
     l1_inclusion: bool,
-    retry_before_fallback: u32,
+    fallback: bool
 ) -> Vec<u8> {
     let is_sepolia = chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
         || chain_id == BASE_SEPOLIA_CHAIN_ID
         || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID
         || chain_id == LINEA_SEPOLIA_CHAIN_ID;
 
-    let fallback = false;
-
-    let rpc_url = match chain_id {
-        BASE_CHAIN_ID => rpc_url_base(),
-        OPTIMISM_CHAIN_ID => rpc_url_optimism(),
-        LINEA_CHAIN_ID => rpc_url_linea(),
-        ETHEREUM_CHAIN_ID => rpc_url_ethereum(),
+    let rpc_url = if fallback {
+        match chain_id {
+            BASE_CHAIN_ID => rpc_url_base_fallback(),
+            OPTIMISM_CHAIN_ID => rpc_url_optimism_fallback(),
+            LINEA_CHAIN_ID => rpc_url_linea_fallback(),
+            ETHEREUM_CHAIN_ID => rpc_url_ethereum_fallback(),
         OPTIMISM_SEPOLIA_CHAIN_ID => rpc_url_optimism_sepolia(),
-        BASE_SEPOLIA_CHAIN_ID => rpc_url_base_sepolia(),
-        LINEA_SEPOLIA_CHAIN_ID => rpc_url_linea_sepolia(),
-        ETHEREUM_SEPOLIA_CHAIN_ID => rpc_url_ethereum_sepolia(),
-        _ => panic!("Invalid chain ID"),
-    };
-
-    let rpc_url_fallback = match chain_id {
-        BASE_CHAIN_ID => rpc_url_base_fallback(),
-        OPTIMISM_CHAIN_ID => rpc_url_optimism_fallback(),
-        LINEA_CHAIN_ID => rpc_url_linea_fallback(),
-        ETHEREUM_CHAIN_ID => rpc_url_ethereum_fallback(),
-        OPTIMISM_SEPOLIA_CHAIN_ID => rpc_url_optimism_sepolia_fallback(),
-        BASE_SEPOLIA_CHAIN_ID => rpc_url_base_sepolia_fallback(),
-        LINEA_SEPOLIA_CHAIN_ID => rpc_url_linea_sepolia_fallback(),
-        ETHEREUM_SEPOLIA_CHAIN_ID => rpc_url_ethereum_sepolia_fallback(),
-        _ => panic!("Invalid chain ID"),
+            BASE_SEPOLIA_CHAIN_ID => rpc_url_base_sepolia_fallback(),
+            LINEA_SEPOLIA_CHAIN_ID => rpc_url_linea_sepolia_fallback(),
+            ETHEREUM_SEPOLIA_CHAIN_ID => rpc_url_ethereum_sepolia_fallback(),
+            _ => panic!("Invalid chain ID"),
+        }
+    } else {
+        match chain_id {
+            BASE_CHAIN_ID => rpc_url_base(),
+            OPTIMISM_CHAIN_ID => rpc_url_optimism(),
+            LINEA_CHAIN_ID => rpc_url_linea(),
+            ETHEREUM_CHAIN_ID => rpc_url_ethereum(),
+            OPTIMISM_SEPOLIA_CHAIN_ID => rpc_url_optimism_sepolia(),
+            BASE_SEPOLIA_CHAIN_ID => rpc_url_base_sepolia(),
+            LINEA_SEPOLIA_CHAIN_ID => rpc_url_linea_sepolia(),
+            ETHEREUM_SEPOLIA_CHAIN_ID => rpc_url_ethereum_sepolia(),
+            _ => panic!("Invalid chain ID"),
+        }
     };
 
     let (block, commitment, block_2, commitment_2) =
