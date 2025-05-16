@@ -107,7 +107,7 @@ mod tests {
     async fn should_pass_prove_get_proof_data_on_optimism_sepolia_sdk() {
         let user_optimism = address!("e50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8");
         let asset = WETH_MARKET_SEPOLIA;
-        let chain_id = OPTIMISM_SEPOLIA_CHAIN_ID;
+        let chain_id = LINEA_SEPOLIA_CHAIN_ID;
         let retries_before_fallback = 1;
 
         let _session_info = get_proof_data_prove_sdk(

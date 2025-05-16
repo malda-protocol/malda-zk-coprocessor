@@ -19,6 +19,7 @@ use crate::types::*;
 use crate::types::{Call3, IDisputeGame, IDisputeGameFactory, IL1MessageService, IMulticall3};
 use crate::types::{ExecutionPayload, IL1Block, SequencerCommitment};
 use core::panic;
+use std::time::Duration;
 
 use risc0_op_steel::optimism::OpEvmInput;
 use risc0_steel::{
@@ -39,13 +40,13 @@ use futures::future::join_all;
 use tokio;
 use url::Url;
 
-use std::time::Duration;
-
 use bonsai_sdk::blocking::Client;
 use risc0_zkvm::Receipt;
 use tracing::info;
 
 use dotenvy;
+
+use futures::FutureExt;
 
 #[derive(Debug, Clone)]
 pub struct MaldaSessionStats {
@@ -701,10 +702,17 @@ pub async fn get_env_input_for_linea_l1_call(
     };
 
     let mut env = EthEvmEnv::builder()
-        .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
+        .rpc(Url::parse(l1_rpc_url).map_err(|e| {
+            eprintln!("ERROR parsing RPC URL in get_env_input_for_linea_l1_call: {:?} - URL: {}", e, l1_rpc_url);
+            e
+        }).expect("Failed to parse RPC URL"))
         .block_number_or_tag(BlockNumberOrTag::Number(l1_block))
         .build()
         .await
+        .map_err(|e| {
+            eprintln!("ERROR building EVM environment in get_env_input_for_linea_l1_call: {:?}", e);
+            e
+        })
         .expect("Failed to build EVM environment");
 
     // Make single multicall
@@ -781,21 +789,38 @@ pub async fn get_env_input_for_opstack_dispute_game(
     };
 
     let mut env = EthEvmEnv::builder()
-        .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
+        .rpc(Url::parse(l1_rpc_url).map_err(|e| {
+            eprintln!("ERROR parsing RPC URL in get_env_input_for_opstack_dispute_game (env): {:?} - URL: {}", e, l1_rpc_url);
+            e
+        }).expect("Failed to parse RPC URL"))
         .block_number_or_tag(BlockNumberOrTag::Number(l1_block))
         .build()
         .await
+        .map_err(|e| {
+            eprintln!("ERROR building EVM environment in get_env_input_for_opstack_dispute_game (env): {:?}", e);
+            e
+        })
         .expect("Failed to build EVM environment");
     let builder = OpEvmEnv::builder()
         .dispute_game_from_rpc(
             optimism_portal,
-            Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"),
+            Url::parse(l1_rpc_url).map_err(|e| {
+                eprintln!("ERROR parsing RPC URL in get_env_input_for_opstack_dispute_game (dispute_game_from_rpc): {:?} - URL: {}", e, l1_rpc_url);
+                e
+            }).expect("Failed to parse RPC URL"),
         )
         .game_index(DisputeGameIndex::Finalized);
     let mut op_env = builder
-        .rpc(Url::parse(l2_rpc_url).expect("Failed to parse RPC URL"))
+        .rpc(Url::parse(l2_rpc_url).map_err(|e| {
+            eprintln!("ERROR parsing RPC URL in get_env_input_for_opstack_dispute_game (op_env): {:?} - URL: {}", e, l2_rpc_url);
+            e
+        }).expect("Failed to parse RPC URL"))
         .build()
         .await
+        .map_err(|e| {
+            eprintln!("ERROR building OP-EVM environment in get_env_input_for_opstack_dispute_game (op_env): {:?}", e);
+            e
+        })
         .expect("Failed to build OP-EVM environment");
 
     // This is just an arbitrary simple call needed in order to do into_env to get the game_index
@@ -1106,13 +1131,23 @@ pub async fn get_proof_data_call_input(
         let builder = OpEvmEnv::builder()
             .dispute_game_from_rpc(
                 optimism_portal,
-                Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"),
+                Url::parse(l1_rpc_url).map_err(|e| {
+                    eprintln!("ERROR parsing RPC URL in get_proof_data_call_input (dispute_game_from_rpc): {:?} - URL: {}", e, l1_rpc_url);
+                    e
+                }).expect("Failed to parse RPC URL"),
             )
             .game_index(DisputeGameIndex::Finalized);
         let mut env = builder
-            .rpc(Url::parse(chain_url_final).expect("Failed to parse RPC URL"))
+            .rpc(Url::parse(chain_url_final).map_err(|e| {
+                eprintln!("ERROR parsing RPC URL in get_proof_data_call_input (op_env): {:?} - URL: {}", e, chain_url_final);
+                e
+            }).expect("Failed to parse RPC URL"))
             .build()
             .await
+            .map_err(|e| {
+                eprintln!("ERROR building OP-EVM environment in get_proof_data_call_input: {:?}", e);
+                e
+            })
             .expect("Failed to build OP-EVM environment");
 
         let mut contract = Contract::preflight(MULTICALL, &mut env);
@@ -1151,10 +1186,17 @@ pub async fn get_proof_data_call_input(
             chain_url
         };
         let mut env = EthEvmEnv::builder()
-            .rpc(Url::parse(&chain_url_final).expect("Failed to parse RPC URL"))
+            .rpc(Url::parse(&chain_url_final).map_err(|e| {
+                eprintln!("ERROR parsing RPC URL in get_proof_data_call_input (regular env): {:?} - URL: {}", e, chain_url_final);
+                e
+            }).expect("Failed to parse RPC URL"))
             .block_number_or_tag(BlockNumberOrTag::Number(block_reorg_protected))
             .build()
             .await
+            .map_err(|e| {
+                eprintln!("ERROR building EVM environment in get_proof_data_call_input (regular EVM path): {:?}", e);
+                e
+            })
             .expect("Failed to build EVM environment");
 
         let mut contract = Contract::preflight(MULTICALL, &mut env);
@@ -1339,10 +1381,17 @@ pub async fn get_l1block_call_input(
         }
     };
     let mut env = EthEvmEnv::builder()
-        .rpc(Url::parse(rpc_url).expect("Failed to parse RPC URL"))
+        .rpc(Url::parse(rpc_url).map_err(|e| {
+            eprintln!("ERROR parsing RPC URL in get_l1block_call_input (first env): {:?} - URL: {}", e, rpc_url);
+            e
+        }).expect("Failed to parse RPC URL"))
         .block_number_or_tag(block)
         .build()
         .await
+        .map_err(|e| {
+            eprintln!("ERROR building EVM environment in get_l1block_call_input (first env): {:?}", e);
+            e
+        })
         .expect("Failed to build EVM environment");
 
     let call = IL1Block::hashCall {};
@@ -1359,10 +1408,17 @@ pub async fn get_l1block_call_input(
         .expect("Failed to convert environment to input");
 
     let mut env = EthEvmEnv::builder()
-        .rpc(Url::parse(rpc_url).expect("Failed to parse RPC URL"))
+        .rpc(Url::parse(rpc_url).map_err(|e| {
+            eprintln!("ERROR parsing RPC URL in get_l1block_call_input (second env): {:?} - URL: {}", e, rpc_url);
+            e
+        }).expect("Failed to parse RPC URL"))
         .block_number_or_tag(block)
         .build()
         .await
+        .map_err(|e| {
+            eprintln!("ERROR building EVM environment in get_l1block_call_input (second env): {:?}", e);
+            e
+        })
         .expect("Failed to build EVM environment");
 
     let call = IL1Block::numberCall {};
@@ -1416,10 +1472,17 @@ pub async fn get_linking_blocks(
             let rpc_url = rpc_url.to_string();
             tokio::spawn(async move {
                 let env = EthEvmEnv::builder()
-                    .rpc(Url::parse(&rpc_url).expect("Failed to parse RPC URL"))
+                    .rpc(Url::parse(&rpc_url).map_err(|e| {
+                        eprintln!("ERROR parsing RPC URL in get_linking_blocks: {:?} - URL: {}", e, rpc_url);
+                        e
+                    }).expect("Failed to parse RPC URL"))
                     .block_number_or_tag(BlockNumberOrTag::Number(block_nr))
                     .build()
                     .await
+                    .map_err(|e| {
+                        eprintln!("ERROR building EVM environment in get_linking_blocks: {:?}", e);
+                        e
+                    })
                     .expect("Failed to build EVM environment");
                 env.header().inner().clone()
             })
