@@ -2,6 +2,8 @@
 
 This repository contains the ZK coprocessor implementation for the Malda Protocol, a unified liquidity lending protocol that enables seamless cross-chain lending operations without traditional bridging. While this repository focuses on the ZK verification layer, it's part of a larger protocol architecture that includes smart contracts, the zk-coprocessor and the sequencer.
 
+![Malda Protocol Flow](malda_flow.png)
+
 ## About Malda Protocol
 
 Malda Protocol solves the fragmentation problem in DeFi by creating a unified lending experience across multiple EVM networks. The protocol enables users to:
@@ -10,6 +12,8 @@ Malda Protocol solves the fragmentation problem in DeFi by creating a unified le
 - Unified liquidity and interest rates across all chains
 - Execute lending operations across chains without bridging or wrapping assets
 - Maintain full control of their funds in a self-custodial manner
+
+
 
 ## About the ZK Coprocessor
 
@@ -49,7 +53,6 @@ The core component that enables trustless cross-chain operations. It:
 ### Other Protocol Components
 
 The ZK coprocessor works alongside the protocol's smart contracts, which handle lending operations and state management, and the Sequencer infrastructure, which monitors events and submits proofs. Despite being centralized, the Sequencer is constrained by ZK proofs and cannot manipulate user funds, ensuring the protocol remains self-custodial. For censorship resistance, users can [generate their own proofs](#self-sequencing) if needed.
-
 
 ## Technical Details
 
