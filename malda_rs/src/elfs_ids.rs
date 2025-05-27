@@ -9,9 +9,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// This file contains code derived from or inspired by Risc0,
-// originally licensed under the Apache License 2.0. See LICENSE-RISC0
-// and the NOTICE file for original license terms and attributions.
+//
 
 pub const GET_PROOF_DATA_ELF: &[u8] = include_bytes!("../bin/get-proof-data.bin");
 pub const GET_PROOF_DATA_PATH: &str = "../bin/get-proof-data.bin";
