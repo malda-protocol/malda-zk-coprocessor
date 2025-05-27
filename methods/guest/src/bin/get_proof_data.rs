@@ -9,9 +9,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// This file contains code derived from or inspired by Risc0,
-// originally licensed under the Apache License 2.0. See LICENSE-RISC0
-// and the NOTICE file for original license terms and attributions.
+//
 
 use malda_utils::{validators::validate_get_proof_data_call, types::SequencerCommitment};
 use alloy_primitives::{Address, Bytes};

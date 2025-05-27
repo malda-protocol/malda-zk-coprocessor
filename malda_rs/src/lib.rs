@@ -9,10 +9,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// This file contains code derived from or inspired by Risc0,
-// originally licensed under the Apache License 2.0. See LICENSE-RISC0
-// and the NOTICE file for original license terms and attributions.
-//! Rust SDK for the Malda protocol
+//
 //!
 //! Code for host/client and zkVM guest program including constants,
 //! view calls, cryptographic operations, type definitions, and validation logic.
