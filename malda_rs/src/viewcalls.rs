@@ -87,6 +87,15 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
 
     let client = Client::from_env(risc0_zkvm::VERSION)?;
 
+//     let id_bytes: Vec<u8> = GET_PROOF_DATA_ID
+//     .iter()
+//     .flat_map(|&x| x.to_le_bytes())
+//     .collect();
+// let image_id_hex = hex::encode(id_bytes);
+
+// println!("Image ID: {}", image_id_hex);
+
+
     let image_id_hex: String = dotenvy::var("IMAGE_ID_BONSAI")
         .expect("IMAGE_ID_BONSAI must be set in environment");
 

@@ -38,19 +38,22 @@ mod tests {
         let asset = WETH_MARKET;
         let chain_id = LINEA_CHAIN_ID;
 
-        let session_info = get_proof_data_exec(
+        let session_info = get_proof_data_prove(
             vec![vec![user_linea]],
             vec![vec![asset]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![chain_id],
             false,
+            
         )
         .await
         .unwrap();
 
-        let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
-        println!("journal: 0x{}", hex::encode(&session_info.journal));
-        println!("Cycles: {}", cycles);
+        panic!("end");
+
+        // let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
+        // println!("journal: 0x{}", hex::encode(&session_info.journal));
+        // println!("Cycles: {}", cycles);
 
     }
 
@@ -108,7 +111,7 @@ mod tests {
         let user_optimism = address!("e50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8");
         let asset = WETH_MARKET_SEPOLIA;
         let chain_id = LINEA_SEPOLIA_CHAIN_ID;
-        let retries_before_fallback = 1;
+        let retries_before_fallback = false;
 
         let _session_info = get_proof_data_prove_sdk(
             vec![vec![user_optimism]],
