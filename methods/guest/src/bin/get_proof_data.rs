@@ -38,9 +38,9 @@ fn main() {
         let sequencer_commitment_opstack_2: Option<SequencerCommitment> = env::read();
         let env_op_input_2: Option<EthEvmInput> = env::read();
 
-        if chain_id != LINEA_CHAIN_ID && chain_id != BASE_CHAIN_ID && chain_id != ETHEREUM_CHAIN_ID {
-            panic!("Chain ID is not Linea, Base or Ethereum");
-        }
+        // if chain_id != LINEA_CHAIN_ID && chain_id != BASE_CHAIN_ID && chain_id != ETHEREUM_CHAIN_ID {
+        //     panic!("Chain ID is not Linea, Base or Ethereum");
+        // }
         
         validate_get_proof_data_call(chain_id, account, asset, target_chain_ids, env_input, sequencer_commitment, env_op_input, &linking_blocks, &mut output, &env_eth_input, op_evm_input, sequencer_commitment_opstack_2, env_op_input_2);
     }

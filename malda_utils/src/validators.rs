@@ -34,10 +34,11 @@ use alloy_consensus::Header;
 use alloy_encode_packed::{abi, SolidityDataType, TakeLastXBytes};
 use alloy_primitives::{Address, Bytes, B256, U256};
 use alloy_sol_types::SolValue;
-use risc0_op_steel::optimism::OpBlockHeader;
 use risc0_op_steel::optimism::OpEvmInput;
 use risc0_steel::EvmBlockHeader;
-use risc0_steel::{ethereum::EthEvmInput, serde::RlpHeader, Commitment, Contract, EvmEnv, StateDb};
+use risc0_steel::{ethereum::{EthEvmInput, EthEvmFactory, ETH_MAINNET_CHAIN_SPEC}, serde::RlpHeader, Commitment, Contract, EvmEnv, StateDb};
+use risc0_op_steel::optimism::{OpEvmFactory, OP_MAINNET_CHAIN_SPEC};
+
 
 /// Validates and executes proof data queries across multiple accounts and tokens using multicall
 ///
@@ -174,11 +175,11 @@ pub fn sort_and_verify_relevant_params(
     env_input_eth_for_l1_inclusion: &Option<EthEvmInput>,
     env_input_opstack_for_viewcall_with_l1_inclusion: Option<OpEvmInput>,
 ) -> (
-    EvmEnv<StateDb, RlpHeader<Header>, Commitment>,
+    EvmEnv<StateDb, EthEvmFactory, Commitment>,
     RlpHeader<Header>,
     B256,
     Header,
-    Option<EvmEnv<StateDb, OpBlockHeader, Commitment>>,
+    Option<EvmEnv<StateDb, OpEvmFactory, Commitment>>,
     Option<Commitment>,
     u64,
     bool,
@@ -200,11 +201,11 @@ pub fn sort_and_verify_relevant_params(
             .as_ref()
             .expect("env_eth_input is None")
             .clone()
-            .into_env();
+            .into_env(&ETH_MAINNET_CHAIN_SPEC);
         let op_env_for_viewcall_with_l1_inclusion =
             env_input_opstack_for_viewcall_with_l1_inclusion
                 .expect("op_evm_input is None")
-                .into_env();
+                .into_env(&OP_MAINNET_CHAIN_SPEC);
         let op_env_commitment = op_env_for_viewcall_with_l1_inclusion.commitment().clone();
         let chain_id_for_length_validation = match chain_id {
             OPTIMISM_CHAIN_ID | BASE_CHAIN_ID => ETHEREUM_CHAIN_ID,
@@ -221,7 +222,7 @@ pub fn sort_and_verify_relevant_params(
         (
             env_input_for_viewcall
                 .expect("env_input is None")
-                .into_env(),
+                .into_env(&ETH_MAINNET_CHAIN_SPEC),
             None,
             None,
             chain_id,
@@ -270,7 +271,7 @@ pub fn sort_and_verify_relevant_params(
 /// * Root claim doesn't match
 pub fn validate_opstack_dispute_game_commitment(
     chain_id: u64,
-    eth_env: EvmEnv<StateDb, RlpHeader<Header>, Commitment>,
+    eth_env: EvmEnv<StateDb, EthEvmFactory, Commitment>,
     op_env_commitment: &Commitment,
 ) {
     let (game_index, _version) = op_env_commitment.decode_id();
@@ -290,26 +291,22 @@ pub fn validate_opstack_dispute_game_commitment(
     // Get factory address from portal
     let factory_call = IOptimismPortal::disputeGameFactoryCall {};
     let returns = portal_contract.call_builder(&factory_call).call();
-    let factory_address = returns._0;
+    let factory_address = returns;
 
     let game_call = IDisputeGameFactory::gameAtIndexCall { index: game_index };
 
     let contract = Contract::new(factory_address, &eth_env);
-    let returns = contract.call_builder(&game_call).call();
+    let gameAtIndexReturn { game_type, created_at, game_address } = contract.call_builder(&game_call).call();
 
-    let game_type = returns._0;
     assert_eq!(game_type, U256::from(0), "game type not respected game");
-
-    let created_at = returns._1;
-    let game_address = returns._2;
 
     // Check if game was created after respected game type update
     let respected_game_type_updated_at_call = IOptimismPortal::respectedGameTypeUpdatedAtCall {};
-    let returns = portal_contract
+    let updated_at = portal_contract
         .call_builder(&respected_game_type_updated_at_call)
         .call();
     assert!(
-        created_at >= returns._0,
+        created_at >= updated_at,
         "game created before respected game type update"
     );
 
@@ -318,28 +315,22 @@ pub fn validate_opstack_dispute_game_commitment(
 
     // Check game status
     let status_call = IDisputeGame::statusCall {};
-    let returns = game_contract.call_builder(&status_call).call();
-    assert_eq!(
-        returns._0,
-        GameStatus::DEFENDER_WINS,
-        "game status not DEFENDER_WINS"
-    );
+    let status = game_contract.call_builder(&status_call).call();
+    assert_eq!(status, GameStatus::DEFENDER_WINS, "game status not DEFENDER_WINS");
 
     // Check if game is blacklisted
     let blacklist_call = IOptimismPortal::disputeGameBlacklistCall { game: game_address };
-    let returns = portal_contract.call_builder(&blacklist_call).call();
-    assert!(!returns._0, "game is blacklisted");
+    let is_blacklisted = portal_contract.call_builder(&blacklist_call).call();
+    assert!(!is_blacklisted, "game is blacklisted");
 
     // Check game resolution time
     let resolved_at_call = IDisputeGame::resolvedAtCall {};
-    let returns = game_contract.call_builder(&resolved_at_call).call();
-    let resolved_at = returns._0;
+    let resolved_at = game_contract.call_builder(&resolved_at_call).call();
 
     let proof_maturity_delay_call = IOptimismPortal::proofMaturityDelaySecondsCall {};
-    let returns = portal_contract
+    let proof_maturity_delay = portal_contract
         .call_builder(&proof_maturity_delay_call)
         .call();
-    let proof_maturity_delay = returns._0;
 
     let current_timestamp = eth_env.header().inner().inner().timestamp;
     assert!(
@@ -350,8 +341,8 @@ pub fn validate_opstack_dispute_game_commitment(
 
     // Finally verify root claim matches
     let root_claim_call = IDisputeGame::rootClaimCall {};
-    let returns = game_contract.call_builder(&root_claim_call).call();
-    assert_eq!(returns._0, root_claim, "root claim mismatch");
+    let root_claim_return = game_contract.call_builder(&root_claim_call).call();
+    assert_eq!(root_claim_return, root_claim, "root claim mismatch");
 }
 
 /// Retrieves validated block hash based on chain type and validation requirements.
@@ -459,14 +450,12 @@ pub fn get_validated_block_hash_opstack(
     sequencer_commitment_opstack_2: Option<SequencerCommitment>,
     env_input_opstack_for_l1_block_call_2: Option<EthEvmInput>,
 ) -> B256 {
-    let validated_hash = block_header_to_validate.hash_slow();
     if validate_l1_inclusion {
         let ethereum_chain_id = match chain_id {
             OPTIMISM_CHAIN_ID | BASE_CHAIN_ID => ETHEREUM_CHAIN_ID,
             OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID => ETHEREUM_SEPOLIA_CHAIN_ID,
             _ => panic!("invalid chain id"),
         };
-
         let ethereum_hash = get_validated_ethereum_block_hash_via_opstack(
             sequencer_commitment.as_ref(),
             env_input_opstack_for_l1_block_call,
@@ -474,21 +463,25 @@ pub fn get_validated_block_hash_opstack(
             sequencer_commitment_opstack_2.as_ref(),
             env_input_opstack_for_l1_block_call_2,
         );
-
-        assert_eq!(ethereum_hash, validated_hash, "hash mismatch  opstack");
+        validate_opstack_env(
+            chain_id,
+            sequencer_commitment.as_ref().unwrap(),
+            block_header_to_validate.hash_slow(),
+        );
         validate_opstack_dispute_game_commitment(
             chain_id,
-            env_input_eth_for_l1_inclusion
-                .as_ref()
-                .unwrap()
-                .clone()
-                .into_env(),
+            env_input_eth_for_l1_inclusion.as_ref().unwrap().clone().into_env(&ETH_MAINNET_CHAIN_SPEC),
             op_env_commitment.unwrap(),
-        )
+        );
+        ethereum_hash
     } else {
-        validate_opstack_env(chain_id, &sequencer_commitment.unwrap(), validated_hash);
+        validate_opstack_env(
+            chain_id,
+            sequencer_commitment.as_ref().unwrap(),
+            block_header_to_validate.hash_slow(),
+        );
+        block_header_to_validate.hash_slow()
     }
-    validated_hash
 }
 
 /// Validates Linea block hash with optional L1 inclusion verification.
@@ -615,7 +608,7 @@ pub fn batch_call_get_proof_data<H>(
     // Zip the batch parameters with returns.results for parallel iteration
     batch_params.zip(returns.results.iter()).for_each(
         |(((user, market), target_chain_id), result)| {
-            let amounts = <(U256, U256)>::abi_decode(&result.returnData, true)
+            let amounts = <(U256, U256)>::abi_decode(&result.returnData)
                 .expect("Failed to decode return data");
 
             let input = vec![
@@ -662,7 +655,7 @@ pub fn validate_linea_env_with_l1_inclusion(
         _ => panic!("invalid chain id"),
     };
 
-    let env_eth = env_eth_input.clone().into_env();
+    let env_eth = env_eth_input.clone().into_env(&ETH_MAINNET_CHAIN_SPEC);
 
     let eth_hash = env_eth.header().seal();
 
@@ -673,7 +666,7 @@ pub fn validate_linea_env_with_l1_inclusion(
     let contract = Contract::new(msg_service_address, &env_eth);
     let returns = contract.call_builder(&current_l2_block_number_call).call();
 
-    let l2_block_number = returns._0;
+    let l2_block_number = returns;
 
     assert!(
         l2_block_number >= U256::from(env_block_number),
@@ -794,7 +787,7 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
 ) -> B256 {
     let env_op = env_input_opstack_for_l1_block_call_1
         .expect("env_input_opstack_for_l1_block_call_1 is None")
-        .into_env();
+        .into_env(&ETH_MAINNET_CHAIN_SPEC);
 
     let (verify_via_chain_1, _verify_via_chain_2) = if chain_id == ETHEREUM_CHAIN_ID {
         (OPTIMISM_CHAIN_ID, BASE_CHAIN_ID)
@@ -809,14 +802,14 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
 
     let l1_block = Contract::new(L1_BLOCK_ADDRESS_OPSTACK, &env_op);
     let call = IL1Block::hashCall {};
-    let l1_hash_1 = l1_block.call_builder(&call).call()._0;
+    let l1_hash_1 = l1_block.call_builder(&call).call();
 
     // let env_op_2 = env_input_opstack_for_l1_block_call_2.expect("env_input_opstack_for_l1_block_call_2 is None").into_env();
     // validate_opstack_env(verify_via_chain_2, sequencer_commitment_opstack_2.unwrap(), env_op_2.commitment().digest);
 
     // let l1_block = Contract::new(L1_BLOCK_ADDRESS_OPSTACK, &env_op_2);
     // let call = IL1Block::hashCall {};
-    // let l1_hash_2 = l1_block.call_builder(&call).call()._0;
+    // let l1_hash_2 = l1_block.call_builder(&call).call().0;
 
     // assert_eq!(l1_hash_1, l1_hash_2, "L1 hash 1 and 2 mismatch");
 

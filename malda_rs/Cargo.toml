@@ -33,9 +33,9 @@ bytemuck = { workspace = true }
 hex = { workspace = true }
 
 
-alloy-primitives-old = { workspace = true }
-consensus-core = { workspace = true }
-consensus = { workspace = true }
+# alloy-primitives-old = { workspace = true }
+# consensus-core = { workspace = true }
+# consensus = { workspace = true }
 
 reqwest = { version = "0.12.4", features = ["json"] }
 bonsai-sdk =  "1.2.4"
@@ -44,4 +44,4 @@ tracing = "0.1.39"
 dotenvy = "0.15"
 
 malda_utils = { path = "../malda_utils" }
-alloy-encode-packed = { workspace = true }
+# alloy-encode-packed = { workspace = true }

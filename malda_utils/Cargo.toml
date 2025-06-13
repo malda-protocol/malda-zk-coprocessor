@@ -22,12 +22,12 @@ alloy-rlp = { workspace = true }
 alloy-consensus = { workspace = true }
 revm = { workspace = true }
 
-alloy-primitives-old = { workspace = true }
-consensus-core = { workspace = true }
+# alloy-primitives-old = { workspace = true }
+# consensus-core = { workspace = true }
 tree_hash = { workspace = true }
 derive_more = { workspace = true }
 
-alloy-encode-packed = { workspace = true }
+# alloy-encode-packed = { workspace = true }
 
 
 

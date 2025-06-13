@@ -11,7 +11,7 @@ hex = { workspace = true }
 risc0-build = { workspace = true }
 risc0-build-ethereum = { workspace = true }
 risc0-zkp = { workspace = true }
-alloy-encode-packed = { workspace = true }
+# alloy-encode-packed = { workspace = true }
 
 [dev-dependencies]
 alloy = { workspace = true }
@@ -21,5 +21,5 @@ malda_rs = { workspace = true }
 tokio = { workspace = true, features = ["full", "test-util"] }
 rand = { workspace = true }
 hex = { workspace = true }
-alloy-encode-packed = { workspace = true }
+# alloy-encode-packed = { workspace = true }
 
