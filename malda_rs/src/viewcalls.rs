@@ -34,13 +34,13 @@ use core::panic;
 
 use risc0_op_steel::optimism::OpEvmInput;
 use risc0_steel::{
-    ethereum::EthEvmEnv, host::BlockNumberOrTag, serde::RlpHeader, Contract, EvmInput,
+    ethereum::{EthEvmEnv, ETH_MAINNET_CHAIN_SPEC}, host::BlockNumberOrTag, serde::RlpHeader, Contract, EvmInput,
 };
 use risc0_zkvm::{
     default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
 };
 
-use risc0_op_steel::{optimism::OpEvmEnv, DisputeGameIndex};
+use risc0_op_steel::{optimism::{OpEvmEnv, OP_MAINNET_CHAIN_SPEC}, DisputeGameIndex};
 
 use alloy::primitives::{Address, U256, U64};
 use alloy_consensus::Header;
@@ -678,6 +678,7 @@ pub async fn get_env_input_for_linea_l1_call(
     let mut env = EthEvmEnv::builder()
         .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
         .block_number_or_tag(BlockNumberOrTag::Number(l1_block))
+        .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
         .build()
         .await
         .expect("Failed to build EVM environment");
@@ -692,7 +693,7 @@ pub async fn get_env_input_for_linea_l1_call(
         .await
         .expect("Failed to execute current l2 block number call");
 
-    let l2_block_number: u64 = U64::from(returns._0).try_into().unwrap();
+    let l2_block_number: u64 = U64::from(returns).try_into().unwrap();
 
     (
         Some(
@@ -739,6 +740,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
     let mut env = EthEvmEnv::builder()
         .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
         .block_number_or_tag(BlockNumberOrTag::Number(l1_block))
+        .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
         .build()
         .await
         .expect("Failed to build EVM environment");
@@ -747,7 +749,8 @@ pub async fn get_env_input_for_opstack_dispute_game(
             optimism_portal,
             Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"),
         )
-        .game_index(DisputeGameIndex::Finalized);
+        .game_index(DisputeGameIndex::Finalized)
+        .chain_spec(&OP_MAINNET_CHAIN_SPEC);
     let mut op_env = builder
         .rpc(Url::parse(l2_rpc_url).expect("Failed to parse RPC URL"))
         .build()
@@ -791,7 +794,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
         .call()
         .await
         .expect("Failed to execute factory call");
-    let factory_address = returns._0;
+    let factory_address = returns;
 
     let game_call = IDisputeGameFactory::gameAtIndexCall { index: game_index };
 
@@ -817,7 +820,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
         .await
         .expect("Failed to execute respected game type updated at call");
     assert!(
-        created_at >= returns._0,
+        created_at >= returns,
         "game created before respected game type update"
     );
 
@@ -832,7 +835,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
         .await
         .expect("Failed to execute status call");
     assert_eq!(
-        returns._0,
+        returns,
         GameStatus::DEFENDER_WINS,
         "game status not DEFENDER_WINS"
     );
@@ -845,7 +848,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
         .call()
         .await
         .expect("Failed to execute blacklist call");
-    assert!(!returns._0, "game is blacklisted");
+    assert!(!returns, "game is blacklisted");
 
     // Check game resolution time
     let mut contract = Contract::preflight(game_address, &mut env);
@@ -855,7 +858,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
         .call()
         .await
         .expect("Failed to execute resolved at call");
-    let resolved_at = returns._0;
+    let resolved_at = returns;
 
     let mut contract = Contract::preflight(portal_adress, &mut env);
     let proof_maturity_delay_call = IOptimismPortal::proofMaturityDelaySecondsCall {};
@@ -864,7 +867,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
         .call()
         .await
         .expect("Failed to execute proof maturity delay call");
-    let proof_maturity_delay = returns._0;
+    let proof_maturity_delay = returns;
 
     let current_timestamp = env.header().inner().inner().timestamp;
     assert!(
@@ -882,7 +885,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
         .await
         .expect("Failed to execute root claim call");
 
-    assert_eq!(returns._0, root_claim, "root claim not respected");
+    assert_eq!(returns, root_claim, "root claim not respected");
 
     (
         Some(
@@ -1038,7 +1041,8 @@ pub async fn get_proof_data_call_input(
                 optimism_portal,
                 Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"),
             )
-            .game_index(DisputeGameIndex::Finalized);
+            .game_index(DisputeGameIndex::Finalized)
+            .chain_spec(&OP_MAINNET_CHAIN_SPEC);
         let mut env = builder
             .rpc(Url::parse(chain_url).expect("Failed to parse RPC URL"))
             .build()
@@ -1066,6 +1070,7 @@ pub async fn get_proof_data_call_input(
         let mut env = EthEvmEnv::builder()
             .rpc(Url::parse(chain_url).expect("Failed to parse RPC URL"))
             .block_number_or_tag(BlockNumberOrTag::Number(block_reorg_protected))
+            .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
             .build()
             .await
             .expect("Failed to build EVM environment");
@@ -1158,6 +1163,7 @@ pub async fn get_sequencer_commitments_and_blocks(
         let block = EthEvmEnv::builder()
             .rpc(Url::parse(rpc_url).unwrap())
             .block_number_or_tag(BlockNumberOrTag::Latest)
+            .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
             .build()
             .await
             .unwrap()
@@ -1232,6 +1238,7 @@ pub async fn get_l1block_call_input(
     let mut env = EthEvmEnv::builder()
         .rpc(Url::parse(rpc_url).expect("Failed to parse RPC URL"))
         .block_number_or_tag(block)
+        .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
         .build()
         .await
         .expect("Failed to build EVM environment");
@@ -1252,6 +1259,7 @@ pub async fn get_l1block_call_input(
     let mut env = EthEvmEnv::builder()
         .rpc(Url::parse(rpc_url).expect("Failed to parse RPC URL"))
         .block_number_or_tag(block)
+        .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
         .build()
         .await
         .expect("Failed to build EVM environment");
@@ -1262,8 +1270,7 @@ pub async fn get_l1block_call_input(
         .call_builder(&call)
         .call()
         .await
-        .expect("Failed to call L1Block number")
-        ._0;
+        .expect("Failed to call L1Block number");
 
     (view_call_input_l1_block, l1_block)
 }
@@ -1309,6 +1316,7 @@ pub async fn get_linking_blocks(
                 let env = EthEvmEnv::builder()
                     .rpc(Url::parse(&rpc_url).expect("Failed to parse RPC URL"))
                     .block_number_or_tag(BlockNumberOrTag::Number(block_nr))
+                    .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
                     .build()
                     .await
                     .expect("Failed to build EVM environment");

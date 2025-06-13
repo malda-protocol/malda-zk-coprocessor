@@ -35,7 +35,7 @@ use alloy_encode_packed::{abi, SolidityDataType, TakeLastXBytes};
 use alloy_primitives::{Address, Bytes, B256, U256};
 use alloy_sol_types::SolValue;
 use risc0_op_steel::optimism::OpEvmInput;
-use risc0_steel::EvmBlockHeader;
+use risc0_steel::{EvmBlockHeader, EvmFactory};
 use risc0_steel::{ethereum::{EthEvmInput, EthEvmFactory, ETH_MAINNET_CHAIN_SPEC}, serde::RlpHeader, Commitment, Contract, EvmEnv, StateDb};
 use risc0_op_steel::optimism::{OpEvmFactory, OP_MAINNET_CHAIN_SPEC};
 
@@ -296,7 +296,11 @@ pub fn validate_opstack_dispute_game_commitment(
     let game_call = IDisputeGameFactory::gameAtIndexCall { index: game_index };
 
     let contract = Contract::new(factory_address, &eth_env);
-    let gameAtIndexReturn { game_type, created_at, game_address } = contract.call_builder(&game_call).call();
+    let returns = contract.call_builder(&game_call).call();
+
+    let game_type = returns._0;
+    let created_at = returns._1;
+    let game_address = returns._2;
 
     assert_eq!(game_type, U256::from(0), "game type not respected game");
 
@@ -564,8 +568,7 @@ pub fn batch_call_get_proof_data<H>(
     validate_l1_inclusion: bool,
     output: &mut Vec<Bytes>,
 ) where
-    H: Clone + std::fmt::Debug,
-    H: EvmBlockHeader,
+    H: Clone + std::fmt::Debug + EvmFactory,
 {
     // Create array of Call3 structs for each proof data check
     let mut calls = Vec::with_capacity(account.len());
@@ -605,8 +608,8 @@ pub fn batch_call_get_proof_data<H>(
         .zip(asset.iter())
         .zip(target_chain_ids.iter());
 
-    // Zip the batch parameters with returns.results for parallel iteration
-    batch_params.zip(returns.results.iter()).for_each(
+    // Zip the batch parameters with returns for parallel iteration
+    batch_params.zip(returns.iter()).for_each(
         |(((user, market), target_chain_id), result)| {
             let amounts = <(U256, U256)>::abi_decode(&result.returnData)
                 .expect("Failed to decode return data");

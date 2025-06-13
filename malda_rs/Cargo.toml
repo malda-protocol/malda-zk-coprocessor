@@ -44,4 +44,4 @@ tracing = "0.1.39"
 dotenvy = "0.15"
 
 malda_utils = { path = "../malda_utils" }
-# alloy-encode-packed = { workspace = true }
+alloy-encode-packed = { workspace = true }

@@ -248,6 +248,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "alloy-encode-packed"
+version = "0.1.0"
+dependencies = [
+ "alloy",
+ "hex",
+]
+
+[[package]]
 name = "alloy-evm"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4337,6 +4345,7 @@ version = "0.1.0"
 dependencies = [
  "alloy",
  "alloy-consensus",
+ "alloy-encode-packed",
  "alloy-primitives 1.2.0",
  "alloy-rlp",
  "alloy-sol-types",
@@ -4375,6 +4384,7 @@ name = "malda_utils"
 version = "0.1.0"
 dependencies = [
  "alloy-consensus",
+ "alloy-encode-packed",
  "alloy-primitives 1.2.0",
  "alloy-rlp",
  "alloy-sol-types",
