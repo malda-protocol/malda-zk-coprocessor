@@ -30,7 +30,7 @@ risc0-zkvm = { version = "2.1.0", default-features = false, features = ['unstabl
 risc0-zkp = { version = "2.0.1", default-features = false }
 risc0-core = { version = "2.0.0" }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1.0", features = ["full"] }
 rand = "0.8"
 alloy = { version = "1.0", features = ["full"] }
 alloy-consensus = "1.0"
@@ -53,5 +53,8 @@ alloy-encode-packed = { path = "../alloy-encode-packed" }
 # consensus = { git = "https://github.com/a16z/helios", tag = "0.7.0" }
 malda_utils = { path = "./malda_utils" }
 malda_rs = { path = "./malda_rs" }
+
+socket2 = "0.5.10"  # or whatever version is compatible
+mio = "0.9" 
 
 

@@ -743,7 +743,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
         .into_input()
         .await
         .expect("Failed to convert environment to input");
-    let op_env_commitment = input.clone().into_env().into_commitment();
+    let op_env_commitment = input.clone().into_env(&OP_MAINNET_CHAIN_SPEC).into_commitment();
 
     let (game_index, _version) = op_env_commitment.decode_id();
 
@@ -861,11 +861,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
     assert_eq!(returns, root_claim, "root claim not respected");
 
     (
-        Some(
-            env.into_input()
-                .await
-                .expect("Failed to convert environment to input"),
-        ),
+        Some(input),
         // irrelevant for l1 inclusion on opstack
         Some(1),
     )
