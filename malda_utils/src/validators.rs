@@ -614,17 +614,19 @@ pub fn batch_call_get_proof_data<H>(
             let amounts = <(U256, U256)>::abi_decode(&result.returnData)
                 .expect("Failed to decode return data");
 
-            let input = vec![
-                SolidityDataType::Address(*user),
-                SolidityDataType::Address(*market),
-                SolidityDataType::Number(amounts.0), // amountIn
-                SolidityDataType::Number(amounts.1), // amountOut
-                SolidityDataType::NumberWithShift(U256::from(chain_id), TakeLastXBytes(32)),
-                SolidityDataType::NumberWithShift(U256::from(*target_chain_id), TakeLastXBytes(32)),
-                SolidityDataType::Bool(validate_l1_inclusion),
-            ];
+            let bytes = vec![];
 
-            let (bytes, _hash) = abi::encode_packed(&input);
+            // let input = vec![
+            //     SolidityDataType::Address(*user),
+            //     SolidityDataType::Address(*market),
+            //     SolidityDataType::Number(amounts.0), // amountIn
+            //     SolidityDataType::Number(amounts.1), // amountOut
+            //     SolidityDataType::NumberWithShift(U256::from(chain_id), TakeLastXBytes(32)),
+            //     SolidityDataType::NumberWithShift(U256::from(*target_chain_id), TakeLastXBytes(32)),
+            //     SolidityDataType::Bool(validate_l1_inclusion),
+            // ];
+
+            // let (bytes, _hash) = abi::encode_packed(&input);
             output.push(bytes.into());
         },
     );
