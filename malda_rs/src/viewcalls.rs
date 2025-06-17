@@ -1038,7 +1038,7 @@ pub async fn get_proof_data_call_input(
         let mut env = EthEvmEnv::builder()
             .rpc(Url::parse(chain_url).expect("Failed to parse RPC URL"))
             .block_number_or_tag(BlockNumberOrTag::Number(block_reorg_protected))
-            .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
+            .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
             .build()
             .await
             .expect("Failed to build EVM environment");
