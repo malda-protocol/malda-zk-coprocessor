@@ -690,7 +690,7 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
 pub async fn get_env_input_for_opstack_dispute_game(
     chain_id: u64,
     l1_block: u64,
-) -> (Option<OpEvmInput>, Option<u64>) {
+) -> (Option<EvmInput<RlpHeader<Header>>>, Option<u64>) {
     let (l1_rpc_url, optimism_portal, l2_rpc_url) = match chain_id {
         OPTIMISM_CHAIN_ID => (rpc_url_ethereum(), OPTIMISM_PORTAL, rpc_url_optimism()),
         OPTIMISM_SEPOLIA_CHAIN_ID => (
@@ -714,13 +714,14 @@ pub async fn get_env_input_for_opstack_dispute_game(
         .build()
         .await
         .expect("Failed to build EVM environment");
-    let mut op_env = OpEvmEnv::builder()
+    let builder = OpEvmEnv::builder()
         .dispute_game_from_rpc(
             optimism_portal,
             Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"),
         )
+        .game_index(DisputeGameIndex::Finalized);
+    let mut op_env = builder
         .rpc(Url::parse(l2_rpc_url).expect("Failed to parse RPC URL"))
-        .game_index(DisputeGameIndex::Finalized)
         .chain_spec(&OP_MAINNET_CHAIN_SPEC)
         .build()
         .await
@@ -739,10 +740,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
         .into_input()
         .await
         .expect("Failed to convert environment to input");
-    let op_env_commitment = input
-        .clone()
-        .into_env(&OP_MAINNET_CHAIN_SPEC)
-        .into_commitment();
+    let op_env_commitment = input.clone().into_env().into_commitment();
 
     let (game_index, _version) = op_env_commitment.decode_id();
 
@@ -761,12 +759,11 @@ pub async fn get_env_input_for_opstack_dispute_game(
 
     // Get factory address from portal
     let factory_call = IOptimismPortal::disputeGameFactoryCall {};
-    let returns = contract
+    let factory_address = contract
         .call_builder(&factory_call)
         .call()
         .await
         .expect("Failed to execute factory call");
-    let factory_address = returns;
 
     let game_call = IDisputeGameFactory::gameAtIndexCall { index: game_index };
 
@@ -786,13 +783,13 @@ pub async fn get_env_input_for_opstack_dispute_game(
     // Check if game was created after respected game type update
     let mut contract = Contract::preflight(portal_adress, &mut env);
     let respected_game_type_updated_at_call = IOptimismPortal::respectedGameTypeUpdatedAtCall {};
-    let returns = contract
+    let updated_at = contract
         .call_builder(&respected_game_type_updated_at_call)
         .call()
         .await
         .expect("Failed to execute respected game type updated at call");
     assert!(
-        created_at >= returns,
+        created_at >= updated_at,
         "game created before respected game type update"
     );
 
@@ -801,13 +798,13 @@ pub async fn get_env_input_for_opstack_dispute_game(
 
     // Check game status
     let status_call = IDisputeGame::statusCall {};
-    let returns = contract
+    let status = contract
         .call_builder(&status_call)
         .call()
         .await
         .expect("Failed to execute status call");
     assert_eq!(
-        returns,
+        status,
         GameStatus::DEFENDER_WINS,
         "game status not DEFENDER_WINS"
     );
@@ -815,31 +812,29 @@ pub async fn get_env_input_for_opstack_dispute_game(
     // Check if game is blacklisted
     let mut contract = Contract::preflight(portal_adress, &mut env);
     let blacklist_call = IOptimismPortal::disputeGameBlacklistCall { game: game_address };
-    let returns = contract
+    let is_blacklisted = contract
         .call_builder(&blacklist_call)
         .call()
         .await
         .expect("Failed to execute blacklist call");
-    assert!(!returns, "game is blacklisted");
+    assert!(!is_blacklisted, "game is blacklisted");
 
     // Check game resolution time
     let mut contract = Contract::preflight(game_address, &mut env);
     let resolved_at_call = IDisputeGame::resolvedAtCall {};
-    let returns = contract
+    let resolved_at = contract
         .call_builder(&resolved_at_call)
         .call()
         .await
         .expect("Failed to execute resolved at call");
-    let resolved_at = returns;
 
     let mut contract = Contract::preflight(portal_adress, &mut env);
     let proof_maturity_delay_call = IOptimismPortal::proofMaturityDelaySecondsCall {};
-    let returns = contract
+    let proof_maturity_delay = contract
         .call_builder(&proof_maturity_delay_call)
         .call()
         .await
         .expect("Failed to execute proof maturity delay call");
-    let proof_maturity_delay = returns;
 
     let current_timestamp = env.header().inner().inner().timestamp;
     assert!(
@@ -851,16 +846,20 @@ pub async fn get_env_input_for_opstack_dispute_game(
     // Finally verify root claim matches
     let mut contract = Contract::preflight(game_address, &mut env);
     let root_claim_call = IDisputeGame::rootClaimCall {};
-    let returns = contract
+    let root = contract
         .call_builder(&root_claim_call)
         .call()
         .await
         .expect("Failed to execute root claim call");
 
-    assert_eq!(returns, root_claim, "root claim not respected");
+    assert_eq!(root, root_claim, "root claim not respected");
 
     (
-        Some(input),
+        Some(
+            env.into_input()
+                .await
+                .expect("Failed to convert environment to input"),
+        ),
         // irrelevant for l1 inclusion on opstack
         Some(1),
     )
