@@ -664,7 +664,7 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
 pub async fn get_env_input_for_opstack_l1_inclusion(
     chain_id: u64,
     l1_block: u64,
-) -> (Option<OpEvmInput>, Option<u64>) {
+) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
     if chain_id != OPTIMISM_CHAIN_ID
         && chain_id != BASE_CHAIN_ID
         && chain_id != OPTIMISM_SEPOLIA_CHAIN_ID
@@ -690,7 +690,7 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
 pub async fn get_env_input_for_opstack_dispute_game(
     chain_id: u64,
     l1_block: u64,
-) -> (Option<EvmInput<RlpHeader<Header>>>, Option<u64>) {
+) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
     let (l1_rpc_url, optimism_portal, l2_rpc_url) = match chain_id {
         OPTIMISM_CHAIN_ID => (rpc_url_ethereum(), OPTIMISM_PORTAL, rpc_url_optimism()),
         OPTIMISM_SEPOLIA_CHAIN_ID => (
@@ -740,7 +740,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
         .into_input()
         .await
         .expect("Failed to convert environment to input");
-    let op_env_commitment = input.clone().into_env().into_commitment();
+    let op_env_commitment = input.clone().into_env(&OP_MAINNET_CHAIN_SPEC).into_commitment();
 
     let (game_index, _version) = op_env_commitment.decode_id();
 
