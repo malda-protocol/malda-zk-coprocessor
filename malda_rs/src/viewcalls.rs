@@ -34,13 +34,19 @@ use core::panic;
 
 use risc0_op_steel::optimism::OpEvmInput;
 use risc0_steel::{
-    ethereum::{EthEvmEnv, ETH_MAINNET_CHAIN_SPEC, EthEvmInput, EthEvmFactory}, host::BlockNumberOrTag, serde::RlpHeader, Contract, EvmInput,
+    ethereum::{EthEvmEnv, EthEvmFactory, EthEvmInput, ETH_MAINNET_CHAIN_SPEC},
+    host::BlockNumberOrTag,
+    serde::RlpHeader,
+    Contract, EvmInput,
 };
 use risc0_zkvm::{
     default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
 };
 
-use risc0_op_steel::{optimism::{OpEvmEnv, OP_MAINNET_CHAIN_SPEC}, DisputeGameIndex};
+use risc0_op_steel::{
+    optimism::{OpEvmEnv, OP_MAINNET_CHAIN_SPEC},
+    DisputeGameIndex,
+};
 
 use alloy::primitives::{Address, U256, U64};
 use alloy_consensus::Header;
@@ -95,11 +101,10 @@ pub struct MaldaProveInfo {
 /// # Panics
 /// Panics if the required environment variable `IMAGE_ID_BONSAI` is not set.
 fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
-
     let client = Client::from_env(risc0_zkvm::VERSION)?;
 
-    let image_id_hex: String = dotenvy::var("IMAGE_ID_BONSAI")
-        .expect("IMAGE_ID_BONSAI must be set in environment");
+    let image_id_hex: String =
+        dotenvy::var("IMAGE_ID_BONSAI").expect("IMAGE_ID_BONSAI must be set in environment");
 
     let input_id = client.upload_input(input_data)?;
 
@@ -118,7 +123,6 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
             continue;
         }
         if res.status == "SUCCEEDED" {
-
             let stats = res
                 .stats
                 .expect("Missing stats object on Bonsai status res");
@@ -181,7 +185,6 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
     let receipt_buf = client.download(&snark_receipt_url)?;
     let groth16_receipt: Receipt = bincode::deserialize(&receipt_buf)?;
 
-
     Ok(MaldaProveInfo {
         receipt: groth16_receipt,
         stats: succinct_stats,
@@ -215,7 +218,6 @@ pub async fn get_proof_data_exec(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
 ) -> Result<SessionInfo, Error> {
-
     assert_eq!(
         users.len(),
         markets.len(),
@@ -281,7 +283,6 @@ async fn get_proof_data_env(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
 ) -> ExecutorEnv<'static> {
-
     assert_eq!(users.len(), markets.len());
     assert_eq!(users.len(), chain_ids.len());
 
@@ -335,7 +336,6 @@ async fn get_proof_data_input(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
 ) -> Vec<u8> {
-
     assert_eq!(users.len(), markets.len());
     assert_eq!(users.len(), chain_ids.len());
 
@@ -390,9 +390,7 @@ pub async fn get_proof_data_prove(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
 ) -> Result<ProveInfo, Error> {
-
     let prove_info = tokio::task::spawn_blocking(move || {
-
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         let start_time = std::time::Instant::now();
@@ -442,9 +440,7 @@ pub async fn get_proof_data_prove_sdk(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
 ) -> Result<MaldaProveInfo, Error> {
-
     let prove_info = tokio::task::spawn_blocking(move || {
-
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         let start_time = std::time::Instant::now();
@@ -642,7 +638,7 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
             || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
             || chain_id == BASE_SEPOLIA_CHAIN_ID
         {
-            panic!("Use get_env_input_for_opstack_l1_inclusion for OpStack chains");
+            get_env_input_for_opstack_dispute_game(chain_id, l1_block).await
         } else if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
             get_env_input_for_linea_l1_call(chain_id, l1_rpc_url, l1_block).await
         } else {
@@ -743,7 +739,10 @@ pub async fn get_env_input_for_opstack_dispute_game(
         .into_input()
         .await
         .expect("Failed to convert environment to input");
-    let op_env_commitment = input.clone().into_env(&OP_MAINNET_CHAIN_SPEC).into_commitment();
+    let op_env_commitment = input
+        .clone()
+        .into_env(&OP_MAINNET_CHAIN_SPEC)
+        .into_commitment();
 
     let (game_index, _version) = op_env_commitment.decode_id();
 

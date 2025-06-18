@@ -20,10 +20,7 @@ mod tests {
     use hex;
     use malda_rs::{
         constants::*,
-        viewcalls::{
-            get_proof_data_exec,
-            get_proof_data_prove_sdk,
-        },
+        viewcalls::{get_proof_data_exec, get_proof_data_prove_sdk},
     };
 
     pub const WETH_MARKET_SEPOLIA: Address = address!("B84644c24B4D0823A0770ED698f7C20B88Bcf824");
@@ -48,7 +45,6 @@ mod tests {
         let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
         println!("journal: 0x{}", hex::encode(&session_info.journal));
         println!("Cycles: {}", cycles);
-
     }
 
     #[tokio::test]
@@ -99,7 +95,6 @@ mod tests {
         println!("Duration: {:?}", duration);
     }
 
-
     #[tokio::test]
     async fn should_pass_prove_get_proof_data_on_optimism_sepolia_sdk() {
         let user_optimism = address!("e50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8");
@@ -115,7 +110,6 @@ mod tests {
         )
         .await
         .unwrap();
-
     }
 
     #[tokio::test]
@@ -138,12 +132,31 @@ mod tests {
         println!("Cycles: {}", cycles);
     }
 
-
     #[tokio::test]
     async fn prove_get_proof_data_on_base() {
         let user_base = address!("6446021F4E396dA3df4235C62537431372195D38");
         let asset = WETH_MARKET;
         let chain_id = BASE_CHAIN_ID;
+
+        let session_info = get_proof_data_exec(
+            vec![vec![user_base]],
+            vec![vec![asset]],
+            vec![vec![OPTIMISM_CHAIN_ID]],
+            vec![chain_id],
+            false,
+        )
+        .await
+        .unwrap();
+
+        let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
+        println!("Cycles: {}", cycles);
+    }
+
+    #[tokio::test]
+    async fn prove_get_proof_data_on_optimism() {
+        let user_base = address!("6446021F4E396dA3df4235C62537431372195D38");
+        let asset = WETH_MARKET;
+        let chain_id = OPTIMISM_CHAIN_ID;
 
         let session_info = get_proof_data_exec(
             vec![vec![user_base]],
@@ -198,5 +211,4 @@ mod tests {
         let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
         println!("Cycles: {}", cycles);
     }
-
 }

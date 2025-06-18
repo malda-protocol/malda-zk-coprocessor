@@ -56,7 +56,6 @@ pub static LINEA_MAINNET_CHAIN_SPEC: LazyLock<EthChainSpec> = LazyLock::new(|| C
     ]),
 });
 
-
 sol! {
     /// Interface for querying proof data from the Malda Market.
     interface IMaldaMarket {
@@ -70,7 +69,7 @@ sol! {
 
     interface IL1MessageService {
         /// Returns the latest L2 block number known to L1.
-        /// 
+        ///
         /// This function is used to query the last L2 block number that has been processed by L1.
         /// Note: This value is not updated by proof and relies on trust in the Linea team.
         function currentL2BlockNumber() external view returns (uint256);
@@ -151,14 +150,14 @@ sol! {
     interface IOptimismPortal {
         /// @notice Returns the address of the DisputeGameFactory
         function disputeGameFactory() external view returns (address);
-        
+
         /// @notice Returns the timestamp when the respected game type was last updated
         function respectedGameTypeUpdatedAt() external view returns (uint256);
-        
+
         /// @notice Checks if a dispute game is blacklisted
         /// @param game The address of the dispute game
         function disputeGameBlacklist(address game) external view returns (bool);
-        
+
         /// @notice Returns the proof maturity delay in seconds
         function proofMaturityDelaySeconds() external view returns (uint256);
     }

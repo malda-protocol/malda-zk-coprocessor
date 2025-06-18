@@ -17,7 +17,9 @@ mod tests {
     use alloy_primitives::{address, Address};
     use malda_rs::{constants::*, validators::*, viewcalls::*};
     use risc0_steel::{
-        ethereum::{EthEvmEnv, ETH_MAINNET_CHAIN_SPEC}, host::BlockNumberOrTag as BlockRisc0, serde::RlpHeader
+        ethereum::{EthEvmEnv, ETH_MAINNET_CHAIN_SPEC},
+        host::BlockNumberOrTag as BlockRisc0,
+        serde::RlpHeader,
     };
 
     // Arbitrary values for testing
@@ -59,7 +61,12 @@ mod tests {
         )
         .await;
 
-        let env = proof_data_call_input.0.as_ref().unwrap().clone().into_env(&ETH_MAINNET_CHAIN_SPEC);
+        let env = proof_data_call_input
+            .0
+            .as_ref()
+            .unwrap()
+            .clone()
+            .into_env(&ETH_MAINNET_CHAIN_SPEC);
         validate_linea_env(LINEA_CHAIN_ID, &env.header().inner().clone());
     }
 
@@ -97,7 +104,12 @@ mod tests {
         )
         .await;
 
-        let env = proof_data_call_input.0.as_ref().unwrap().clone().into_env(&ETH_MAINNET_CHAIN_SPEC);
+        let env = proof_data_call_input
+            .0
+            .as_ref()
+            .unwrap()
+            .clone()
+            .into_env(&ETH_MAINNET_CHAIN_SPEC);
         assert!(std::panic::catch_unwind(|| {
             validate_linea_env(LINEA_CHAIN_ID, &env.header().inner().clone());
         })
@@ -138,7 +150,12 @@ mod tests {
         )
         .await;
 
-        let env = proof_data_call_input.0.as_ref().unwrap().clone().into_env(&ETH_MAINNET_CHAIN_SPEC);
+        let env = proof_data_call_input
+            .0
+            .as_ref()
+            .unwrap()
+            .clone()
+            .into_env(&ETH_MAINNET_CHAIN_SPEC);
         let mut header = env.header().inner().inner().clone();
         header.number = 1;
         assert!(std::panic::catch_unwind(|| {

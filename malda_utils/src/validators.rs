@@ -35,10 +35,13 @@ use alloy_encode_packed::{abi, SolidityDataType, TakeLastXBytes};
 use alloy_primitives::{Address, Bytes, B256, U256};
 use alloy_sol_types::SolValue;
 use risc0_op_steel::optimism::OpEvmInput;
-use risc0_steel::{EvmBlockHeader, EvmFactory};
-use risc0_steel::{ethereum::{EthEvmInput, EthEvmFactory, ETH_MAINNET_CHAIN_SPEC}, serde::RlpHeader, Commitment, Contract, EvmEnv, StateDb};
 use risc0_op_steel::optimism::{OpEvmFactory, OP_MAINNET_CHAIN_SPEC};
-
+use risc0_steel::{
+    ethereum::{EthEvmFactory, EthEvmInput, ETH_MAINNET_CHAIN_SPEC},
+    serde::RlpHeader,
+    Commitment, Contract, EvmEnv, StateDb,
+};
+use risc0_steel::{EvmBlockHeader, EvmFactory};
 
 /// Validates and executes proof data queries across multiple accounts and tokens using multicall
 ///
@@ -219,10 +222,18 @@ pub fn sort_and_verify_relevant_params(
             chain_id_for_length_validation,
         )
     } else {
+
+        let chain_spec = match chain_id {
+            LINEA_CHAIN_ID => &LINEA_MAINNET_CHAIN_SPEC,
+            LINEA_SEPOLIA_CHAIN_ID => &LINEA_MAINNET_CHAIN_SPEC,
+            _ => &ETH_MAINNET_CHAIN_SPEC,
+        };
+
         (
+
             env_input_for_viewcall
                 .expect("env_input is None")
-                .into_env(&ETH_MAINNET_CHAIN_SPEC),
+                .into_env(&chain_spec),
             None,
             None,
             chain_id,
@@ -320,7 +331,11 @@ pub fn validate_opstack_dispute_game_commitment(
     // Check game status
     let status_call = IDisputeGame::statusCall {};
     let status = game_contract.call_builder(&status_call).call();
-    assert_eq!(status, GameStatus::DEFENDER_WINS, "game status not DEFENDER_WINS");
+    assert_eq!(
+        status,
+        GameStatus::DEFENDER_WINS,
+        "game status not DEFENDER_WINS"
+    );
 
     // Check if game is blacklisted
     let blacklist_call = IOptimismPortal::disputeGameBlacklistCall { game: game_address };
@@ -474,7 +489,11 @@ pub fn get_validated_block_hash_opstack(
         );
         validate_opstack_dispute_game_commitment(
             chain_id,
-            env_input_eth_for_l1_inclusion.as_ref().unwrap().clone().into_env(&ETH_MAINNET_CHAIN_SPEC),
+            env_input_eth_for_l1_inclusion
+                .as_ref()
+                .unwrap()
+                .clone()
+                .into_env(&ETH_MAINNET_CHAIN_SPEC),
             op_env_commitment.unwrap(),
         );
         ethereum_hash
@@ -609,8 +628,9 @@ pub fn batch_call_get_proof_data<H>(
         .zip(target_chain_ids.iter());
 
     // Zip the batch parameters with returns for parallel iteration
-    batch_params.zip(returns.iter()).for_each(
-        |(((user, market), target_chain_id), result)| {
+    batch_params
+        .zip(returns.iter())
+        .for_each(|(((user, market), target_chain_id), result)| {
             let amounts = <(U256, U256)>::abi_decode(&result.returnData)
                 .expect("Failed to decode return data");
 
@@ -628,8 +648,7 @@ pub fn batch_call_get_proof_data<H>(
 
             // let (bytes, _hash) = abi::encode_packed(&input);
             output.push(bytes.into());
-        },
-    );
+        });
 }
 
 /// Validates Linea environment with L1 inclusion verification.
