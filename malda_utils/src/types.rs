@@ -43,6 +43,8 @@ use revm::{
 };
 use std::{collections::BTreeMap, error::Error, sync::LazyLock};
 
+use hex;
+
 pub type EthChainSpec = ChainSpec<SpecId>;
 
 pub static LINEA_MAINNET_CHAIN_SPEC: LazyLock<EthChainSpec> = LazyLock::new(|| ChainSpec {
@@ -55,6 +57,68 @@ pub static LINEA_MAINNET_CHAIN_SPEC: LazyLock<EthChainSpec> = LazyLock::new(|| C
         // (SpecId::PRAGUE, ForkCondition::Timestamp(1741159776)),
     ]),
 });
+
+pub struct TakeLastXBytes(pub usize);
+
+pub enum SolidityDataType<'a> {
+    String(&'a str),
+    Address(Address),
+    Bytes(&'a [u8]),
+    Bool(bool),
+    Number(U256),
+    NumberWithShift(U256, TakeLastXBytes),
+}
+
+pub mod abi {
+    use super::SolidityDataType;
+
+    /// Pack a single `SolidityDataType` into bytes
+    fn pack<'a>(data_type: &'a SolidityDataType) -> Vec<u8> {
+        let mut res = Vec::new();
+        match data_type {
+            SolidityDataType::String(s) => {
+                res.extend(s.as_bytes());
+            }
+            SolidityDataType::Address(a) => {
+                res.extend(a.0);
+            }
+            SolidityDataType::Number(n) => {
+                res.extend(n.to_be_bytes::<32>());
+            }
+            SolidityDataType::Bytes(b) => {
+                res.extend(*b);
+            }
+            SolidityDataType::Bool(b) => {
+                if *b {
+                    res.push(1);
+                } else {
+                    res.push(0);
+                }
+            }
+            SolidityDataType::NumberWithShift(n, to_take) => {
+                let local_res = n.to_be_bytes::<32>().to_vec();
+
+                let to_skip = local_res.len() - (to_take.0 / 8);
+
+                let local_res = local_res.into_iter().skip(to_skip).collect::<Vec<u8>>();
+                res.extend(local_res);
+            }
+        };
+        return res;
+    }
+
+    pub fn encode_packed(items: &[SolidityDataType]) -> (Vec<u8>, String) {
+        let res = items.iter().fold(Vec::new(), |mut acc, i| {
+            let pack = pack(i);
+            acc.push(pack);
+            acc
+        });
+        let res = res.join(&[][..]);
+        let hexed = hex::encode(&res);
+        (res, hexed)
+    }
+}
+
 
 sol! {
     /// Interface for querying proof data from the Malda Market.

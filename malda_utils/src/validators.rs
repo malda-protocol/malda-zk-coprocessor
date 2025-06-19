@@ -31,7 +31,6 @@ use crate::constants::*;
 use crate::cryptography::{recover_signer, signature_from_bytes};
 use crate::types::*;
 use alloy_consensus::Header;
-use alloy_encode_packed::{abi, SolidityDataType, TakeLastXBytes};
 use alloy_primitives::{Address, Bytes, B256, U256};
 use alloy_sol_types::SolValue;
 use risc0_op_steel::optimism::OpEvmInput;
@@ -634,19 +633,17 @@ pub fn batch_call_get_proof_data<H>(
             let amounts = <(U256, U256)>::abi_decode(&result.returnData)
                 .expect("Failed to decode return data");
 
-            let bytes = vec![];
+            let input = vec![
+                SolidityDataType::Address(*user),
+                SolidityDataType::Address(*market),
+                SolidityDataType::Number(amounts.0), // amountIn
+                SolidityDataType::Number(amounts.1), // amountOut
+                SolidityDataType::NumberWithShift(U256::from(chain_id), TakeLastXBytes(32)),
+                SolidityDataType::NumberWithShift(U256::from(*target_chain_id), TakeLastXBytes(32)),
+                SolidityDataType::Bool(validate_l1_inclusion),
+            ];
 
-            // let input = vec![
-            //     SolidityDataType::Address(*user),
-            //     SolidityDataType::Address(*market),
-            //     SolidityDataType::Number(amounts.0), // amountIn
-            //     SolidityDataType::Number(amounts.1), // amountOut
-            //     SolidityDataType::NumberWithShift(U256::from(chain_id), TakeLastXBytes(32)),
-            //     SolidityDataType::NumberWithShift(U256::from(*target_chain_id), TakeLastXBytes(32)),
-            //     SolidityDataType::Bool(validate_l1_inclusion),
-            // ];
-
-            // let (bytes, _hash) = abi::encode_packed(&input);
+            let (bytes, _hash) = abi::encode_packed(&input);
             output.push(bytes.into());
         });
 }

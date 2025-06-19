@@ -143,7 +143,7 @@ mod tests {
             vec![vec![asset]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![chain_id],
-            true,
+            false,
         )
         .await
         .unwrap();

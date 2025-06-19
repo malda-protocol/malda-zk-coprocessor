@@ -12,6 +12,7 @@ risc0-zkvm = { workspace = true, default-features = false, features = ['std', 'u
 risc0-op-steel = { workspace = true }
 serde = { workspace = true }
 url = { workspace = true }
+hex = { workspace = true }
 k256 = { workspace = true }
 eyre = { workspace = true }
 snap = { workspace = true }
@@ -26,8 +27,6 @@ revm = { workspace = true }
 # consensus-core = { workspace = true }
 tree_hash = { workspace = true }
 derive_more = { workspace = true }
-
-alloy-encode-packed = { workspace = true }
 
 
 
