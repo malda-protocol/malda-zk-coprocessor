@@ -29,21 +29,10 @@ use ssz_types::{typenum, FixedVector, VariableList};
 use crate::cryptography::signature_msg;
 use alloy_primitives::{Address, Bytes, PrimitiveSignature as Signature, B256, U256};
 
-use risc0_steel::{
-    config::{ChainSpec, ForkCondition},
-    serde::RlpHeader,
-    EvmBlockHeader, EvmEnv, EvmFactory, EvmInput,
-};
+use risc0_steel::config::{ChainSpec, ForkCondition};
 
-use revm::{
-    context::{BlockEnv, CfgEnv, TxEnv},
-    context_interface::block::BlobExcessGasAndPrice,
-    inspector::NoOpInspector,
-    primitives::hardfork::SpecId,
-};
-use std::{collections::BTreeMap, error::Error, sync::LazyLock};
-
-use hex;
+use revm::primitives::hardfork::SpecId;
+use std::{collections::BTreeMap, sync::LazyLock};
 
 pub type EthChainSpec = ChainSpec<SpecId>;
 
@@ -52,9 +41,6 @@ pub static LINEA_MAINNET_CHAIN_SPEC: LazyLock<EthChainSpec> = LazyLock::new(|| C
     forks: BTreeMap::from([
         (SpecId::LONDON, ForkCondition::Block(1)),
         (SpecId::LONDON, ForkCondition::Timestamp(1)),
-        // (SpecId::SHANGHAI, ForkCondition::Timestamp(1677557088)),
-        // (SpecId::CANCUN, ForkCondition::Timestamp(1706655072)),
-        // (SpecId::PRAGUE, ForkCondition::Timestamp(1741159776)),
     ]),
 });
 
@@ -118,7 +104,6 @@ pub mod abi {
         (res, hexed)
     }
 }
-
 
 sol! {
     /// Interface for querying proof data from the Malda Market.

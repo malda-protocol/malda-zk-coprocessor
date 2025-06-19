@@ -33,14 +33,13 @@ use crate::types::*;
 use alloy_consensus::Header;
 use alloy_primitives::{Address, Bytes, B256, U256};
 use alloy_sol_types::SolValue;
-use risc0_op_steel::optimism::OpEvmInput;
-use risc0_op_steel::optimism::{OpEvmFactory, OP_MAINNET_CHAIN_SPEC};
+use risc0_op_steel::optimism::{OpEvmFactory, OpEvmInput, OP_MAINNET_CHAIN_SPEC};
+use risc0_steel::EvmFactory;
 use risc0_steel::{
     ethereum::{EthEvmFactory, EthEvmInput, ETH_MAINNET_CHAIN_SPEC},
     serde::RlpHeader,
     Commitment, Contract, EvmEnv, StateDb,
 };
-use risc0_steel::{EvmBlockHeader, EvmFactory};
 
 /// Validates and executes proof data queries across multiple accounts and tokens using multicall
 ///
@@ -221,7 +220,6 @@ pub fn sort_and_verify_relevant_params(
             chain_id_for_length_validation,
         )
     } else {
-
         let chain_spec = match chain_id {
             LINEA_CHAIN_ID => &LINEA_MAINNET_CHAIN_SPEC,
             LINEA_SEPOLIA_CHAIN_ID => &LINEA_MAINNET_CHAIN_SPEC,
@@ -229,7 +227,6 @@ pub fn sort_and_verify_relevant_params(
         };
 
         (
-
             env_input_for_viewcall
                 .expect("env_input is None")
                 .into_env(&chain_spec),

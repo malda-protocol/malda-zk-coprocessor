@@ -28,24 +28,24 @@
 use crate::constants::*;
 use crate::elfs_ids::*;
 use crate::types::*;
-use crate::types::{Call3, IDisputeGame, IDisputeGameFactory, IL1MessageService, IMulticall3};
-use crate::types::{ExecutionPayload, IL1Block, SequencerCommitment};
+use crate::types::{
+    Call3, ExecutionPayload, IDisputeGame, IDisputeGameFactory, IL1Block, IL1MessageService,
+    IMulticall3, SequencerCommitment,
+};
 use core::panic;
 
-use risc0_op_steel::optimism::OpEvmInput;
+use risc0_op_steel::{
+    optimism::{OpEvmEnv, OpEvmInput, OP_MAINNET_CHAIN_SPEC},
+    DisputeGameIndex,
+};
 use risc0_steel::{
-    ethereum::{EthEvmEnv, EthEvmFactory, EthEvmInput, ETH_MAINNET_CHAIN_SPEC},
+    ethereum::{EthEvmEnv, EthEvmFactory, ETH_MAINNET_CHAIN_SPEC},
     host::BlockNumberOrTag,
     serde::RlpHeader,
     Contract, EvmInput,
 };
 use risc0_zkvm::{
     default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
-};
-
-use risc0_op_steel::{
-    optimism::{OpEvmEnv, OP_MAINNET_CHAIN_SPEC},
-    DisputeGameIndex,
 };
 
 use alloy::primitives::{Address, U256, U64};
@@ -740,7 +740,10 @@ pub async fn get_env_input_for_opstack_dispute_game(
         .into_input()
         .await
         .expect("Failed to convert environment to input");
-    let op_env_commitment = input.clone().into_env(&OP_MAINNET_CHAIN_SPEC).into_commitment();
+    let op_env_commitment = input
+        .clone()
+        .into_env(&OP_MAINNET_CHAIN_SPEC)
+        .into_commitment();
 
     let (game_index, _version) = op_env_commitment.decode_id();
 
