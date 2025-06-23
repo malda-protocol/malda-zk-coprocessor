@@ -27,7 +27,7 @@ use ssz_derive::{Decode, Encode};
 use ssz_types::{typenum, FixedVector, VariableList};
 
 use crate::cryptography::signature_msg;
-use alloy_primitives::{Address, Bytes, PrimitiveSignature as Signature, B256, U256};
+use alloy_primitives::{Address, Bytes, Signature, B256, U256};
 
 use risc0_steel::config::{ChainSpec, ForkCondition};
 

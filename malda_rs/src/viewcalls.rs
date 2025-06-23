@@ -28,10 +28,8 @@
 use crate::constants::*;
 use crate::elfs_ids::*;
 use crate::types::*;
-use crate::types::{
-    Call3, ExecutionPayload, IDisputeGame, IDisputeGameFactory, IL1Block, IL1MessageService,
-    IMulticall3, SequencerCommitment,
-};
+use crate::types::{Call3, IDisputeGame, IDisputeGameFactory, IL1MessageService, IMulticall3, ExecutionPayload, IL1Block, SequencerCommitment};
+
 use core::panic;
 
 use risc0_op_steel::{

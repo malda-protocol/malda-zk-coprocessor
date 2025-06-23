@@ -143,6 +143,27 @@ mod tests {
             vec![vec![asset]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![chain_id],
+            true,
+        )
+        .await
+        .unwrap();
+
+        let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
+        println!("Cycles: {}", cycles);
+        // panic!();
+    }
+
+    #[tokio::test]
+    async fn prove_get_proof_data_on_optimism() {
+        let user_base = address!("6446021F4E396dA3df4235C62537431372195D38");
+        let asset = WETH_MARKET;
+        let chain_id = OPTIMISM_CHAIN_ID;
+
+        let session_info = get_proof_data_exec(
+            vec![vec![user_base]],
+            vec![vec![asset]],
+            vec![vec![OPTIMISM_CHAIN_ID]],
+            vec![chain_id],
             false,
         )
         .await
@@ -152,11 +173,12 @@ mod tests {
         println!("Cycles: {}", cycles);
     }
 
+
     #[tokio::test]
-    async fn prove_get_proof_data_on_optimism() {
+    async fn prove_sepolia_get_proof_data_on_optimism() {
         let user_base = address!("6446021F4E396dA3df4235C62537431372195D38");
         let asset = WETH_MARKET;
-        let chain_id = OPTIMISM_CHAIN_ID;
+        let chain_id = OPTIMISM_SEPOLIA_CHAIN_ID;
 
         let session_info = get_proof_data_exec(
             vec![vec![user_base]],

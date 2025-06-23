@@ -478,11 +478,20 @@ pub fn get_validated_block_hash_opstack(
             sequencer_commitment_opstack_2.as_ref(),
             env_input_opstack_for_l1_block_call_2,
         );
-        validate_opstack_env(
-            chain_id,
-            sequencer_commitment.as_ref().unwrap(),
-            block_header_to_validate.hash_slow(),
-        );
+
+        let opstack_chain_id = match chain_id {
+            OPTIMISM_CHAIN_ID | BASE_CHAIN_ID => OPTIMISM_CHAIN_ID,
+            OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_CHAIN_ID,
+            _ => panic!("invalid chain id"),
+        };
+        println!("opstack chain id: {}", opstack_chain_id);
+        // validate_opstack_env(
+        //     opstack_chain_id,
+        //     sequencer_commitment.as_ref().unwrap(),
+        //     block_header_to_validate.hash_slow(),
+        // );
+        println!("validate opstack env finished");
+
         validate_opstack_dispute_game_commitment(
             chain_id,
             env_input_eth_for_l1_inclusion
@@ -494,11 +503,13 @@ pub fn get_validated_block_hash_opstack(
         );
         ethereum_hash
     } else {
+
         validate_opstack_env(
             chain_id,
             sequencer_commitment.as_ref().unwrap(),
             block_header_to_validate.hash_slow(),
         );
+
         block_header_to_validate.hash_slow()
     }
 }
@@ -812,12 +823,13 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
     } else {
         (OPTIMISM_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID)
     };
+    println!("here");
     validate_opstack_env(
         verify_via_chain_1,
         sequencer_commitment_opstack_1.unwrap(),
         env_op.commitment().digest,
     );
-
+    println!("validate opstack env");
     let l1_block = Contract::new(L1_BLOCK_ADDRESS_OPSTACK, &env_op);
     let call = IL1Block::hashCall {};
     let l1_hash_1 = l1_block.call_builder(&call).call();
