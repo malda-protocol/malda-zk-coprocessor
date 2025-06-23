@@ -180,7 +180,7 @@ mod tests {
 
         let http_url: Url = rpc_url_optimism().parse().unwrap();
 
-        let provider = ProviderBuilder::new().on_http(http_url);
+        let provider = ProviderBuilder::new().connect_http(http_url);
         let correct_hash = provider
             .get_block_by_number(BlockNumberOrTag::Number(block))
             .await
@@ -208,7 +208,7 @@ mod tests {
 
         let http_url: Url = rpc_url_optimism().parse().unwrap();
 
-        let provider = ProviderBuilder::new().on_http(http_url);
+        let provider = ProviderBuilder::new().connect_http(http_url);
 
         // get hash of previous block here
         let wrong_hash = provider
@@ -241,7 +241,7 @@ mod tests {
 
         let http_url: Url = rpc_url_optimism().parse().unwrap();
 
-        let provider = ProviderBuilder::new().on_http(http_url);
+        let provider = ProviderBuilder::new().connect_http(http_url);
 
         // get hash of previous block here
         let correct_hash = provider
@@ -274,7 +274,7 @@ mod tests {
 
         let http_url: Url = rpc_url_optimism().parse().unwrap();
 
-        let provider = ProviderBuilder::new().on_http(http_url);
+        let provider = ProviderBuilder::new().connect_http(http_url);
 
         // get hash of previous block here
         let correct_hash = provider
@@ -316,7 +316,7 @@ mod tests {
 
         let http_url: Url = rpc_url_optimism().parse().unwrap();
 
-        let provider = ProviderBuilder::new().on_http(http_url);
+        let provider = ProviderBuilder::new().connect_http(http_url);
 
         // get hash of previous block here
         let correct_hash = provider

@@ -19,7 +19,7 @@
 //! the secp256k1 elliptic curve.
 
 use crate::constants::SECP256K1N_HALF;
-use alloy_primitives::{keccak256, Address, Bytes, PrimitiveSignature as Signature, B256, U256};
+use alloy_primitives::{keccak256, Address, Bytes, Signature, B256, U256};
 use k256::ecdsa::{Error, RecoveryId, VerifyingKey};
 
 /// Creates a signature message hash following Ethereum's signing scheme.

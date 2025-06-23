@@ -173,7 +173,6 @@ mod tests {
         println!("Cycles: {}", cycles);
     }
 
-
     #[tokio::test]
     async fn prove_sepolia_get_proof_data_on_optimism() {
         let user_base = address!("6446021F4E396dA3df4235C62537431372195D38");
