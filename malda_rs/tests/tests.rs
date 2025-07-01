@@ -15,11 +15,9 @@ mod tests {
         transports::http::reqwest::Url,
     };
     use alloy_primitives::{address, Address};
-    use malda_rs::{constants::*, validators::*, viewcalls::*};
+    use malda_rs::{constants::*, types::*, validators::*, viewcalls::*};
     use risc0_steel::{
-        ethereum::{EthEvmEnv, ETH_MAINNET_CHAIN_SPEC},
-        host::BlockNumberOrTag as BlockRisc0,
-        serde::RlpHeader,
+        ethereum::EthEvmEnv, host::BlockNumberOrTag as BlockRisc0, serde::RlpHeader,
     };
 
     // Arbitrary values for testing
@@ -41,7 +39,7 @@ mod tests {
         let latest_block = EthEvmEnv::builder()
             .rpc(Url::parse(rpc_url_linea()).unwrap())
             .block_number_or_tag(BlockRisc0::Latest)
-            .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
+            .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
             .build()
             .await
             .unwrap()
@@ -66,7 +64,7 @@ mod tests {
             .as_ref()
             .unwrap()
             .clone()
-            .into_env(&ETH_MAINNET_CHAIN_SPEC);
+            .into_env(&LINEA_MAINNET_CHAIN_SPEC);
         validate_linea_env(LINEA_CHAIN_ID, &env.header().inner().clone());
     }
 
@@ -84,7 +82,7 @@ mod tests {
         let latest_block = EthEvmEnv::builder()
             .rpc(Url::parse(rpc_url_optimism()).unwrap())
             .block_number_or_tag(BlockRisc0::Latest)
-            .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
+            .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
             .build()
             .await
             .unwrap()
@@ -109,7 +107,7 @@ mod tests {
             .as_ref()
             .unwrap()
             .clone()
-            .into_env(&ETH_MAINNET_CHAIN_SPEC);
+            .into_env(&LINEA_MAINNET_CHAIN_SPEC);
         assert!(std::panic::catch_unwind(|| {
             validate_linea_env(LINEA_CHAIN_ID, &env.header().inner().clone());
         })
@@ -130,7 +128,7 @@ mod tests {
         let latest_block = EthEvmEnv::builder()
             .rpc(Url::parse(rpc_url_linea()).unwrap())
             .block_number_or_tag(BlockRisc0::Latest)
-            .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
+            .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
             .build()
             .await
             .unwrap()
@@ -155,7 +153,7 @@ mod tests {
             .as_ref()
             .unwrap()
             .clone()
-            .into_env(&ETH_MAINNET_CHAIN_SPEC);
+            .into_env(&LINEA_MAINNET_CHAIN_SPEC);
         let mut header = env.header().inner().inner().clone();
         header.number = 1;
         assert!(std::panic::catch_unwind(|| {

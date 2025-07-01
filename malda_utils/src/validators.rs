@@ -586,14 +586,12 @@ pub fn batch_call_get_proof_data<H>(
         .zip(asset.iter())
         .zip(target_chain_ids.iter());
     for ((user, market), target_chain_id) in batch_params {
-        // Selector for getProofData(address,uint32)
-        let selector = [0x07, 0xd9, 0x23, 0xe9];
         let user_bytes: [u8; 32] = user.into_word().into();
         let chain_id_bytes: [u8; 32] = U256::from(*target_chain_id).to_be_bytes();
 
         // Create calldata by concatenating selector, encoded address, and chain ID
         let mut call_data = Vec::with_capacity(68); // 4 bytes selector + 32 bytes address + 32 bytes chain ID
-        call_data.extend_from_slice(&selector);
+        call_data.extend_from_slice(&SELECTOR_MALDA_GET_PROOF_DATA);
         call_data.extend_from_slice(&user_bytes);
         call_data.extend_from_slice(&chain_id_bytes);
 
