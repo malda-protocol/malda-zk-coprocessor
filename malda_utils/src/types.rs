@@ -27,8 +27,83 @@ use ssz_derive::{Decode, Encode};
 use ssz_types::{typenum, FixedVector, VariableList};
 
 use crate::cryptography::signature_msg;
-use alloy_primitives::{Address, Bytes, PrimitiveSignature as Signature, B256, U256};
+use alloy_primitives::{Address, Bytes, Signature, B256, U256};
 
+use risc0_steel::config::{ChainSpec, ForkCondition};
+
+use revm::primitives::hardfork::SpecId;
+use std::{collections::BTreeMap, sync::LazyLock};
+
+pub type EthChainSpec = ChainSpec<SpecId>;
+
+pub static LINEA_MAINNET_CHAIN_SPEC: LazyLock<EthChainSpec> = LazyLock::new(|| ChainSpec {
+    chain_id: 59144,
+    forks: BTreeMap::from([
+        (SpecId::LONDON, ForkCondition::Block(1)),
+        (SpecId::LONDON, ForkCondition::Timestamp(1)),
+    ]),
+});
+
+pub struct TakeLastXBytes(pub usize);
+
+pub enum SolidityDataType<'a> {
+    String(&'a str),
+    Address(Address),
+    Bytes(&'a [u8]),
+    Bool(bool),
+    Number(U256),
+    NumberWithShift(U256, TakeLastXBytes),
+}
+
+pub mod abi {
+    use super::SolidityDataType;
+
+    /// Pack a single `SolidityDataType` into bytes
+    fn pack<'a>(data_type: &'a SolidityDataType) -> Vec<u8> {
+        let mut res = Vec::new();
+        match data_type {
+            SolidityDataType::String(s) => {
+                res.extend(s.as_bytes());
+            }
+            SolidityDataType::Address(a) => {
+                res.extend(a.0);
+            }
+            SolidityDataType::Number(n) => {
+                res.extend(n.to_be_bytes::<32>());
+            }
+            SolidityDataType::Bytes(b) => {
+                res.extend(*b);
+            }
+            SolidityDataType::Bool(b) => {
+                if *b {
+                    res.push(1);
+                } else {
+                    res.push(0);
+                }
+            }
+            SolidityDataType::NumberWithShift(n, to_take) => {
+                let local_res = n.to_be_bytes::<32>().to_vec();
+
+                let to_skip = local_res.len() - (to_take.0 / 8);
+
+                let local_res = local_res.into_iter().skip(to_skip).collect::<Vec<u8>>();
+                res.extend(local_res);
+            }
+        };
+        return res;
+    }
+
+    pub fn encode_packed(items: &[SolidityDataType]) -> (Vec<u8>, String) {
+        let res = items.iter().fold(Vec::new(), |mut acc, i| {
+            let pack = pack(i);
+            acc.push(pack);
+            acc
+        });
+        let res = res.join(&[][..]);
+        let hexed = hex::encode(&res);
+        (res, hexed)
+    }
+}
 
 sol! {
     /// Interface for querying proof data from the Malda Market.
@@ -43,7 +118,7 @@ sol! {
 
     interface IL1MessageService {
         /// Returns the latest L2 block number known to L1.
-        /// 
+        ///
         /// This function is used to query the last L2 block number that has been processed by L1.
         /// Note: This value is not updated by proof and relies on trust in the Linea team.
         function currentL2BlockNumber() external view returns (uint256);
@@ -124,14 +199,14 @@ sol! {
     interface IOptimismPortal {
         /// @notice Returns the address of the DisputeGameFactory
         function disputeGameFactory() external view returns (address);
-        
+
         /// @notice Returns the timestamp when the respected game type was last updated
         function respectedGameTypeUpdatedAt() external view returns (uint256);
-        
+
         /// @notice Checks if a dispute game is blacklisted
         /// @param game The address of the dispute game
         function disputeGameBlacklist(address game) external view returns (bool);
-        
+
         /// @notice Returns the proof maturity delay in seconds
         function proofMaturityDelaySeconds() external view returns (uint256);
     }

@@ -61,50 +61,16 @@ fn main() {
         }
     }
 
-    if let Some(path_line) = elfs_ids_content
-        .lines()
-        .find(|line| line.contains("GET_PROOF_DATA_ETHEREUM_LIGHT_CLIENT_PATH"))
-    {
-        if let Some(path) = path_line.split('"').nth(1) {
-            let source_path = PathBuf::from(path);
-            let filename = source_path.file_name().unwrap();
-            let dest_path = malda_rs_bin.join(filename);
-            fs::copy(&source_path, &dest_path).unwrap();
-            println!(
-                "Copied ELF file from {} to {}",
-                source_path.display(),
-                dest_path.display()
-            );
-        }
-    }
-
     // Now update the paths in elfs_ids.rs to use relative paths
     let mut elfs_ids_content = elfs_ids_content.replace(
         "pub const GET_PROOF_DATA_ELF: &[u8] = &[];",
         "pub const GET_PROOF_DATA_ELF: &[u8] = include_bytes!(\"../bin/get-proof-data\");",
     );
 
-    elfs_ids_content = elfs_ids_content.replace(
-        "pub const GET_PROOF_DATA_ETHEREUM_LIGHT_CLIENT_ELF: &[u8] = &[];",
-        "pub const GET_PROOF_DATA_ETHEREUM_LIGHT_CLIENT_ELF: &[u8] = include_bytes!(\"../bin/get_proof_data_ethereum_light_client\");"
-    );
-
     // Extract just the filenames for the paths
     if let Some(path_line) = elfs_ids_content
         .lines()
         .find(|line| line.contains("GET_PROOF_DATA_PATH"))
-    {
-        if let Some(path) = path_line.split('"').nth(1) {
-            let path_buf = PathBuf::from(path);
-            let file_name = path_buf.file_name().unwrap();
-            let filename = file_name.to_str().unwrap();
-            elfs_ids_content = elfs_ids_content.replace(path, &format!("../bin/{}", filename));
-        }
-    }
-
-    if let Some(path_line) = elfs_ids_content
-        .lines()
-        .find(|line| line.contains("GET_PROOF_DATA_ETHEREUM_LIGHT_CLIENT_PATH"))
     {
         if let Some(path) = path_line.split('"').nth(1) {
             let path_buf = PathBuf::from(path);

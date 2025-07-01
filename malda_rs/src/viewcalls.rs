@@ -28,19 +28,26 @@
 use crate::constants::*;
 use crate::elfs_ids::*;
 use crate::types::*;
-use crate::types::{Call3, IDisputeGame, IDisputeGameFactory, IL1MessageService, IMulticall3};
-use crate::types::{ExecutionPayload, IL1Block, SequencerCommitment};
+use crate::types::{
+    Call3, ExecutionPayload, IDisputeGame, IDisputeGameFactory, IL1Block, IL1MessageService,
+    IMulticall3, SequencerCommitment,
+};
+
 use core::panic;
 
-use risc0_op_steel::optimism::OpEvmInput;
+use risc0_op_steel::{
+    optimism::{OpEvmEnv, OpEvmInput, OP_MAINNET_CHAIN_SPEC},
+    DisputeGameIndex,
+};
 use risc0_steel::{
-    ethereum::EthEvmEnv, host::BlockNumberOrTag, serde::RlpHeader, Contract, EvmInput,
+    ethereum::{EthEvmEnv, EthEvmFactory, ETH_MAINNET_CHAIN_SPEC},
+    host::BlockNumberOrTag,
+    serde::RlpHeader,
+    Contract, EvmInput,
 };
 use risc0_zkvm::{
     default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
 };
-
-use risc0_op_steel::{optimism::OpEvmEnv, DisputeGameIndex};
 
 use alloy::primitives::{Address, U256, U64};
 use alloy_consensus::Header;
@@ -95,11 +102,10 @@ pub struct MaldaProveInfo {
 /// # Panics
 /// Panics if the required environment variable `IMAGE_ID_BONSAI` is not set.
 fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
-
     let client = Client::from_env(risc0_zkvm::VERSION)?;
 
-    let image_id_hex: String = dotenvy::var("IMAGE_ID_BONSAI")
-        .expect("IMAGE_ID_BONSAI must be set in environment");
+    let image_id_hex: String =
+        dotenvy::var("IMAGE_ID_BONSAI").expect("IMAGE_ID_BONSAI must be set in environment");
 
     let input_id = client.upload_input(input_data)?;
 
@@ -118,7 +124,6 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
             continue;
         }
         if res.status == "SUCCEEDED" {
-
             let stats = res
                 .stats
                 .expect("Missing stats object on Bonsai status res");
@@ -181,7 +186,6 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
     let receipt_buf = client.download(&snark_receipt_url)?;
     let groth16_receipt: Receipt = bincode::deserialize(&receipt_buf)?;
 
-
     Ok(MaldaProveInfo {
         receipt: groth16_receipt,
         stats: succinct_stats,
@@ -215,7 +219,6 @@ pub async fn get_proof_data_exec(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
 ) -> Result<SessionInfo, Error> {
-
     assert_eq!(
         users.len(),
         markets.len(),
@@ -281,7 +284,6 @@ async fn get_proof_data_env(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
 ) -> ExecutorEnv<'static> {
-
     assert_eq!(users.len(), markets.len());
     assert_eq!(users.len(), chain_ids.len());
 
@@ -335,7 +337,6 @@ async fn get_proof_data_input(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
 ) -> Vec<u8> {
-
     assert_eq!(users.len(), markets.len());
     assert_eq!(users.len(), chain_ids.len());
 
@@ -390,9 +391,7 @@ pub async fn get_proof_data_prove(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
 ) -> Result<ProveInfo, Error> {
-
     let prove_info = tokio::task::spawn_blocking(move || {
-
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         let start_time = std::time::Instant::now();
@@ -442,9 +441,7 @@ pub async fn get_proof_data_prove_sdk(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
 ) -> Result<MaldaProveInfo, Error> {
-
     let prove_info = tokio::task::spawn_blocking(move || {
-
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         let start_time = std::time::Instant::now();
@@ -597,6 +594,7 @@ pub async fn get_proof_data_zkvm_input(
 }
 
 /// Returns the environment input for L1 inclusion and the L2 block number for a given chain.
+/// This function handles non-OpStack chains (Ethereum and Linea).
 ///
 /// # Arguments
 /// * `chain_id` - The chain ID to query.
@@ -605,17 +603,18 @@ pub async fn get_proof_data_zkvm_input(
 /// * `ethereum_block` - The Ethereum block number (optional).
 ///
 /// # Returns
-/// * `(Option<EvmInput<RlpHeader<Header>>>, Option<u64>)` - The environment input and L2 block number, if available.
+/// * `(Option<EvmInput<EthEvmFactory>>, Option<u64>)` - The environment input and L2 block number, if available.
 ///
 /// # Panics
 /// Panics if:
 /// - L1 inclusion is requested for an unsupported chain.
+/// - OpStack chain ID is provided (use get_env_input_for_opstack_l1_inclusion instead).
 pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
     chain_id: u64,
     is_sepolia: bool,
     l1_inclusion: bool,
     ethereum_block: Option<u64>,
-) -> (Option<EvmInput<RlpHeader<Header>>>, Option<u64>) {
+) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
     if !l1_inclusion {
         (None, None)
     } else {
@@ -651,57 +650,30 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
     }
 }
 
-/// Returns the environment input and L2 block number for Linea L1 call.
+/// Returns the environment input for L1 inclusion and the L2 block number for OpStack chains.
 ///
 /// # Arguments
-/// * `chain_id` - The chain ID to query.
-/// * `l1_rpc_url` - The L1 RPC URL.
+/// * `chain_id` - The chain ID to query (must be an OpStack chain).
 /// * `l1_block` - The L1 block number.
 ///
 /// # Returns
-/// * `(Option<EvmInput<RlpHeader<Header>>>, Option<u64>)` - The environment input and L2 block number, if available.
+/// * `(Option<OpEvmInput>, Option<u64>)` - The environment input and L2 block number, if available.
 ///
 /// # Panics
 /// Panics if:
-/// - Invalid chain ID is provided.
-pub async fn get_env_input_for_linea_l1_call(
+/// - Non-OpStack chain ID is provided.
+pub async fn get_env_input_for_opstack_l1_inclusion(
     chain_id: u64,
-    l1_rpc_url: &str,
     l1_block: u64,
-) -> (Option<EvmInput<RlpHeader<Header>>>, Option<u64>) {
-    let message_service_address = match chain_id {
-        LINEA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA,
-        LINEA_SEPOLIA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA_SEPOLIA,
-        _ => panic!("Invalid chain ID"),
-    };
-
-    let mut env = EthEvmEnv::builder()
-        .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
-        .block_number_or_tag(BlockNumberOrTag::Number(l1_block))
-        .build()
-        .await
-        .expect("Failed to build EVM environment");
-
-    // Make single multicall
-    let current_l2_block_number_call = IL1MessageService::currentL2BlockNumberCall {};
-
-    let mut contract = Contract::preflight(message_service_address, &mut env);
-    let returns = contract
-        .call_builder(&current_l2_block_number_call)
-        .call()
-        .await
-        .expect("Failed to execute current l2 block number call");
-
-    let l2_block_number: u64 = U64::from(returns._0).try_into().unwrap();
-
-    (
-        Some(
-            env.into_input()
-                .await
-                .expect("Failed to convert environment to input"),
-        ),
-        Some(l2_block_number),
-    )
+) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
+    if chain_id != OPTIMISM_CHAIN_ID
+        && chain_id != BASE_CHAIN_ID
+        && chain_id != OPTIMISM_SEPOLIA_CHAIN_ID
+        && chain_id != BASE_SEPOLIA_CHAIN_ID
+    {
+        panic!("This function only supports OpStack chains");
+    }
+    get_env_input_for_opstack_dispute_game(chain_id, l1_block).await
 }
 
 /// Returns the environment input for OpStack dispute game and a dummy L2 block number.
@@ -711,7 +683,7 @@ pub async fn get_env_input_for_linea_l1_call(
 /// * `l1_block` - The L1 block number.
 ///
 /// # Returns
-/// * `(Option<EvmInput<RlpHeader<Header>>>, Option<u64>)` - The environment input and a dummy L2 block number.
+/// * `(Option<OpEvmInput>, Option<u64>)` - The environment input and a dummy L2 block number.
 ///
 /// # Panics
 /// Panics if:
@@ -719,7 +691,7 @@ pub async fn get_env_input_for_linea_l1_call(
 pub async fn get_env_input_for_opstack_dispute_game(
     chain_id: u64,
     l1_block: u64,
-) -> (Option<EvmInput<RlpHeader<Header>>>, Option<u64>) {
+) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
     let (l1_rpc_url, optimism_portal, l2_rpc_url) = match chain_id {
         OPTIMISM_CHAIN_ID => (rpc_url_ethereum(), OPTIMISM_PORTAL, rpc_url_optimism()),
         OPTIMISM_SEPOLIA_CHAIN_ID => (
@@ -739,6 +711,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
     let mut env = EthEvmEnv::builder()
         .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
         .block_number_or_tag(BlockNumberOrTag::Number(l1_block))
+        .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
         .build()
         .await
         .expect("Failed to build EVM environment");
@@ -750,6 +723,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
         .game_index(DisputeGameIndex::Finalized);
     let mut op_env = builder
         .rpc(Url::parse(l2_rpc_url).expect("Failed to parse RPC URL"))
+        .chain_spec(&OP_MAINNET_CHAIN_SPEC)
         .build()
         .await
         .expect("Failed to build OP-EVM environment");
@@ -767,7 +741,10 @@ pub async fn get_env_input_for_opstack_dispute_game(
         .into_input()
         .await
         .expect("Failed to convert environment to input");
-    let op_env_commitment = input.clone().into_env().into_commitment();
+    let op_env_commitment = input
+        .clone()
+        .into_env(&OP_MAINNET_CHAIN_SPEC)
+        .into_commitment();
 
     let (game_index, _version) = op_env_commitment.decode_id();
 
@@ -786,12 +763,11 @@ pub async fn get_env_input_for_opstack_dispute_game(
 
     // Get factory address from portal
     let factory_call = IOptimismPortal::disputeGameFactoryCall {};
-    let returns = contract
+    let factory_address = contract
         .call_builder(&factory_call)
         .call()
         .await
         .expect("Failed to execute factory call");
-    let factory_address = returns._0;
 
     let game_call = IDisputeGameFactory::gameAtIndexCall { index: game_index };
 
@@ -811,13 +787,13 @@ pub async fn get_env_input_for_opstack_dispute_game(
     // Check if game was created after respected game type update
     let mut contract = Contract::preflight(portal_adress, &mut env);
     let respected_game_type_updated_at_call = IOptimismPortal::respectedGameTypeUpdatedAtCall {};
-    let returns = contract
+    let updated_at = contract
         .call_builder(&respected_game_type_updated_at_call)
         .call()
         .await
         .expect("Failed to execute respected game type updated at call");
     assert!(
-        created_at >= returns._0,
+        created_at >= updated_at,
         "game created before respected game type update"
     );
 
@@ -826,13 +802,13 @@ pub async fn get_env_input_for_opstack_dispute_game(
 
     // Check game status
     let status_call = IDisputeGame::statusCall {};
-    let returns = contract
+    let status = contract
         .call_builder(&status_call)
         .call()
         .await
         .expect("Failed to execute status call");
     assert_eq!(
-        returns._0,
+        status,
         GameStatus::DEFENDER_WINS,
         "game status not DEFENDER_WINS"
     );
@@ -840,31 +816,29 @@ pub async fn get_env_input_for_opstack_dispute_game(
     // Check if game is blacklisted
     let mut contract = Contract::preflight(portal_adress, &mut env);
     let blacklist_call = IOptimismPortal::disputeGameBlacklistCall { game: game_address };
-    let returns = contract
+    let is_blacklisted = contract
         .call_builder(&blacklist_call)
         .call()
         .await
         .expect("Failed to execute blacklist call");
-    assert!(!returns._0, "game is blacklisted");
+    assert!(!is_blacklisted, "game is blacklisted");
 
     // Check game resolution time
     let mut contract = Contract::preflight(game_address, &mut env);
     let resolved_at_call = IDisputeGame::resolvedAtCall {};
-    let returns = contract
+    let resolved_at = contract
         .call_builder(&resolved_at_call)
         .call()
         .await
         .expect("Failed to execute resolved at call");
-    let resolved_at = returns._0;
 
     let mut contract = Contract::preflight(portal_adress, &mut env);
     let proof_maturity_delay_call = IOptimismPortal::proofMaturityDelaySecondsCall {};
-    let returns = contract
+    let proof_maturity_delay = contract
         .call_builder(&proof_maturity_delay_call)
         .call()
         .await
         .expect("Failed to execute proof maturity delay call");
-    let proof_maturity_delay = returns._0;
 
     let current_timestamp = env.header().inner().inner().timestamp;
     assert!(
@@ -876,13 +850,13 @@ pub async fn get_env_input_for_opstack_dispute_game(
     // Finally verify root claim matches
     let mut contract = Contract::preflight(game_address, &mut env);
     let root_claim_call = IDisputeGame::rootClaimCall {};
-    let returns = contract
+    let root = contract
         .call_builder(&root_claim_call)
         .call()
         .await
         .expect("Failed to execute root claim call");
 
-    assert_eq!(returns._0, root_claim, "root claim not respected");
+    assert_eq!(root, root_claim, "root claim not respected");
 
     (
         Some(
@@ -917,9 +891,9 @@ pub async fn get_l1block_call_inputs_and_l1_block_numbers(
     block: Option<u64>,
     _block_2: Option<u64>,
 ) -> (
-    Option<EvmInput<RlpHeader<Header>>>,
+    Option<EvmInput<EthEvmFactory>>,
     Option<u64>,
-    Option<EvmInput<RlpHeader<Header>>>,
+    Option<EvmInput<EthEvmFactory>>,
     Option<u64>,
 ) {
     if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID || l1_inclusion {
@@ -935,7 +909,7 @@ pub async fn get_l1block_call_inputs_and_l1_block_numbers(
         (
             Some(l1_block_call_input_1),
             Some(ethereum_block_1),
-            None::<EvmInput<RlpHeader<Header>>>,
+            None::<EvmInput<EthEvmFactory>>,
             None::<u64>,
         )
         // (Some(l1_block_call_input_1), Some(ethereum_block_1), Some(l1_block_call_input_2), Some(ethereum_block_2))
@@ -956,7 +930,7 @@ pub async fn get_l1block_call_inputs_and_l1_block_numbers(
 /// * `validate_l1_inclusion` - Whether to validate L1 inclusion for OpStack chains.
 ///
 /// # Returns
-/// * `(Option<EvmInput<RlpHeader<Header>>>, Option<OpEvmInput>)` - Formatted EVM input for the multicall and optional OpEvmInput.
+/// * `(Option<EvmInput<EthEvmFactory>>, Option<OpEvmInput>)` - Formatted EVM input for the multicall and optional OpEvmInput.
 ///
 /// # Panics
 /// Panics if:
@@ -970,7 +944,7 @@ pub async fn get_proof_data_call_input(
     markets: Vec<Address>,
     target_chain_ids: Vec<u64>,
     validate_l1_inclusion: bool,
-) -> (Option<EvmInput<RlpHeader<Header>>>, Option<OpEvmInput>) {
+) -> (Option<EvmInput<EthEvmFactory>>, Option<OpEvmInput>) {
     let reorg_protection_depth = match chain_id {
         OPTIMISM_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM,
         BASE_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE,
@@ -1033,14 +1007,14 @@ pub async fn get_proof_data_call_input(
             BASE_SEPOLIA_CHAIN_ID => (rpc_url_ethereum_sepolia(), BASE_SEPOLIA_PORTAL),
             _ => panic!("Invalid chain ID"),
         };
-        let builder = OpEvmEnv::builder()
+        let mut env = OpEvmEnv::builder()
             .dispute_game_from_rpc(
                 optimism_portal,
                 Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"),
             )
-            .game_index(DisputeGameIndex::Finalized);
-        let mut env = builder
+            .game_index(DisputeGameIndex::Finalized)
             .rpc(Url::parse(chain_url).expect("Failed to parse RPC URL"))
+            .chain_spec(&OP_MAINNET_CHAIN_SPEC)
             .build()
             .await
             .expect("Failed to build OP-EVM environment");
@@ -1066,6 +1040,7 @@ pub async fn get_proof_data_call_input(
         let mut env = EthEvmEnv::builder()
             .rpc(Url::parse(chain_url).expect("Failed to parse RPC URL"))
             .block_number_or_tag(BlockNumberOrTag::Number(block_reorg_protected))
+            .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
             .build()
             .await
             .expect("Failed to build EVM environment");
@@ -1158,6 +1133,7 @@ pub async fn get_sequencer_commitments_and_blocks(
         let block = EthEvmEnv::builder()
             .rpc(Url::parse(rpc_url).unwrap())
             .block_number_or_tag(BlockNumberOrTag::Latest)
+            .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
             .build()
             .await
             .unwrap()
@@ -1212,7 +1188,7 @@ pub async fn get_current_sequencer_commitment(chain_id: u64) -> (SequencerCommit
 /// * `chain_id` - Chain ID (Optimism, Base, or their Sepolia variants).
 ///
 /// # Returns
-/// * `(EvmInput<RlpHeader<Header>>, u64)` - Tuple of L1 block input and block number.
+/// * `(EvmInput<EthEvmFactory>, u64)` - Tuple of L1 block input and block number.
 ///
 /// # Panics
 /// Panics if:
@@ -1221,7 +1197,7 @@ pub async fn get_current_sequencer_commitment(chain_id: u64) -> (SequencerCommit
 pub async fn get_l1block_call_input(
     block: BlockNumberOrTag,
     chain_id: u64,
-) -> (EvmInput<RlpHeader<Header>>, u64) {
+) -> (EvmInput<EthEvmFactory>, u64) {
     let rpc_url = match chain_id {
         BASE_CHAIN_ID => rpc_url_base(),
         OPTIMISM_CHAIN_ID => rpc_url_optimism(),
@@ -1232,6 +1208,7 @@ pub async fn get_l1block_call_input(
     let mut env = EthEvmEnv::builder()
         .rpc(Url::parse(rpc_url).expect("Failed to parse RPC URL"))
         .block_number_or_tag(block)
+        .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
         .build()
         .await
         .expect("Failed to build EVM environment");
@@ -1252,6 +1229,7 @@ pub async fn get_l1block_call_input(
     let mut env = EthEvmEnv::builder()
         .rpc(Url::parse(rpc_url).expect("Failed to parse RPC URL"))
         .block_number_or_tag(block)
+        .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
         .build()
         .await
         .expect("Failed to build EVM environment");
@@ -1262,8 +1240,7 @@ pub async fn get_l1block_call_input(
         .call_builder(&call)
         .call()
         .await
-        .expect("Failed to call L1Block number")
-        ._0;
+        .expect("Failed to call L1Block number");
 
     (view_call_input_l1_block, l1_block)
 }
@@ -1309,6 +1286,7 @@ pub async fn get_linking_blocks(
                 let env = EthEvmEnv::builder()
                     .rpc(Url::parse(&rpc_url).expect("Failed to parse RPC URL"))
                     .block_number_or_tag(BlockNumberOrTag::Number(block_nr))
+                    .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
                     .build()
                     .await
                     .expect("Failed to build EVM environment");
@@ -1323,4 +1301,58 @@ pub async fn get_linking_blocks(
         .into_iter()
         .map(|r| r.expect("Failed to join block fetch task"))
         .collect()
+}
+
+/// Returns the environment input and L2 block number for Linea L1 call.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to query.
+/// * `l1_rpc_url` - The L1 RPC URL.
+/// * `l1_block` - The L1 block number.
+///
+/// # Returns
+/// * `(Option<EvmInput<EthEvmFactory>>, Option<u64>)` - The environment input and L2 block number, if available.
+///
+/// # Panics
+/// Panics if:
+/// - Invalid chain ID is provided.
+pub async fn get_env_input_for_linea_l1_call(
+    chain_id: u64,
+    l1_rpc_url: &str,
+    l1_block: u64,
+) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
+    let message_service_address = match chain_id {
+        LINEA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA,
+        LINEA_SEPOLIA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA_SEPOLIA,
+        _ => panic!("Invalid chain ID"),
+    };
+
+    let mut env = EthEvmEnv::builder()
+        .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
+        .block_number_or_tag(BlockNumberOrTag::Number(l1_block))
+        .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
+        .build()
+        .await
+        .expect("Failed to build EVM environment");
+
+    // Make single multicall
+    let current_l2_block_number_call = IL1MessageService::currentL2BlockNumberCall {};
+
+    let mut contract = Contract::preflight(message_service_address, &mut env);
+    let returns = contract
+        .call_builder(&current_l2_block_number_call)
+        .call()
+        .await
+        .expect("Failed to execute current l2 block number call");
+
+    let l2_block_number: u64 = U64::from(returns).try_into().unwrap();
+
+    (
+        Some(
+            env.into_input()
+                .await
+                .expect("Failed to convert environment to input"),
+        ),
+        Some(l2_block_number),
+    )
 }

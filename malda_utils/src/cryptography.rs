@@ -19,7 +19,7 @@
 //! the secp256k1 elliptic curve.
 
 use crate::constants::SECP256K1N_HALF;
-use alloy_primitives::{keccak256, Address, Bytes, PrimitiveSignature as Signature, B256, U256};
+use alloy_primitives::{keccak256, Address, Bytes, Signature, B256, U256};
 use k256::ecdsa::{Error, RecoveryId, VerifyingKey};
 
 /// Creates a signature message hash following Ethereum's signing scheme.
@@ -142,28 +142,11 @@ pub fn signature_from_bytes(signature: &Bytes) -> Signature {
         panic!("Invalid signature length");
     }
 
-    let r_array: [u8; 32] = signature
-        .slice(0..32)
-        .to_vec()
-        .try_into()
-        .expect("Failed to convert first 32 bytes into r component array");
-    let r = U256::from_be_bytes(r_array);
+    let r = U256::from_be_bytes::<32>(signature[0..32].try_into().unwrap());
+    let s = U256::from_be_bytes::<32>(signature[32..64].try_into().unwrap());
+    let v = signature[64];
 
-    let s_array: [u8; 32] = signature
-        .slice(32..64)
-        .to_vec()
-        .try_into()
-        .expect("Failed to convert second 32 bytes into s component array");
-    let s = U256::from_be_bytes(s_array);
-
-    let v_array: [u8; 1] = signature
-        .slice(64..65)
-        .to_vec()
-        .try_into()
-        .expect("Failed to convert last byte into v component array");
-    let v = v_array[0] == 1;
-
-    Signature::new(U256::from(r), U256::from(s), v)
+    Signature::new(r, s, v == 1)
 }
 
 #[cfg(test)]

@@ -15,7 +15,7 @@ mod tests {
         transports::http::reqwest::Url,
     };
     use alloy_primitives::{address, Address};
-    use malda_rs::{constants::*, validators::*, viewcalls::*};
+    use malda_rs::{constants::*, types::*, validators::*, viewcalls::*};
     use risc0_steel::{
         ethereum::EthEvmEnv, host::BlockNumberOrTag as BlockRisc0, serde::RlpHeader,
     };
@@ -39,6 +39,7 @@ mod tests {
         let latest_block = EthEvmEnv::builder()
             .rpc(Url::parse(rpc_url_linea()).unwrap())
             .block_number_or_tag(BlockRisc0::Latest)
+            .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
             .build()
             .await
             .unwrap()
@@ -58,7 +59,12 @@ mod tests {
         )
         .await;
 
-        let env = proof_data_call_input.0.as_ref().unwrap().clone().into_env();
+        let env = proof_data_call_input
+            .0
+            .as_ref()
+            .unwrap()
+            .clone()
+            .into_env(&LINEA_MAINNET_CHAIN_SPEC);
         validate_linea_env(LINEA_CHAIN_ID, &env.header().inner().clone());
     }
 
@@ -76,6 +82,7 @@ mod tests {
         let latest_block = EthEvmEnv::builder()
             .rpc(Url::parse(rpc_url_optimism()).unwrap())
             .block_number_or_tag(BlockRisc0::Latest)
+            .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
             .build()
             .await
             .unwrap()
@@ -95,7 +102,12 @@ mod tests {
         )
         .await;
 
-        let env = proof_data_call_input.0.as_ref().unwrap().clone().into_env();
+        let env = proof_data_call_input
+            .0
+            .as_ref()
+            .unwrap()
+            .clone()
+            .into_env(&LINEA_MAINNET_CHAIN_SPEC);
         assert!(std::panic::catch_unwind(|| {
             validate_linea_env(LINEA_CHAIN_ID, &env.header().inner().clone());
         })
@@ -116,6 +128,7 @@ mod tests {
         let latest_block = EthEvmEnv::builder()
             .rpc(Url::parse(rpc_url_linea()).unwrap())
             .block_number_or_tag(BlockRisc0::Latest)
+            .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
             .build()
             .await
             .unwrap()
@@ -135,7 +148,12 @@ mod tests {
         )
         .await;
 
-        let env = proof_data_call_input.0.as_ref().unwrap().clone().into_env();
+        let env = proof_data_call_input
+            .0
+            .as_ref()
+            .unwrap()
+            .clone()
+            .into_env(&LINEA_MAINNET_CHAIN_SPEC);
         let mut header = env.header().inner().inner().clone();
         header.number = 1;
         assert!(std::panic::catch_unwind(|| {
@@ -160,7 +178,7 @@ mod tests {
 
         let http_url: Url = rpc_url_optimism().parse().unwrap();
 
-        let provider = ProviderBuilder::new().on_http(http_url);
+        let provider = ProviderBuilder::new().connect_http(http_url);
         let correct_hash = provider
             .get_block_by_number(BlockNumberOrTag::Number(block))
             .await
@@ -188,7 +206,7 @@ mod tests {
 
         let http_url: Url = rpc_url_optimism().parse().unwrap();
 
-        let provider = ProviderBuilder::new().on_http(http_url);
+        let provider = ProviderBuilder::new().connect_http(http_url);
 
         // get hash of previous block here
         let wrong_hash = provider
@@ -221,7 +239,7 @@ mod tests {
 
         let http_url: Url = rpc_url_optimism().parse().unwrap();
 
-        let provider = ProviderBuilder::new().on_http(http_url);
+        let provider = ProviderBuilder::new().connect_http(http_url);
 
         // get hash of previous block here
         let correct_hash = provider
@@ -254,7 +272,7 @@ mod tests {
 
         let http_url: Url = rpc_url_optimism().parse().unwrap();
 
-        let provider = ProviderBuilder::new().on_http(http_url);
+        let provider = ProviderBuilder::new().connect_http(http_url);
 
         // get hash of previous block here
         let correct_hash = provider
@@ -296,7 +314,7 @@ mod tests {
 
         let http_url: Url = rpc_url_optimism().parse().unwrap();
 
-        let provider = ProviderBuilder::new().on_http(http_url);
+        let provider = ProviderBuilder::new().connect_http(http_url);
 
         // get hash of previous block here
         let correct_hash = provider

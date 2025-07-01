@@ -30,6 +30,3 @@ pub mod validators;
 
 /// Cryptographic operations and primitives
 pub mod cryptography;
-
-/// L1 validation
-pub mod validators_ethereum_light_client;
