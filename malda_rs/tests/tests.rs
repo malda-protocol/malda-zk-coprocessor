@@ -56,6 +56,7 @@ mod tests {
             vec![WETH_MARKET_SEPOLIA],
             vec![OPTIMISM_CHAIN_ID],
             false,
+            false,
         )
         .await;
 
@@ -98,6 +99,7 @@ mod tests {
             vec![USER],
             vec![WETH_MARKET_SEPOLIA],
             vec![LINEA_CHAIN_ID],
+            false,
             false,
         )
         .await;
@@ -145,6 +147,7 @@ mod tests {
             vec![WETH_MARKET_SEPOLIA],
             vec![OPTIMISM_CHAIN_ID],
             false,
+            false,
         )
         .await;
 
@@ -174,7 +177,7 @@ mod tests {
     #[tokio::test]
     async fn test_validate_optimism_env_correct_input() {
         let (sequencer_commitment, block) =
-            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID).await;
+            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID, false).await;
 
         let http_url: Url = rpc_url_optimism().parse().unwrap();
 
@@ -202,7 +205,7 @@ mod tests {
     #[tokio::test]
     async fn test_validate_optimism_env_wrong_hash_panics() {
         let (sequencer_commitment, block) =
-            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID).await;
+            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID, false).await;
 
         let http_url: Url = rpc_url_optimism().parse().unwrap();
 
@@ -235,7 +238,7 @@ mod tests {
     #[tokio::test]
     async fn test_validate_optimism_env_wrong_chain_id_panics() {
         let (sequencer_commitment, block) =
-            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID).await;
+            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID, false).await;
 
         let http_url: Url = rpc_url_optimism().parse().unwrap();
 
@@ -268,7 +271,8 @@ mod tests {
     #[tokio::test]
     async fn test_validate_optimism_env_wrong_commitment_panics() {
         // get commitment from base chain here
-        let (sequencer_commitment, block) = get_current_sequencer_commitment(BASE_CHAIN_ID).await;
+        let (sequencer_commitment, block) =
+            get_current_sequencer_commitment(BASE_CHAIN_ID, false).await;
 
         let http_url: Url = rpc_url_optimism().parse().unwrap();
 
@@ -301,10 +305,10 @@ mod tests {
     #[tokio::test]
     async fn test_validate_optimism_env_manipulated_commitment_panics() {
         let (sequencer_commitment, _block) =
-            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID).await;
+            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID, false).await;
 
         let (wrong_sequencer_commitment, block) =
-            get_current_sequencer_commitment(BASE_CHAIN_ID).await;
+            get_current_sequencer_commitment(BASE_CHAIN_ID, false).await;
 
         let mut manipulated_commitment_signature = sequencer_commitment.clone();
         manipulated_commitment_signature.signature = wrong_sequencer_commitment.signature;
