@@ -1,3 +1,3 @@
-pub const GET_PROOF_DATA_ELF: &[u8] = include_bytes!("../bin/get-proof-data.bin");
-pub const GET_PROOF_DATA_PATH: &str = "../bin/get-proof-data.bin";
-pub const GET_PROOF_DATA_ID: [u32; 8] = [3631514010, 1536592635, 2763797486, 3585384747, 2160157628, 3291601194, 2858334597, 2796681583];
+pub const GET_PROOF_DATA_ELF: &[u8] = &[];
+pub const GET_PROOF_DATA_PATH: &str = "/Users/timoneumann/Malda/malda-zk-coprocessor/target/riscv-guest/methods/guests/riscv32im-risc0-zkvm-elf/release/get-proof-data";
+pub const GET_PROOF_DATA_ID: [u32; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
