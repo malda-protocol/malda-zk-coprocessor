@@ -203,6 +203,7 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
 /// * `target_chain_id` - Vector of target chain IDs to query (vector of vectors).
 /// * `chain_ids` - Vector of chain IDs to query.
 /// * `l1_inclusion` - Whether to include L1 data in the proof.
+/// * `fallback` - Whether to use fallback RPC URLs (default: false).
 ///
 /// # Returns
 /// * `Result<SessionInfo, Error>` - Session info from the ZKVM execution.
@@ -218,6 +219,7 @@ pub async fn get_proof_data_exec(
     target_chain_id: Vec<Vec<u64>>,
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
+    fallback: bool,
 ) -> Result<SessionInfo, Error> {
     assert_eq!(
         users.len(),
@@ -236,6 +238,7 @@ pub async fn get_proof_data_exec(
             let markets = markets[i].clone();
             let target_chain_id = target_chain_id[i].clone();
             let chain_id = chain_ids[i];
+            let fallback = fallback;
             tokio::spawn(async move {
                 get_proof_data_zkvm_input(
                     users,
@@ -243,7 +246,7 @@ pub async fn get_proof_data_exec(
                     target_chain_id,
                     chain_id,
                     l1_inclusion,
-                    false,
+                    fallback,
                 )
                 .await
             })
@@ -277,6 +280,7 @@ pub async fn get_proof_data_exec(
 /// * `target_chain_ids` - Vector of target chain IDs to query (vector of vectors).
 /// * `chain_ids` - Vector of chain IDs to query.
 /// * `l1_inclusion` - Whether to include L1 data in the proof.
+/// * `fallback` - Whether to use fallback RPC URLs.
 ///
 /// # Returns
 /// * `ExecutorEnv<'static>` - Environment configured with proof data inputs.
@@ -290,6 +294,7 @@ async fn get_proof_data_env(
     target_chain_ids: Vec<Vec<u64>>,
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
+    fallback: bool,
 ) -> ExecutorEnv<'static> {
     assert_eq!(users.len(), markets.len());
     assert_eq!(users.len(), chain_ids.len());
@@ -300,6 +305,7 @@ async fn get_proof_data_env(
             let markets = markets[i].clone();
             let chain_id = chain_ids[i];
             let target_chain_id = target_chain_ids[i].clone();
+            let fallback = fallback;
             tokio::spawn(async move {
                 get_proof_data_zkvm_input(
                     users,
@@ -307,7 +313,7 @@ async fn get_proof_data_env(
                     target_chain_id,
                     chain_id,
                     l1_inclusion,
-                    false,
+                    fallback,
                 )
                 .await
             })
@@ -398,6 +404,7 @@ async fn get_proof_data_input(
 /// * `target_chain_ids` - Vector of target chain IDs to query (vector of vectors).
 /// * `chain_ids` - Vector of chain IDs to query.
 /// * `l1_inclusion` - Whether to include L1 data in the proof.
+/// * `fallback` - Whether to use fallback RPC URLs (default: false).
 ///
 /// # Returns
 /// * `Result<ProveInfo, Error>` - Proof information from the ZKVM.
@@ -413,6 +420,7 @@ pub async fn get_proof_data_prove(
     target_chain_ids: Vec<Vec<u64>>,
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
+    fallback: bool,
 ) -> Result<ProveInfo, Error> {
     let prove_info = tokio::task::spawn_blocking(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
@@ -424,6 +432,7 @@ pub async fn get_proof_data_prove(
             target_chain_ids,
             chain_ids,
             l1_inclusion,
+            fallback,
         ));
         let duration = start_time.elapsed();
         info!("Env creation time: {:?}", duration);
@@ -491,6 +500,91 @@ pub async fn get_proof_data_prove_sdk(
     prove_info
 }
 
+/// Helper function to get chain parameters from chain ID
+fn get_chain_params(chain_id: u64) -> (&'static str, bool) {
+    match chain_id {
+        BASE_CHAIN_ID => ("BASE", false),
+        OPTIMISM_CHAIN_ID => ("OPTIMISM", false),
+        LINEA_CHAIN_ID => ("LINEA", false),
+        ETHEREUM_CHAIN_ID => ("ETHEREUM", false),
+        OPTIMISM_SEPOLIA_CHAIN_ID => ("OPTIMISM", true),
+        BASE_SEPOLIA_CHAIN_ID => ("BASE", true),
+        LINEA_SEPOLIA_CHAIN_ID => ("LINEA", true),
+        ETHEREUM_SEPOLIA_CHAIN_ID => ("ETHEREUM", true),
+        _ => panic!("Invalid chain ID: {}", chain_id),
+    }
+}
+
+/// Helper function to get OpStack chain configuration
+fn get_opstack_config(chain_id: u64, fallback: bool) -> (&'static str, Address, &'static str, &'static str) {
+    let (chain_name, is_testnet) = get_chain_params(chain_id);
+    let l1_rpc_url = get_rpc_url("ETHEREUM", fallback, is_testnet);
+    let l2_rpc_url = get_rpc_url(chain_name, fallback, is_testnet);
+    
+    let portal = match chain_id {
+        OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
+        OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
+        BASE_CHAIN_ID => BASE_PORTAL,
+        BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
+        _ => panic!("Invalid OpStack chain ID: {}", chain_id),
+    };
+    
+    (l1_rpc_url, portal, l2_rpc_url, chain_name)
+}
+
+/// Helper function to get portal address for a chain
+fn get_portal_address(chain_id: u64) -> Address {
+    match chain_id {
+        OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
+        BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
+        OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
+        BASE_CHAIN_ID => BASE_PORTAL,
+        _ => panic!("Invalid chain ID for portal: {}", chain_id),
+    }
+}
+
+/// Helper function to check if a chain is an OpStack chain
+fn is_opstack_chain(chain_id: u64) -> bool {
+    matches!(
+        chain_id,
+        OPTIMISM_CHAIN_ID | BASE_CHAIN_ID | OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID
+    )
+}
+
+/// Helper function to check if a chain is a Linea chain
+fn is_linea_chain(chain_id: u64) -> bool {
+    matches!(chain_id, LINEA_CHAIN_ID | LINEA_SEPOLIA_CHAIN_ID)
+}
+
+/// Helper function to check if a chain is an Ethereum chain
+fn is_ethereum_chain(chain_id: u64) -> bool {
+    matches!(chain_id, ETHEREUM_CHAIN_ID | ETHEREUM_SEPOLIA_CHAIN_ID)
+}
+
+/// Helper function to get the default sequencer commitment chain for a given chain
+fn get_default_sequencer_chain(_chain_id: u64, is_sepolia: bool) -> u64 {
+    if is_sepolia {
+        OPTIMISM_SEPOLIA_CHAIN_ID
+    } else {
+        OPTIMISM_CHAIN_ID
+    }
+}
+
+/// Helper function to get reorg protection depth for a chain
+fn get_reorg_protection_depth(chain_id: u64) -> u64 {
+    match chain_id {
+        OPTIMISM_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM,
+        BASE_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE,
+        LINEA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA,
+        ETHEREUM_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM,
+        OPTIMISM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM_SEPOLIA,
+        BASE_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE_SEPOLIA,
+        LINEA_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA_SEPOLIA,
+        ETHEREUM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA,
+        _ => panic!("invalid chain id"),
+    }
+}
+
 /// Prepares input data for the ZKVM for a single chain's proof data queries.
 ///
 /// # Arguments
@@ -515,36 +609,13 @@ pub async fn get_proof_data_zkvm_input(
     l1_inclusion: bool,
     fallback: bool,
 ) -> Vec<u8> {
-    let is_sepolia = chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-        || chain_id == BASE_SEPOLIA_CHAIN_ID
-        || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID
-        || chain_id == LINEA_SEPOLIA_CHAIN_ID;
+    let is_sepolia = matches!(
+        chain_id,
+        OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID | ETHEREUM_SEPOLIA_CHAIN_ID | LINEA_SEPOLIA_CHAIN_ID
+    );
 
-    let rpc_url = if fallback {
-        match chain_id {
-            BASE_CHAIN_ID => rpc_url_base_fallback(),
-            OPTIMISM_CHAIN_ID => rpc_url_optimism_fallback(),
-            LINEA_CHAIN_ID => rpc_url_linea_fallback(),
-            ETHEREUM_CHAIN_ID => rpc_url_ethereum_fallback(),
-            OPTIMISM_SEPOLIA_CHAIN_ID => rpc_url_optimism_sepolia(),
-            BASE_SEPOLIA_CHAIN_ID => rpc_url_base_sepolia_fallback(),
-            LINEA_SEPOLIA_CHAIN_ID => rpc_url_linea_sepolia_fallback(),
-            ETHEREUM_SEPOLIA_CHAIN_ID => rpc_url_ethereum_sepolia_fallback(),
-            _ => panic!("Invalid chain ID"),
-        }
-    } else {
-        match chain_id {
-            BASE_CHAIN_ID => rpc_url_base(),
-            OPTIMISM_CHAIN_ID => rpc_url_optimism(),
-            LINEA_CHAIN_ID => rpc_url_linea(),
-            ETHEREUM_CHAIN_ID => rpc_url_ethereum(),
-            OPTIMISM_SEPOLIA_CHAIN_ID => rpc_url_optimism_sepolia(),
-            BASE_SEPOLIA_CHAIN_ID => rpc_url_base_sepolia(),
-            LINEA_SEPOLIA_CHAIN_ID => rpc_url_linea_sepolia(),
-            ETHEREUM_SEPOLIA_CHAIN_ID => rpc_url_ethereum_sepolia(),
-            _ => panic!("Invalid chain ID"),
-        }
-    };
+    let (chain_name, is_testnet) = get_chain_params(chain_id);
+    let rpc_url = get_rpc_url(chain_name, fallback, is_testnet);
 
     let (block, commitment, block_2, commitment_2) =
         get_sequencer_commitments_and_blocks(chain_id, rpc_url, is_sepolia, l1_inclusion, fallback)
@@ -572,43 +643,21 @@ pub async fn get_proof_data_zkvm_input(
         .await;
 
     let block =
-        if l1_inclusion && (chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID) {
+        if l1_inclusion && is_linea_chain(chain_id) {
             l2_block_number_on_l1.unwrap()
-        } else if chain_id == ETHEREUM_CHAIN_ID
-            || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID
-            || (chain_id == OPTIMISM_CHAIN_ID
-                || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-                || chain_id == BASE_CHAIN_ID
-                || chain_id == BASE_SEPOLIA_CHAIN_ID)
-                && l1_inclusion
-        {
+        } else if is_ethereum_chain(chain_id) || (is_opstack_chain(chain_id) && l1_inclusion) {
             ethereum_block_1.unwrap()
         } else {
             block.unwrap()
         };
 
-    let (chaind_id_linking_blocks, rpc_url_linking_blocks) = if (chain_id == OPTIMISM_CHAIN_ID
-        || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-        || chain_id == BASE_CHAIN_ID
-        || chain_id == BASE_SEPOLIA_CHAIN_ID)
-        && l1_inclusion
-    {
-        if chain_id == OPTIMISM_CHAIN_ID || chain_id == BASE_CHAIN_ID {
-            if fallback {
-                (ETHEREUM_CHAIN_ID, rpc_url_ethereum_fallback())
-            } else {
-                (ETHEREUM_CHAIN_ID, rpc_url_ethereum())
-            }
+    let (chaind_id_linking_blocks, rpc_url_linking_blocks) = if is_opstack_chain(chain_id) && l1_inclusion {
+        let (ethereum_chain_id, is_ethereum_testnet) = if matches!(chain_id, OPTIMISM_CHAIN_ID | BASE_CHAIN_ID) {
+            (ETHEREUM_CHAIN_ID, false)
         } else {
-            if fallback {
-                (
-                    ETHEREUM_SEPOLIA_CHAIN_ID,
-                    rpc_url_ethereum_sepolia_fallback(),
-                )
-            } else {
-                (ETHEREUM_SEPOLIA_CHAIN_ID, rpc_url_ethereum_sepolia())
-            }
-        }
+            (ETHEREUM_SEPOLIA_CHAIN_ID, true)
+        };
+        (ethereum_chain_id, get_rpc_url("ETHEREUM", fallback, is_ethereum_testnet))
     } else {
         (chain_id, rpc_url)
     };
@@ -674,18 +723,8 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
     if !l1_inclusion {
         (None, None)
     } else {
-        let l1_rpc_url = if fallback {
-            match is_sepolia {
-                true => rpc_url_ethereum_sepolia_fallback(),
-                false => rpc_url_ethereum_fallback(),
-            }
-        } else {
-            match is_sepolia {
-                true => rpc_url_ethereum_sepolia(),
-                false => rpc_url_ethereum(),
-            }
-        };
-        let l1_block = if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
+        let l1_rpc_url = get_rpc_url("ETHEREUM", fallback, is_sepolia);
+        let l1_block = if is_linea_chain(chain_id) {
             ethereum_block.unwrap()
         } else {
             if is_sepolia {
@@ -697,13 +736,9 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
             }
         };
 
-        if chain_id == OPTIMISM_CHAIN_ID
-            || chain_id == BASE_CHAIN_ID
-            || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-            || chain_id == BASE_SEPOLIA_CHAIN_ID
-        {
+        if is_opstack_chain(chain_id) {
             get_env_input_for_opstack_dispute_game(chain_id, l1_block, fallback).await
-        } else if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
+        } else if is_linea_chain(chain_id) {
             get_env_input_for_linea_l1_call(chain_id, l1_rpc_url, l1_block).await
         } else {
             panic!(
@@ -730,11 +765,7 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
     l1_block: u64,
     fallback: bool,
 ) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
-    if chain_id != OPTIMISM_CHAIN_ID
-        && chain_id != BASE_CHAIN_ID
-        && chain_id != OPTIMISM_SEPOLIA_CHAIN_ID
-        && chain_id != BASE_SEPOLIA_CHAIN_ID
-    {
+    if !is_opstack_chain(chain_id) {
         panic!("This function only supports OpStack chains");
     }
     get_env_input_for_opstack_dispute_game(chain_id, l1_block, fallback).await
@@ -757,47 +788,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
     l1_block: u64,
     fallback: bool,
 ) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
-    let (l1_rpc_url, optimism_portal, l2_rpc_url) = if fallback {
-        match chain_id {
-            OPTIMISM_CHAIN_ID => (rpc_url_ethereum(), OPTIMISM_PORTAL, rpc_url_optimism()),
-            OPTIMISM_SEPOLIA_CHAIN_ID => (
-                rpc_url_ethereum_sepolia(),
-                OPTIMISM_SEPOLIA_PORTAL,
-                rpc_url_optimism_sepolia(),
-            ),
-            BASE_CHAIN_ID => (rpc_url_ethereum(), BASE_PORTAL, rpc_url_base()),
-            BASE_SEPOLIA_CHAIN_ID => (
-                rpc_url_ethereum_sepolia(),
-                BASE_SEPOLIA_PORTAL,
-                rpc_url_base_sepolia(),
-            ),
-            _ => panic!("Invalid chain ID"),
-        }
-    } else {
-        match chain_id {
-            OPTIMISM_CHAIN_ID => (
-                rpc_url_ethereum_fallback(),
-                OPTIMISM_PORTAL,
-                rpc_url_optimism_fallback(),
-            ),
-            OPTIMISM_SEPOLIA_CHAIN_ID => (
-                rpc_url_ethereum_sepolia_fallback(),
-                OPTIMISM_SEPOLIA_PORTAL,
-                rpc_url_optimism_sepolia_fallback(),
-            ),
-            BASE_CHAIN_ID => (
-                rpc_url_ethereum_fallback(),
-                BASE_PORTAL,
-                rpc_url_base_fallback(),
-            ),
-            BASE_SEPOLIA_CHAIN_ID => (
-                rpc_url_ethereum_sepolia_fallback(),
-                BASE_SEPOLIA_PORTAL,
-                rpc_url_base_sepolia_fallback(),
-            ),
-            _ => panic!("Invalid chain ID"),
-        }
-    };
+    let (l1_rpc_url, optimism_portal, l2_rpc_url, _chain_name) = get_opstack_config(chain_id, fallback);
 
     let mut env = EthEvmEnv::builder()
         .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
@@ -841,13 +832,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
 
     let root_claim = op_env_commitment.digest;
 
-    let portal_adress = match chain_id {
-        OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
-        BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
-        OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
-        BASE_CHAIN_ID => BASE_PORTAL,
-        _ => panic!("invalid chain id"),
-    };
+    let portal_adress = get_portal_address(chain_id);
 
     // Get the portal contract for additional checks
     let mut contract = Contract::preflight(portal_adress, &mut env);
@@ -988,7 +973,7 @@ pub async fn get_l1block_call_inputs_and_l1_block_numbers(
     Option<EvmInput<EthEvmFactory>>,
     Option<u64>,
 ) {
-    if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID || l1_inclusion {
+    if is_ethereum_chain(chain_id) || l1_inclusion {
         let (chain_id_1, _chain_id_2) = match is_sepolia {
             true => (OPTIMISM_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID),
             false => (OPTIMISM_CHAIN_ID, BASE_CHAIN_ID),
@@ -1042,19 +1027,7 @@ pub async fn get_proof_data_call_input(
     validate_l1_inclusion: bool,
     fallback: bool,
 ) -> (Option<EvmInput<EthEvmFactory>>, Option<OpEvmInput>) {
-    let reorg_protection_depth = match chain_id {
-        OPTIMISM_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM,
-        BASE_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE,
-        LINEA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA,
-        ETHEREUM_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM,
-        SCROLL_CHAIN_ID => REORG_PROTECTION_DEPTH_SCROLL,
-        OPTIMISM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM_SEPOLIA,
-        BASE_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE_SEPOLIA,
-        LINEA_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA_SEPOLIA,
-        ETHEREUM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA,
-        SCROLL_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_SCROLL_SEPOLIA,
-        _ => panic!("invalid chain id"),
-    };
+    let reorg_protection_depth = get_reorg_protection_depth(chain_id);
 
     let block_reorg_protected = block - reorg_protection_depth;
 
@@ -1090,68 +1063,9 @@ pub async fn get_proof_data_call_input(
     let multicall = IMulticall3::aggregate3Call { calls };
 
     // Use separate code paths for each environment type
-    if (chain_id == OPTIMISM_CHAIN_ID
-        || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-        || chain_id == BASE_CHAIN_ID
-        || chain_id == BASE_SEPOLIA_CHAIN_ID)
-        && validate_l1_inclusion
-    {
+    if is_opstack_chain(chain_id) && validate_l1_inclusion {
         // Build an environment based on the state of the latest finalized fault dispute game
-        let (l1_rpc_url, optimism_portal, chain_url_final) = match chain_id {
-            OPTIMISM_CHAIN_ID => {
-                if fallback {
-                    (
-                        rpc_url_ethereum_fallback(),
-                        OPTIMISM_PORTAL,
-                        rpc_url_optimism_fallback(),
-                    )
-                } else {
-                    (rpc_url_ethereum(), OPTIMISM_PORTAL, rpc_url_optimism())
-                }
-            }
-            OPTIMISM_SEPOLIA_CHAIN_ID => {
-                if fallback {
-                    (
-                        rpc_url_ethereum_sepolia_fallback(),
-                        OPTIMISM_SEPOLIA_PORTAL,
-                        rpc_url_optimism_sepolia_fallback(),
-                    )
-                } else {
-                    (
-                        rpc_url_ethereum_sepolia(),
-                        OPTIMISM_SEPOLIA_PORTAL,
-                        rpc_url_optimism_sepolia(),
-                    )
-                }
-            }
-            BASE_CHAIN_ID => {
-                if fallback {
-                    (
-                        rpc_url_ethereum_fallback(),
-                        BASE_PORTAL,
-                        rpc_url_base_fallback(),
-                    )
-                } else {
-                    (rpc_url_ethereum(), BASE_PORTAL, rpc_url_base())
-                }
-            }
-            BASE_SEPOLIA_CHAIN_ID => {
-                if fallback {
-                    (
-                        rpc_url_ethereum_sepolia_fallback(),
-                        BASE_SEPOLIA_PORTAL,
-                        rpc_url_base_sepolia_fallback(),
-                    )
-                } else {
-                    (
-                        rpc_url_ethereum_sepolia(),
-                        BASE_SEPOLIA_PORTAL,
-                        rpc_url_base_sepolia(),
-                    )
-                }
-            }
-            _ => panic!("Invalid chain ID"),
-        };
+        let (l1_rpc_url, optimism_portal, chain_url_final, _chain_name) = get_opstack_config(chain_id, !fallback);
         let mut env = OpEvmEnv::builder()
             .dispute_game_from_rpc(
                 optimism_portal,
@@ -1186,17 +1100,8 @@ pub async fn get_proof_data_call_input(
         )
     } else {
         let chain_url_final = if fallback {
-            match chain_id {
-                OPTIMISM_CHAIN_ID => rpc_url_optimism_fallback(),
-                BASE_CHAIN_ID => rpc_url_base_fallback(),
-                LINEA_CHAIN_ID => rpc_url_linea_fallback(),
-                ETHEREUM_CHAIN_ID => rpc_url_ethereum_fallback(),
-                OPTIMISM_SEPOLIA_CHAIN_ID => rpc_url_optimism_sepolia_fallback(),
-                BASE_SEPOLIA_CHAIN_ID => rpc_url_base_sepolia_fallback(),
-                LINEA_SEPOLIA_CHAIN_ID => rpc_url_linea_sepolia_fallback(),
-                ETHEREUM_SEPOLIA_CHAIN_ID => rpc_url_ethereum_sepolia_fallback(),
-                _ => panic!("invalid chain id"),
-            }
+            let (chain_name, is_testnet) = get_chain_params(chain_id);
+            get_rpc_url(chain_name, true, is_testnet)
         } else {
             chain_url
         };
@@ -1259,22 +1164,8 @@ pub async fn get_sequencer_commitments_and_blocks(
     Option<u64>,
     Option<SequencerCommitment>,
 ) {
-    if chain_id == OPTIMISM_CHAIN_ID
-        || chain_id == BASE_CHAIN_ID
-        || chain_id == ETHEREUM_CHAIN_ID
-        || chain_id == OPTIMISM_CHAIN_ID
-        || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-        || chain_id == BASE_SEPOLIA_CHAIN_ID
-        || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID
-        || (chain_id == LINEA_CHAIN_ID && l1_inclusion)
-        || (chain_id == LINEA_SEPOLIA_CHAIN_ID && l1_inclusion)
-    {
-        if !l1_inclusion
-            && (chain_id == OPTIMISM_CHAIN_ID
-                || chain_id == BASE_CHAIN_ID
-                || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-                || chain_id == BASE_SEPOLIA_CHAIN_ID)
-        {
+    if is_opstack_chain(chain_id) || is_ethereum_chain(chain_id) || (is_linea_chain(chain_id) && l1_inclusion) {
+        if !l1_inclusion && is_opstack_chain(chain_id) {
             let (commitment, block) = get_current_sequencer_commitment(chain_id, fallback).await;
             (
                 Some(block),
@@ -1282,22 +1173,12 @@ pub async fn get_sequencer_commitments_and_blocks(
                 None::<u64>,
                 None::<SequencerCommitment>,
             )
-        } else if is_sepolia {
-            let (commitment, block) =
-                get_current_sequencer_commitment(OPTIMISM_SEPOLIA_CHAIN_ID, fallback).await;
-            // let (commitment_2, block_2) = get_current_sequencer_commitment(BASE_SEPOLIA_CHAIN_ID).await;
-            (Some(block), Some(commitment), None, None)
-            // (Some(block), Some(commitment), Some(block_2), Some(commitment_2))
-        } else if !is_sepolia {
-            let (commitment, block) =
-                get_current_sequencer_commitment(OPTIMISM_CHAIN_ID, fallback).await;
-            // let (commitment_2, block_2) = get_current_sequencer_commitment(BASE_CHAIN_ID).await;
-            (Some(block), Some(commitment), None, None)
-            // (Some(block), Some(commitment), Some(block_2), Some(commitment_2))
         } else {
-            panic!("Invalid chain ID");
+            let default_chain = get_default_sequencer_chain(chain_id, is_sepolia);
+            let (commitment, block) = get_current_sequencer_commitment(default_chain, fallback).await;
+            (Some(block), Some(commitment), None, None)
         }
-    } else if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
+    } else if is_linea_chain(chain_id) {
         let block = EthEvmEnv::builder()
             .rpc(Url::parse(rpc_url).unwrap())
             .block_number_or_tag(BlockNumberOrTag::Latest)
@@ -1330,23 +1211,8 @@ pub async fn get_current_sequencer_commitment(
     chain_id: u64,
     fallback: bool,
 ) -> (SequencerCommitment, u64) {
-    let req = if fallback {
-        match chain_id {
-            BASE_CHAIN_ID => sequencer_request_base_fallback(),
-            OPTIMISM_CHAIN_ID => sequencer_request_optimism_fallback(),
-            OPTIMISM_SEPOLIA_CHAIN_ID => sequencer_request_optimism_fallback(),
-            BASE_SEPOLIA_CHAIN_ID => sequencer_request_base_fallback(),
-            _ => panic!("Invalid chain ID: {}", chain_id),
-        }
-    } else {
-        match chain_id {
-            BASE_CHAIN_ID => sequencer_request_base(),
-            OPTIMISM_CHAIN_ID => sequencer_request_optimism(),
-            OPTIMISM_SEPOLIA_CHAIN_ID => sequencer_request_optimism_sepolia(),
-            BASE_SEPOLIA_CHAIN_ID => sequencer_request_base_sepolia(),
-            _ => panic!("Invalid chain ID: {}", chain_id),
-        }
-    };
+    let (chain_name, is_testnet) = get_chain_params(chain_id);
+    let req = get_sequencer_request_url(chain_name, fallback, is_testnet);
 
     let commitment = reqwest::get(req)
         .await
@@ -1380,23 +1246,8 @@ pub async fn get_l1block_call_input(
     chain_id: u64,
     fallback: bool,
 ) -> (EvmInput<EthEvmFactory>, u64) {
-    let rpc_url = if fallback {
-        match chain_id {
-            BASE_CHAIN_ID => rpc_url_base_fallback(),
-            OPTIMISM_CHAIN_ID => rpc_url_optimism_fallback(),
-            OPTIMISM_SEPOLIA_CHAIN_ID => rpc_url_optimism_fallback(),
-            BASE_SEPOLIA_CHAIN_ID => rpc_url_base_fallback(),
-            _ => panic!("Invalid chain ID for L1 block call: {}", chain_id),
-        }
-    } else {
-        match chain_id {
-            BASE_CHAIN_ID => rpc_url_base(),
-            OPTIMISM_CHAIN_ID => rpc_url_optimism(),
-            BASE_SEPOLIA_CHAIN_ID => rpc_url_base_sepolia(),
-            OPTIMISM_SEPOLIA_CHAIN_ID => rpc_url_optimism_sepolia(),
-            _ => panic!("Invalid chain ID for L1 block call: {}", chain_id),
-        }
-    };
+    let (chain_name, is_testnet) = get_chain_params(chain_id);
+    let rpc_url = get_rpc_url(chain_name, fallback, is_testnet);
     let mut env = EthEvmEnv::builder()
         .rpc(Url::parse(rpc_url).expect("Failed to parse RPC URL"))
         .block_number_or_tag(block)
@@ -1456,17 +1307,7 @@ pub async fn get_linking_blocks(
     rpc_url: &str,
     current_block: u64,
 ) -> Vec<RlpHeader<Header>> {
-    let reorg_protection_depth = match chain_id {
-        OPTIMISM_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM,
-        BASE_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE,
-        LINEA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA,
-        ETHEREUM_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM,
-        OPTIMISM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM_SEPOLIA,
-        BASE_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE_SEPOLIA,
-        LINEA_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA_SEPOLIA,
-        ETHEREUM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA,
-        _ => panic!("Invalid chain ID: {}", chain_id),
-    };
+    let reorg_protection_depth = get_reorg_protection_depth(chain_id);
 
     let start_block = current_block - reorg_protection_depth + 1;
 

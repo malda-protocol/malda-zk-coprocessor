@@ -29,8 +29,6 @@ pub const ETHEREUM_CHAIN_ID: u64 = 1;
 pub const OPTIMISM_CHAIN_ID: u64 = 10;
 /// Chain ID for the Linea network.
 pub const LINEA_CHAIN_ID: u64 = 59144;
-/// Chain ID for the Scroll network.
-pub const SCROLL_CHAIN_ID: u64 = 534352;
 /// Chain ID for the Base network.
 pub const BASE_CHAIN_ID: u64 = 8453;
 
@@ -40,8 +38,6 @@ pub const ETHEREUM_SEPOLIA_CHAIN_ID: u64 = 11155111;
 pub const OPTIMISM_SEPOLIA_CHAIN_ID: u64 = 11155420;
 /// Chain ID for the Linea sepolia network.
 pub const LINEA_SEPOLIA_CHAIN_ID: u64 = 59141;
-/// Chain ID for the Scroll sepolia network.
-pub const SCROLL_SEPOLIA_CHAIN_ID: u64 = 534351;
 /// Chain ID for the Base network.
 pub const BASE_SEPOLIA_CHAIN_ID: u64 = 84532;
 
@@ -98,12 +94,10 @@ pub const REORG_PROTECTION_DEPTH_OPTIMISM: u64 = 2;
 pub const REORG_PROTECTION_DEPTH_BASE: u64 = 2;
 pub const REORG_PROTECTION_DEPTH_LINEA: u64 = 2;
 pub const REORG_PROTECTION_DEPTH_ETHEREUM: u64 = 2;
-pub const REORG_PROTECTION_DEPTH_SCROLL: u64 = 2;
 pub const REORG_PROTECTION_DEPTH_OPTIMISM_SEPOLIA: u64 = 2;
 pub const REORG_PROTECTION_DEPTH_BASE_SEPOLIA: u64 = 2;
 pub const REORG_PROTECTION_DEPTH_LINEA_SEPOLIA: u64 = 2;
 pub const REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA: u64 = 2;
-pub const REORG_PROTECTION_DEPTH_SCROLL_SEPOLIA: u64 = 2;
 
 pub const OPTIMISM_PORTAL: Address = address!("bEb5Fc579115071764c7423A4f12eDde41f106Ed");
 pub const OPTIMISM_SEPOLIA_PORTAL: Address = address!("16Fc5058F25648194471939df75CF27A2fdC48BC");
