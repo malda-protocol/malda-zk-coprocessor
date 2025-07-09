@@ -18,16 +18,15 @@ mod tests {
     use hex;
     use malda_rs::{
         constants::*,
-        viewcalls::{get_proof_data_exec, get_proof_data_prove_sdk},
+        viewcalls::get_proof_data_exec,
     };
 
-    use alloy::sol_types::{sol_data::*, SolType, SolValue};
-
+    use alloy::sol_types::SolValue;
 
     // HELPER CONSTANTS AND FUNCTIONS
     /////////////////////////////////
 
-    pub const WETH_MARKET_SEPOLIA: Address = address!("B84644c24B4D0823A0770ED698f7C20B88Bcf824");
+    pub const WETH_MARKET_SEPOLIA: Address = address!("D4286cc562b906589f8232335413f79d9aD42f7E");
     pub const WETH_MARKET: Address = address!("C7Bc6bD45Eb84D594f51cED3c5497E6812C7732f");
 
     pub const TEST_USER: Address = address!("2693946791da99dA78Ac441abA6D5Ce2Bccd96D3");
@@ -36,8 +35,8 @@ mod tests {
     struct JournalEntry {
         sender: Address,
         market: Address,
-        acc_amount_in: U256,
-        acc_amount_out: U256,
+        _acc_amount_in: U256,
+        _acc_amount_out: U256,
         chain_id: u32,
         dst_chain_id: u32,
         l1_inclusion: bool,
@@ -75,12 +74,12 @@ mod tests {
         // Decode acc_amount_in (32 bytes)
         let acc_amount_in_bytes =
             &journal_data[ACC_AMOUNT_IN_OFFSET..ACC_AMOUNT_IN_OFFSET + ACC_AMOUNT_IN_LENGTH];
-        let acc_amount_in = U256::from_be_slice(acc_amount_in_bytes.try_into().unwrap());
+        let _acc_amount_in = U256::from_be_slice(acc_amount_in_bytes.try_into().unwrap());
 
         // Decode acc_amount_out (32 bytes)
         let acc_amount_out_bytes =
             &journal_data[ACC_AMOUNT_OUT_OFFSET..ACC_AMOUNT_OUT_OFFSET + ACC_AMOUNT_OUT_LENGTH];
-        let acc_amount_out = U256::from_be_slice(acc_amount_out_bytes.try_into().unwrap());
+        let _acc_amount_out = U256::from_be_slice(acc_amount_out_bytes.try_into().unwrap());
 
         // Decode chain_id (4 bytes)
         let chain_id_bytes = &journal_data[CHAIN_ID_OFFSET..CHAIN_ID_OFFSET + CHAIN_ID_LENGTH];
@@ -101,8 +100,8 @@ mod tests {
         Ok(JournalEntry {
             sender,
             market,
-            acc_amount_in,
-            acc_amount_out,
+            _acc_amount_in,
+            _acc_amount_out,
             chain_id,
             dst_chain_id,
             l1_inclusion,
@@ -115,17 +114,35 @@ mod tests {
         dst_chain_ids: Vec<Vec<u64>>,
         chain_ids: Vec<u64>,
         l1_inclusion: bool,
+        fallback: bool,
     ) {
         // Assert that all input vectors have the same length
         let expected_length = users.len();
-        assert_eq!(assets.len(), expected_length, "Assets vector length should match users vector length");
-        assert_eq!(dst_chain_ids.len(), expected_length, "Dst chain IDs vector length should match users vector length");
-        assert_eq!(chain_ids.len(), expected_length, "Chain IDs vector length should match users vector length");
+        assert_eq!(
+            assets.len(),
+            expected_length,
+            "Assets vector length should match users vector length"
+        );
+        assert_eq!(
+            dst_chain_ids.len(),
+            expected_length,
+            "Dst chain IDs vector length should match users vector length"
+        );
+        assert_eq!(
+            chain_ids.len(),
+            expected_length,
+            "Chain IDs vector length should match users vector length"
+        );
 
         // Assert that each inner vector has the same length
         for i in 0..expected_length {
             let user_count = users[i].len();
-            assert_eq!(assets[i].len(), user_count, "Assets inner vector length should match users inner vector length at index {}", i);
+            assert_eq!(
+                assets[i].len(),
+                user_count,
+                "Assets inner vector length should match users inner vector length at index {}",
+                i
+            );
             assert_eq!(dst_chain_ids[i].len(), user_count, "Dst chain IDs inner vector length should match users inner vector length at index {}", i);
         }
 
@@ -135,6 +152,7 @@ mod tests {
             dst_chain_ids.clone(),
             chain_ids.clone(),
             l1_inclusion,
+            fallback,
         )
         .await
         .unwrap();
@@ -148,30 +166,46 @@ mod tests {
 
         // Assert that we have the expected number of journal entries
         let total_expected_entries: usize = users.iter().map(|user_vec| user_vec.len()).sum();
-        assert_eq!(journals.len(), total_expected_entries, "Expected {} journal entries", total_expected_entries);
+        assert_eq!(
+            journals.len(),
+            total_expected_entries,
+            "Expected {} journal entries",
+            total_expected_entries
+        );
 
         // Decode and assert each journal entry
         let mut journal_index = 0;
         for (outer_idx, user_vec) in users.iter().enumerate() {
             for (inner_idx, user) in user_vec.iter().enumerate() {
                 let entry = decode_journal(&journals[journal_index]).unwrap();
-                
+
                 // Assert that all fields match the expected values for this entry
-                assert_eq!(entry.sender, *user, "Sender should match the test user at position [{}, {}]", outer_idx, inner_idx);
-                assert_eq!(entry.market, assets[outer_idx][inner_idx], "Market should match the test asset at position [{}, {}]", outer_idx, inner_idx);
+                assert_eq!(
+                    entry.sender, *user,
+                    "Sender should match the test user at position [{}, {}]",
+                    outer_idx, inner_idx
+                );
+                assert_eq!(
+                    entry.market, assets[outer_idx][inner_idx],
+                    "Market should match the test asset at position [{}, {}]",
+                    outer_idx, inner_idx
+                );
                 assert_eq!(
                     entry.chain_id, chain_ids[outer_idx] as u32,
-                    "Chain ID should match the test chain ID at position [{}, {}]", outer_idx, inner_idx
+                    "Chain ID should match the test chain ID at position [{}, {}]",
+                    outer_idx, inner_idx
                 );
                 assert_eq!(
                     entry.dst_chain_id, dst_chain_ids[outer_idx][inner_idx] as u32,
-                    "Dst chain ID should match the test dst chain ID at position [{}, {}]", outer_idx, inner_idx
+                    "Dst chain ID should match the test dst chain ID at position [{}, {}]",
+                    outer_idx, inner_idx
                 );
                 assert_eq!(
                     entry.l1_inclusion, l1_inclusion,
-                    "L1 inclusion should match the test parameter at position [{}, {}]", outer_idx, inner_idx
+                    "L1 inclusion should match the test parameter at position [{}, {}]",
+                    outer_idx, inner_idx
                 );
-                
+
                 journal_index += 1;
             }
         }
@@ -188,6 +222,20 @@ mod tests {
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![LINEA_CHAIN_ID],
             false,
+            false,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_exec_get_proof_data_on_linea_fallback() {
+        test_exec_get_proof_data_with_params(
+            vec![vec![TEST_USER]],
+            vec![vec![WETH_MARKET]],
+            vec![vec![OPTIMISM_CHAIN_ID]],
+            vec![LINEA_CHAIN_ID],
+            false,
+            true,
         )
         .await;
     }
@@ -199,6 +247,20 @@ mod tests {
             vec![vec![WETH_MARKET]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![LINEA_CHAIN_ID],
+            true,
+            false,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_exec_get_proof_data_on_linea_with_l1_inclusion_fallback() {
+        test_exec_get_proof_data_with_params(
+            vec![vec![TEST_USER]],
+            vec![vec![WETH_MARKET]],
+            vec![vec![OPTIMISM_CHAIN_ID]],
+            vec![LINEA_CHAIN_ID],
+            true,
             true,
         )
         .await;
@@ -212,6 +274,20 @@ mod tests {
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![BASE_CHAIN_ID],
             false,
+            false,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_exec_get_proof_data_on_base_fallback() {
+        test_exec_get_proof_data_with_params(
+            vec![vec![TEST_USER]],
+            vec![vec![WETH_MARKET]],
+            vec![vec![OPTIMISM_CHAIN_ID]],
+            vec![BASE_CHAIN_ID],
+            false,
+            true,
         )
         .await;
     }
@@ -223,6 +299,20 @@ mod tests {
             vec![vec![WETH_MARKET]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![BASE_CHAIN_ID],
+            true,
+            false,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_exec_get_proof_data_on_base_with_l1_inclusion_fallback() {
+        test_exec_get_proof_data_with_params(
+            vec![vec![TEST_USER]],
+            vec![vec![WETH_MARKET]],
+            vec![vec![OPTIMISM_CHAIN_ID]],
+            vec![BASE_CHAIN_ID],
+            true,
             true,
         )
         .await;
@@ -236,12 +326,28 @@ mod tests {
             vec![vec![LINEA_CHAIN_ID]],
             vec![ETHEREUM_CHAIN_ID],
             false,
+            false,
         )
         .await;
     }
 
     #[tokio::test]
-    #[should_panic(expected = "L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants")]
+    async fn test_exec_get_proof_data_on_ethereum_fallback() {
+        test_exec_get_proof_data_with_params(
+            vec![vec![TEST_USER]],
+            vec![vec![WETH_MARKET]],
+            vec![vec![LINEA_CHAIN_ID]],
+            vec![ETHEREUM_CHAIN_ID],
+            false,
+            true,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[should_panic(
+        expected = "L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants"
+    )]
     async fn test_exec_get_proof_data_on_ethereum_with_l1_inclusion() {
         // This test should fail because L1 inclusion is not supported for Ethereum
         test_exec_get_proof_data_with_params(
@@ -249,6 +355,24 @@ mod tests {
             vec![vec![WETH_MARKET]],
             vec![vec![LINEA_CHAIN_ID]],
             vec![ETHEREUM_CHAIN_ID],
+            true,
+            false,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[should_panic(
+        expected = "L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants"
+    )]
+    async fn test_exec_get_proof_data_on_ethereum_with_l1_inclusion_fallback() {
+        // This test should fail because L1 inclusion is not supported for Ethereum
+        test_exec_get_proof_data_with_params(
+            vec![vec![TEST_USER]],
+            vec![vec![WETH_MARKET]],
+            vec![vec![LINEA_CHAIN_ID]],
+            vec![ETHEREUM_CHAIN_ID],
+            true,
             true,
         )
         .await;
@@ -264,19 +388,19 @@ mod tests {
 
         test_exec_get_proof_data_with_params(
             vec![
-                vec![user1, user2],           // Linea users
-                vec![user3],                  // Base user
-                vec![user4],                  // Ethereum user
+                vec![user1, user2], // Linea users
+                vec![user3],        // Base user
+                vec![user4],        // Ethereum user
             ],
             vec![
                 vec![WETH_MARKET, WETH_MARKET], // Linea assets
-                vec![WETH_MARKET],               // Base asset
-                vec![WETH_MARKET],               // Ethereum asset
+                vec![WETH_MARKET],              // Base asset
+                vec![WETH_MARKET],              // Ethereum asset
             ],
             vec![
                 vec![OPTIMISM_CHAIN_ID, OPTIMISM_CHAIN_ID], // Linea destinations
-                vec![OPTIMISM_CHAIN_ID],                     // Base destination
-                vec![LINEA_CHAIN_ID],                        // Ethereum destination
+                vec![OPTIMISM_CHAIN_ID],                    // Base destination
+                vec![LINEA_CHAIN_ID],                       // Ethereum destination
             ],
             vec![
                 LINEA_CHAIN_ID,    // Linea chain ID
@@ -284,6 +408,42 @@ mod tests {
                 ETHEREUM_CHAIN_ID, // Ethereum chain ID
             ],
             false,
+            false,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_exec_get_proof_data_multiple_users_multiple_chains_fallback() {
+        // Test multiple users across multiple chains with fallback
+        let user1 = address!("2693946791da99dA78Ac441abA6D5Ce2Bccd96D3");
+        let user2 = address!("e50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8");
+        let user3 = address!("6446021F4E396dA3df4235C62537431372195D38");
+        let user4 = address!("F04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E");
+
+        test_exec_get_proof_data_with_params(
+            vec![
+                vec![user1, user2], // Linea users
+                vec![user3],        // Base user
+                vec![user4],        // Ethereum user
+            ],
+            vec![
+                vec![WETH_MARKET, WETH_MARKET], // Linea assets
+                vec![WETH_MARKET],              // Base asset
+                vec![WETH_MARKET],              // Ethereum asset
+            ],
+            vec![
+                vec![OPTIMISM_CHAIN_ID, OPTIMISM_CHAIN_ID], // Linea destinations
+                vec![OPTIMISM_CHAIN_ID],                    // Base destination
+                vec![LINEA_CHAIN_ID],                       // Ethereum destination
+            ],
+            vec![
+                LINEA_CHAIN_ID,    // Linea chain ID
+                BASE_CHAIN_ID,     // Base chain ID
+                ETHEREUM_CHAIN_ID, // Ethereum chain ID
+            ],
+            false,
+            true,
         )
         .await;
     }
@@ -301,6 +461,20 @@ mod tests {
             vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
             vec![LINEA_SEPOLIA_CHAIN_ID],
             false,
+            false,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_sepolia_exec_get_proof_data_on_linea_fallback() {
+        test_exec_get_proof_data_with_params(
+            vec![vec![TEST_USER]],
+            vec![vec![WETH_MARKET_SEPOLIA]],
+            vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
+            vec![LINEA_SEPOLIA_CHAIN_ID],
+            false,
+            true,
         )
         .await;
     }
@@ -313,6 +487,21 @@ mod tests {
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
             vec![LINEA_SEPOLIA_CHAIN_ID],
+            true,
+            false,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_sepolia_exec_get_proof_data_on_linea_with_l1_inclusion_fallback() {
+        test_exec_get_proof_data_with_params(
+            vec![vec![TEST_USER]],
+            vec![vec![WETH_MARKET_SEPOLIA]],
+            vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
+            vec![LINEA_SEPOLIA_CHAIN_ID],
+            true,
             true,
         )
         .await;
@@ -327,6 +516,21 @@ mod tests {
             vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
             vec![BASE_SEPOLIA_CHAIN_ID],
             false,
+            false,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_sepolia_exec_get_proof_data_on_base_fallback() {
+        test_exec_get_proof_data_with_params(
+            vec![vec![TEST_USER]],
+            vec![vec![WETH_MARKET_SEPOLIA]],
+            vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
+            vec![BASE_SEPOLIA_CHAIN_ID],
+            false,
+            true,
         )
         .await;
     }
@@ -339,6 +543,21 @@ mod tests {
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
             vec![BASE_SEPOLIA_CHAIN_ID],
+            true,
+            false,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_sepolia_exec_get_proof_data_on_base_with_l1_inclusion_fallback() {
+        test_exec_get_proof_data_with_params(
+            vec![vec![TEST_USER]],
+            vec![vec![WETH_MARKET_SEPOLIA]],
+            vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
+            vec![BASE_SEPOLIA_CHAIN_ID],
+            true,
             true,
         )
         .await;
@@ -353,6 +572,21 @@ mod tests {
             vec![vec![LINEA_SEPOLIA_CHAIN_ID]],
             vec![OPTIMISM_SEPOLIA_CHAIN_ID],
             false,
+            false,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_sepolia_exec_get_proof_data_on_optimism_fallback() {
+        test_exec_get_proof_data_with_params(
+            vec![vec![TEST_USER]],
+            vec![vec![WETH_MARKET_SEPOLIA]],
+            vec![vec![LINEA_SEPOLIA_CHAIN_ID]],
+            vec![OPTIMISM_SEPOLIA_CHAIN_ID],
+            false,
+            true,
         )
         .await;
     }
@@ -366,12 +600,29 @@ mod tests {
             vec![vec![LINEA_SEPOLIA_CHAIN_ID]],
             vec![OPTIMISM_SEPOLIA_CHAIN_ID],
             true,
+            false,
         )
         .await;
     }
 
     #[tokio::test]
-    #[should_panic(expected = "L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants")]
+    #[ignore]
+    async fn test_sepolia_exec_get_proof_data_on_optimism_with_l1_inclusion_fallback() {
+        test_exec_get_proof_data_with_params(
+            vec![vec![TEST_USER]],
+            vec![vec![WETH_MARKET_SEPOLIA]],
+            vec![vec![LINEA_SEPOLIA_CHAIN_ID]],
+            vec![OPTIMISM_SEPOLIA_CHAIN_ID],
+            true,
+            true,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[should_panic(
+        expected = "L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants"
+    )]
     #[ignore]
     async fn test_sepolia_exec_get_proof_data_on_ethereum_with_l1_inclusion() {
         // This test should fail because L1 inclusion is not supported for Ethereum
@@ -380,6 +631,25 @@ mod tests {
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![LINEA_SEPOLIA_CHAIN_ID]],
             vec![ETHEREUM_SEPOLIA_CHAIN_ID],
+            true,
+            false,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    #[should_panic(
+        expected = "L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants"
+    )]
+    #[ignore]
+    async fn test_sepolia_exec_get_proof_data_on_ethereum_with_l1_inclusion_fallback() {
+        // This test should fail because L1 inclusion is not supported for Ethereum
+        test_exec_get_proof_data_with_params(
+            vec![vec![TEST_USER]],
+            vec![vec![WETH_MARKET_SEPOLIA]],
+            vec![vec![LINEA_SEPOLIA_CHAIN_ID]],
+            vec![ETHEREUM_SEPOLIA_CHAIN_ID],
+            true,
             true,
         )
         .await;
@@ -396,19 +666,19 @@ mod tests {
 
         test_exec_get_proof_data_with_params(
             vec![
-                vec![user1, user2],                    // Linea Sepolia users
-                vec![user3],                           // Base Sepolia user
-                vec![user4],                           // Optimism Sepolia user
+                vec![user1, user2], // Linea Sepolia users
+                vec![user3],        // Base Sepolia user
+                vec![user4],        // Optimism Sepolia user
             ],
             vec![
                 vec![WETH_MARKET_SEPOLIA, WETH_MARKET_SEPOLIA], // Linea Sepolia assets
-                vec![WETH_MARKET_SEPOLIA],                       // Base Sepolia asset
-                vec![WETH_MARKET_SEPOLIA],                       // Optimism Sepolia asset
+                vec![WETH_MARKET_SEPOLIA],                      // Base Sepolia asset
+                vec![WETH_MARKET_SEPOLIA],                      // Optimism Sepolia asset
             ],
             vec![
                 vec![OPTIMISM_SEPOLIA_CHAIN_ID, OPTIMISM_SEPOLIA_CHAIN_ID], // Linea Sepolia destinations
-                vec![OPTIMISM_SEPOLIA_CHAIN_ID],                             // Base Sepolia destination
-                vec![LINEA_SEPOLIA_CHAIN_ID],                                // Optimism Sepolia destination
+                vec![OPTIMISM_SEPOLIA_CHAIN_ID], // Base Sepolia destination
+                vec![LINEA_SEPOLIA_CHAIN_ID],    // Optimism Sepolia destination
             ],
             vec![
                 LINEA_SEPOLIA_CHAIN_ID,    // Linea Sepolia chain ID
@@ -416,8 +686,44 @@ mod tests {
                 OPTIMISM_SEPOLIA_CHAIN_ID, // Optimism Sepolia chain ID
             ],
             false,
+            false,
         )
         .await;
     }
 
+    #[tokio::test]
+    #[ignore]
+    async fn test_sepolia_exec_get_proof_data_multiple_users_multiple_chains_fallback() {
+        // Test multiple users across multiple Sepolia chains with fallback
+        let user1 = address!("2693946791da99dA78Ac441abA6D5Ce2Bccd96D3");
+        let user2 = address!("e50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8");
+        let user3 = address!("6446021F4E396dA3df4235C62537431372195D38");
+        let user4 = address!("F04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E");
+
+        test_exec_get_proof_data_with_params(
+            vec![
+                vec![user1, user2], // Linea Sepolia users
+                vec![user3],        // Base Sepolia user
+                vec![user4],        // Optimism Sepolia user
+            ],
+            vec![
+                vec![WETH_MARKET_SEPOLIA, WETH_MARKET_SEPOLIA], // Linea Sepolia assets
+                vec![WETH_MARKET_SEPOLIA],                      // Base Sepolia asset
+                vec![WETH_MARKET_SEPOLIA],                      // Optimism Sepolia asset
+            ],
+            vec![
+                vec![OPTIMISM_SEPOLIA_CHAIN_ID, OPTIMISM_SEPOLIA_CHAIN_ID], // Linea Sepolia destinations
+                vec![OPTIMISM_SEPOLIA_CHAIN_ID], // Base Sepolia destination
+                vec![LINEA_SEPOLIA_CHAIN_ID],    // Optimism Sepolia destination
+            ],
+            vec![
+                LINEA_SEPOLIA_CHAIN_ID,    // Linea Sepolia chain ID
+                BASE_SEPOLIA_CHAIN_ID,     // Base Sepolia chain ID
+                OPTIMISM_SEPOLIA_CHAIN_ID, // Optimism Sepolia chain ID
+            ],
+            false,
+            true,
+        )
+        .await;
+    }
 }

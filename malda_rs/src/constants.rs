@@ -26,141 +26,55 @@ mod constants;
 
 pub use constants::*;
 
-/// RPC endpoint URLs for supported networks
-pub fn rpc_url_linea() -> &'static str {
+/// Generic function to retrieve environment variables as static strings
+fn get_env_var(env_var: &str) -> &'static str {
     Box::leak(
-        dotenvy::var("RPC_URL_LINEA")
-            .expect("RPC_URL_LINEA must be set in environment")
+        dotenvy::var(env_var)
+            .unwrap_or_else(|_| panic!("{env_var} must be set in environment"))
             .into_boxed_str(),
     )
 }
 
-pub fn rpc_url_scroll() -> &'static str {
-    Box::leak(
-        dotenvy::var("RPC_URL_SCROLL")
-            .expect("RPC_URL_SCROLL must be set in environment")
-            .into_boxed_str(),
-    )
+/// Unified function to get RPC URL for any chain
+/// 
+/// # Arguments
+/// * `chain_name` - The chain name (e.g., "LINEA", "ETHEREUM", "BASE", "OPTIMISM")
+/// * `fallback` - Whether to use fallback URL (default: false)
+/// * `testnet` - Whether to use testnet (Sepolia) URL (default: false)
+/// 
+/// # Examples
+/// ```
+/// let linea_mainnet = get_rpc_url("LINEA", false, false);
+/// let ethereum_sepolia = get_rpc_url("ETHEREUM", false, true);
+/// let optimism_fallback = get_rpc_url("OPTIMISM", true, false);
+/// ```
+pub fn get_rpc_url(chain_name: &str, fallback: bool, testnet: bool) -> &'static str {
+    let chain_upper = chain_name.to_uppercase();
+    let fallback_suffix = if fallback { "_FALLBACK" } else { "" };
+    let testnet_suffix = if testnet { "_SEPOLIA" } else { "" };
+    
+    let env_var = format!("RPC_URL_{}{}{}", chain_upper, testnet_suffix, fallback_suffix);
+    get_env_var(&env_var)
 }
 
-pub fn rpc_url_ethereum() -> &'static str {
-    Box::leak(
-        dotenvy::var("RPC_URL_ETHEREUM")
-            .expect("RPC_URL_ETHEREUM must be set in environment")
-            .into_boxed_str(),
-    )
-}
-
-pub fn rpc_url_base() -> &'static str {
-    Box::leak(
-        dotenvy::var("RPC_URL_BASE")
-            .expect("RPC_URL_BASE must be set in environment")
-            .into_boxed_str(),
-    )
-}
-
-pub fn rpc_url_optimism() -> &'static str {
-    Box::leak(
-        dotenvy::var("RPC_URL_OPTIMISM")
-            .expect("RPC_URL_OPTIMISM must be set in environment")
-            .into_boxed_str(),
-    )
-}
-
-pub fn rpc_url_arbitrum() -> &'static str {
-    Box::leak(
-        dotenvy::var("RPC_URL_ARBITRUM")
-            .expect("RPC_URL_ARBITRUM must be set in environment")
-            .into_boxed_str(),
-    )
-}
-
-/// Sepolia testnet RPCs
-pub fn rpc_url_linea_sepolia() -> &'static str {
-    Box::leak(
-        dotenvy::var("RPC_URL_LINEA_SEPOLIA")
-            .expect("RPC_URL_LINEA_SEPOLIA must be set in environment")
-            .into_boxed_str(),
-    )
-}
-
-pub fn rpc_url_scroll_sepolia() -> &'static str {
-    Box::leak(
-        dotenvy::var("RPC_URL_SCROLL_SEPOLIA")
-            .expect("RPC_URL_SCROLL_SEPOLIA must be set in environment")
-            .into_boxed_str(),
-    )
-}
-
-pub fn rpc_url_ethereum_sepolia() -> &'static str {
-    Box::leak(
-        dotenvy::var("RPC_URL_ETHEREUM_SEPOLIA")
-            .expect("RPC_URL_ETHEREUM_SEPOLIA must be set in environment")
-            .into_boxed_str(),
-    )
-}
-
-pub fn rpc_url_base_sepolia() -> &'static str {
-    Box::leak(
-        dotenvy::var("RPC_URL_BASE_SEPOLIA")
-            .expect("RPC_URL_BASE_SEPOLIA must be set in environment")
-            .into_boxed_str(),
-    )
-}
-
-pub fn rpc_url_optimism_sepolia() -> &'static str {
-    Box::leak(
-        dotenvy::var("RPC_URL_OPTIMISM_SEPOLIA")
-            .expect("RPC_URL_OPTIMISM_SEPOLIA must be set in environment")
-            .into_boxed_str(),
-    )
-}
-
-pub fn rpc_url_arbitrum_sepolia() -> &'static str {
-    Box::leak(
-        dotenvy::var("RPC_URL_ARBITRUM_SEPOLIA")
-            .expect("RPC_URL_ARBITRUM_SEPOLIA must be set in environment")
-            .into_boxed_str(),
-    )
-}
-
-pub fn rpc_url_beacon() -> &'static str {
-    Box::leak(
-        dotenvy::var("RPC_URL_BEACON")
-            .expect("RPC_URL_BEACON must be set in environment")
-            .into_boxed_str(),
-    )
-}
-
-/// Sequencer request URLs for Layer 2 networks
-pub fn sequencer_request_optimism() -> &'static str {
-    Box::leak(
-        dotenvy::var("SEQUENCER_REQUEST_OPTIMISM")
-            .expect("SEQUENCER_REQUEST_OPTIMISM must be set in environment")
-            .into_boxed_str(),
-    )
-}
-
-pub fn sequencer_request_base() -> &'static str {
-    Box::leak(
-        dotenvy::var("SEQUENCER_REQUEST_BASE")
-            .expect("SEQUENCER_REQUEST_BASE must be set in environment")
-            .into_boxed_str(),
-    )
-}
-
-pub fn sequencer_request_optimism_sepolia() -> &'static str {
-    Box::leak(
-        dotenvy::var("SEQUENCER_REQUEST_OPTIMISM_SEPOLIA")
-            .expect("SEQUENCER_REQUEST_OPTIMISM_SEPOLIA must be set in environment")
-            .into_boxed_str(),
-    )
-}
-
-pub fn sequencer_request_base_sepolia() -> &'static str {
-    Box::leak(
-        dotenvy::var("SEQUENCER_REQUEST_BASE_SEPOLIA")
-            .expect("SEQUENCER_REQUEST_BASE_SEPOLIA must be set in environment")
-            .into_boxed_str(),
-    )
+/// Unified function to get sequencer request URL for L2 chains
+/// 
+/// # Arguments
+/// * `chain_name` - The L2 chain name (e.g., "OPTIMISM", "BASE")
+/// * `fallback` - Whether to use fallback URL (default: false)
+/// * `testnet` - Whether to use testnet (Sepolia) URL (default: false)
+/// 
+/// # Examples
+/// ```
+/// let optimism_mainnet = get_sequencer_request_url("OPTIMISM", false, false);
+/// let base_sepolia = get_sequencer_request_url("BASE", false, true);
+/// let optimism_fallback = get_sequencer_request_url("OPTIMISM", true, false);
+/// ```
+pub fn get_sequencer_request_url(chain_name: &str, fallback: bool, testnet: bool) -> &'static str {
+    let chain_upper = chain_name.to_uppercase();
+    let fallback_suffix = if fallback { "_FALLBACK" } else { "" };
+    let testnet_suffix = if testnet { "_SEPOLIA" } else { "" };
+    
+    let env_var = format!("SEQUENCER_REQUEST_{}{}{}", chain_upper, testnet_suffix, fallback_suffix);
+    get_env_var(&env_var)
 }

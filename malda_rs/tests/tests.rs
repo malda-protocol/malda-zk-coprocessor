@@ -37,7 +37,7 @@ mod tests {
     #[tokio::test]
     async fn test_validate_linea_env_correct_input() {
         let latest_block = EthEvmEnv::builder()
-            .rpc(Url::parse(rpc_url_linea()).unwrap())
+            .rpc(Url::parse(get_rpc_url("LINEA", false, false)).unwrap())
             .block_number_or_tag(BlockRisc0::Latest)
             .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
             .build()
@@ -50,11 +50,12 @@ mod tests {
 
         let proof_data_call_input = get_proof_data_call_input(
             LINEA_CHAIN_ID,
-            rpc_url_linea(),
+            get_rpc_url("LINEA", false, false),
             latest_block,
             vec![USER],
             vec![WETH_MARKET_SEPOLIA],
             vec![OPTIMISM_CHAIN_ID],
+            false,
             false,
         )
         .await;
@@ -80,7 +81,7 @@ mod tests {
     #[tokio::test]
     async fn test_validate_linea_env_input_of_wrong_chain_panics() {
         let latest_block = EthEvmEnv::builder()
-            .rpc(Url::parse(rpc_url_optimism()).unwrap())
+            .rpc(Url::parse(get_rpc_url("OPTIMISM", false, false)).unwrap())
             .block_number_or_tag(BlockRisc0::Latest)
             .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
             .build()
@@ -93,11 +94,12 @@ mod tests {
 
         let proof_data_call_input = get_proof_data_call_input(
             OPTIMISM_CHAIN_ID,
-            rpc_url_optimism(),
+            get_rpc_url("OPTIMISM", false, false),
             latest_block,
             vec![USER],
             vec![WETH_MARKET_SEPOLIA],
             vec![LINEA_CHAIN_ID],
+            false,
             false,
         )
         .await;
@@ -126,7 +128,7 @@ mod tests {
     #[tokio::test]
     async fn test_validate_linea_env_input_manipulated_panics() {
         let latest_block = EthEvmEnv::builder()
-            .rpc(Url::parse(rpc_url_linea()).unwrap())
+            .rpc(Url::parse(get_rpc_url("LINEA", false, false)).unwrap())
             .block_number_or_tag(BlockRisc0::Latest)
             .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
             .build()
@@ -139,11 +141,12 @@ mod tests {
 
         let proof_data_call_input = get_proof_data_call_input(
             LINEA_CHAIN_ID,
-            rpc_url_linea(),
+            get_rpc_url("LINEA", false, false),
             latest_block,
             vec![USER],
             vec![WETH_MARKET_SEPOLIA],
             vec![OPTIMISM_CHAIN_ID],
+            false,
             false,
         )
         .await;
@@ -174,9 +177,9 @@ mod tests {
     #[tokio::test]
     async fn test_validate_optimism_env_correct_input() {
         let (sequencer_commitment, block) =
-            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID).await;
+            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID, false).await;
 
-        let http_url: Url = rpc_url_optimism().parse().unwrap();
+        let http_url: Url = get_rpc_url("OPTIMISM", false, false).parse().unwrap();
 
         let provider = ProviderBuilder::new().connect_http(http_url);
         let correct_hash = provider
@@ -202,9 +205,9 @@ mod tests {
     #[tokio::test]
     async fn test_validate_optimism_env_wrong_hash_panics() {
         let (sequencer_commitment, block) =
-            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID).await;
+            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID, false).await;
 
-        let http_url: Url = rpc_url_optimism().parse().unwrap();
+        let http_url: Url = get_rpc_url("OPTIMISM", false, false).parse().unwrap();
 
         let provider = ProviderBuilder::new().connect_http(http_url);
 
@@ -235,9 +238,9 @@ mod tests {
     #[tokio::test]
     async fn test_validate_optimism_env_wrong_chain_id_panics() {
         let (sequencer_commitment, block) =
-            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID).await;
+            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID, false).await;
 
-        let http_url: Url = rpc_url_optimism().parse().unwrap();
+        let http_url: Url = get_rpc_url("OPTIMISM", false, false).parse().unwrap();
 
         let provider = ProviderBuilder::new().connect_http(http_url);
 
@@ -268,9 +271,10 @@ mod tests {
     #[tokio::test]
     async fn test_validate_optimism_env_wrong_commitment_panics() {
         // get commitment from base chain here
-        let (sequencer_commitment, block) = get_current_sequencer_commitment(BASE_CHAIN_ID).await;
+        let (sequencer_commitment, block) =
+            get_current_sequencer_commitment(BASE_CHAIN_ID, false).await;
 
-        let http_url: Url = rpc_url_optimism().parse().unwrap();
+        let http_url: Url = get_rpc_url("OPTIMISM", false, false).parse().unwrap();
 
         let provider = ProviderBuilder::new().connect_http(http_url);
 
@@ -301,10 +305,10 @@ mod tests {
     #[tokio::test]
     async fn test_validate_optimism_env_manipulated_commitment_panics() {
         let (sequencer_commitment, _block) =
-            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID).await;
+            get_current_sequencer_commitment(OPTIMISM_CHAIN_ID, false).await;
 
         let (wrong_sequencer_commitment, block) =
-            get_current_sequencer_commitment(BASE_CHAIN_ID).await;
+            get_current_sequencer_commitment(BASE_CHAIN_ID, false).await;
 
         let mut manipulated_commitment_signature = sequencer_commitment.clone();
         manipulated_commitment_signature.signature = wrong_sequencer_commitment.signature;
@@ -312,7 +316,7 @@ mod tests {
         let mut manipulated_commitment_data = sequencer_commitment.clone();
         manipulated_commitment_data.data = wrong_sequencer_commitment.data;
 
-        let http_url: Url = rpc_url_optimism().parse().unwrap();
+        let http_url: Url = get_rpc_url("OPTIMISM", false, false).parse().unwrap();
 
         let provider = ProviderBuilder::new().connect_http(http_url);
 
@@ -357,7 +361,7 @@ mod tests {
     async fn test_validate_chain_length_input_correct() {
         let block_number = 21193475;
         let linking_blocks =
-            get_linking_blocks(ETHEREUM_CHAIN_ID, rpc_url_ethereum(), block_number).await;
+            get_linking_blocks(ETHEREUM_CHAIN_ID, get_rpc_url("ETHEREUM", false, false), block_number).await;
         if linking_blocks.is_empty() {
             // No linking blocks needed when reorg protection is zero
             return;
@@ -385,7 +389,7 @@ mod tests {
     async fn test_validate_chain_length_panics_if_chain_too_short() {
         let block_number = 21193475;
         let linking_blocks =
-            get_linking_blocks(ETHEREUM_CHAIN_ID, rpc_url_ethereum(), block_number).await;
+            get_linking_blocks(ETHEREUM_CHAIN_ID, get_rpc_url("ETHEREUM", false, false), block_number).await;
         if linking_blocks.is_empty() {
             // No linking blocks needed when reorg protection is zero
             return;
@@ -417,7 +421,7 @@ mod tests {
     async fn test_validate_chain_length_panics_if_hash_doesnt_match() {
         let block_number = 21193475;
         let linking_blocks =
-            get_linking_blocks(ETHEREUM_CHAIN_ID, rpc_url_ethereum(), block_number).await;
+            get_linking_blocks(ETHEREUM_CHAIN_ID, get_rpc_url("ETHEREUM", false, false), block_number).await;
         if linking_blocks.is_empty() {
             // No linking blocks needed when reorg protection is zero
             return;
