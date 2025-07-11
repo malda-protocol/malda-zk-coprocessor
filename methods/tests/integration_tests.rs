@@ -19,6 +19,7 @@ mod tests {
     use malda_rs::{
         constants::*,
         viewcalls::get_proof_data_exec,
+        viewcalls::get_proof_data_prove_boundless,
     };
 
     use alloy::sol_types::SolValue;
@@ -209,6 +210,97 @@ mod tests {
                 journal_index += 1;
             }
         }
+    }
+
+
+    // BOUNDLESS TESTS
+    ///////////////////
+    
+    async fn test_prove_get_proof_data_with_params_boundless(
+        users: Vec<Vec<Address>>,
+        assets: Vec<Vec<Address>>,
+        dst_chain_ids: Vec<Vec<u64>>,
+        chain_ids: Vec<u64>,
+        l1_inclusion: bool,
+        fallback: bool,
+    ) {
+
+        let session_info = get_proof_data_prove_boundless(
+            users.clone(),
+            assets.clone(),
+            dst_chain_ids.clone(),
+            chain_ids.clone(),
+            l1_inclusion,
+            fallback,
+        )
+        .await
+        .unwrap();
+
+        // let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
+        // println!("journal: 0x{}", hex::encode(&session_info.journal));
+        // println!("Cycles: {}", cycles);
+
+        // let journals: Vec<Bytes> = <Vec<Bytes>>::abi_decode(&session_info.journal.bytes)
+        //     .expect("Failed to decode journal");
+
+        // // Assert that we have the expected number of journal entries
+        // let total_expected_entries: usize = users.iter().map(|user_vec| user_vec.len()).sum();
+        // assert_eq!(
+        //     journals.len(),
+        //     total_expected_entries,
+        //     "Expected {} journal entries",
+        //     total_expected_entries
+        // );
+
+        // // Decode and assert each journal entry
+        // let mut journal_index = 0;
+        // for (outer_idx, user_vec) in users.iter().enumerate() {
+        //     for (inner_idx, user) in user_vec.iter().enumerate() {
+        //         let entry = decode_journal(&journals[journal_index]).unwrap();
+
+        //         // Assert that all fields match the expected values for this entry
+        //         assert_eq!(
+        //             entry.sender, *user,
+        //             "Sender should match the test user at position [{}, {}]",
+        //             outer_idx, inner_idx
+        //         );
+        //         assert_eq!(
+        //             entry.market, assets[outer_idx][inner_idx],
+        //             "Market should match the test asset at position [{}, {}]",
+        //             outer_idx, inner_idx
+        //         );
+        //         assert_eq!(
+        //             entry.chain_id, chain_ids[outer_idx] as u32,
+        //             "Chain ID should match the test chain ID at position [{}, {}]",
+        //             outer_idx, inner_idx
+        //         );
+        //         assert_eq!(
+        //             entry.dst_chain_id, dst_chain_ids[outer_idx][inner_idx] as u32,
+        //             "Dst chain ID should match the test dst chain ID at position [{}, {}]",
+        //             outer_idx, inner_idx
+        //         );
+        //         assert_eq!(
+        //             entry.l1_inclusion, l1_inclusion,
+        //             "L1 inclusion should match the test parameter at position [{}, {}]",
+        //             outer_idx, inner_idx
+        //         );
+
+        //         journal_index += 1;
+        //     }
+        // }
+    }
+
+    #[tokio::test]
+    async fn test_prove_get_proof_data_boundless_on_linea() {
+        test_prove_get_proof_data_with_params_boundless(
+            vec![vec![TEST_USER]],
+            vec![vec![WETH_MARKET]],
+            vec![vec![OPTIMISM_CHAIN_ID]],
+            vec![LINEA_CHAIN_ID],
+            false,
+            false,
+        )
+        .await;
     }
 
     // MAINNET TESTS

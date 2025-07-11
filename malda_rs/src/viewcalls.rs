@@ -49,7 +49,7 @@ use risc0_zkvm::{
     default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
 };
 
-use alloy::primitives::{Address, U256, U64};
+use alloy::primitives::{Address, U256, U64, Bytes};
 use alloy_consensus::Header;
 
 use anyhow::{Error, Result};
@@ -65,6 +65,18 @@ use risc0_zkvm::Receipt;
 use tracing::info;
 
 use dotenvy;
+
+
+use alloy::{
+    signers::local::PrivateKeySigner,
+    sol_types::SolValue,
+};
+use anyhow::{bail, Context};
+use boundless_market::{Client as BoundlessClient, Deployment, StorageProviderConfig, storage::storage_provider_from_env};
+use clap::Parser;
+
+/// Timeout for the transaction to be confirmed.
+pub const TX_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Clone)]
 pub struct MaldaSessionStats {
@@ -193,6 +205,182 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
         stark_time: stark_time.as_secs(),
         snark_time: snark_time.as_secs(),
     })
+}
+
+// pub async fn old(
+//     user: Address,
+//     asset: Address,
+//     chain_id: u64,
+// ) -> Result<(Bytes, Bytes), Error> {
+//     match dotenvy::dotenv() {
+//         Ok(_) => (),
+//         Err(e) if e.not_found() => (),
+//         Err(e) => bail!("failed to load .env file: {}", e),
+//     }
+//     let args = Args::parse();
+
+//     let client = boundless_market::Client::builder()
+//   .with_rpc_url(args.rpc_url)
+//   .with_private_key(args.private_key)
+//   .with_storage_provider(Some(storage_provider_from_env()?))
+//   .build()
+//   .await?;
+
+//     // Create a Boundless client from the provided parameters.
+//     let boundless_client = ClientBuilder::default()
+//         .with_rpc_url(args.rpc_url)
+//         .with_boundless_market_address(args.boundless_market_address)
+//         .with_set_verifier_address(args.set_verifier_address)
+//         .with_order_stream_url(Some(Url::parse("https://order-stream.beboundless.xyz").unwrap()))
+//         .with_storage_provider_config(args.storage_config)
+//         .with_private_key(args.wallet_private_key)
+//         .build()
+//         .await?;
+
+//     // Upload the ELF to the storage provider so that it can be fetched by the market.
+//     ensure!(
+//         boundless_client.storage_provider.is_some(),
+//         "a storage provider is required to upload the zkVM guest ELF"
+//     );
+//     let image_url = boundless_client.upload_image(BALANCE_OF_ELF).await?;
+
+//     let input = get_user_balance_zkvm_input(user, asset, chain_id).await;
+
+//     // If the input exceeds 2 kB, upload the input and provide its URL instead
+//     let request_input = if input.len() > 2 << 10 {
+//         let input_url = boundless_client.upload_input(&input).await?;
+//         Input::url(input_url)
+//     } else {
+//         Input::inline(input.clone())
+//     };
+
+//     let env = ExecutorEnv::builder().write_slice(&input).build()?;
+//     let session_info = default_executor().execute(env, BALANCE_OF_ELF)?;
+//     let mcycles_count = session_info
+//         .segments
+//         .iter()
+//         .map(|segment| 1 << segment.po2)
+//         .sum::<u64>()
+//         .div_ceil(1_000_000);
+//     let journal = session_info.journal;
+
+//     let request = ProofRequest::default()
+//         .with_image_url(&image_url)
+//         .with_input(request_input)
+//         .with_requirements(Requirements::new(
+//             BALANCE_OF_ID,
+//             Predicate::digest_match(journal.digest()),
+//         ))
+//         .with_offer(
+//             Offer::default()
+//                 .with_min_price_per_mcycle(parse_ether("0.001")?, mcycles_count)
+//                 .with_max_price_per_mcycle(parse_ether("0.001")?, mcycles_count)
+//                 .with_ramp_up_period(1)
+//                 // .with_lockin_stake(parse_ether("0.0001")?)
+//                 .with_timeout(20),
+//         );
+
+//     let (request_id, expires_at) = boundless_client.submit_request_offchain(&request).await?;
+//     let (journal, seal) = boundless_client
+//         .wait_for_request_fulfillment(request_id, Duration::from_secs(5), expires_at)
+//         .await?;
+
+//     Ok((journal, seal))
+// }
+
+
+/// Arguments of the publisher CLI.
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+
+    /// URL of the Ethereum RPC endpoint.
+    #[clap(short, long, env)]
+    rpc_url: Url,
+    /// Private key used to interact with the EvenNumber contract and the Boundless Market.
+    #[clap(long, env)]
+    private_key: PrivateKeySigner,
+    /// URL where provers can download the program to be proven.
+    #[clap(long, env)]
+    program_url: Option<Url>,
+    /// Submit the request offchain via the provided order stream service url.
+    #[clap(short, long, requires = "order_stream_url")]
+    offchain: bool,
+    /// Configuration for the StorageProvider to use for uploading programs and inputs.
+    #[clap(flatten, next_help_heading = "Storage Provider")]
+    storage_config: StorageProviderConfig,
+    /// Deployment of the Boundless contracts and services to use.
+    ///
+    /// Will be automatically resolved from the connected chain ID if unspecified.
+    #[clap(flatten, next_help_heading = "Boundless Market Deployment")]
+    deployment: Option<Deployment>,
+}
+
+pub async fn get_proof_data_prove_boundless(    users: Vec<Vec<Address>>,
+    markets: Vec<Vec<Address>>,
+    target_chain_id: Vec<Vec<u64>>,
+    chain_ids: Vec<u64>,
+    l1_inclusion: bool,
+    fallback: bool,) -> Result<(Bytes, Bytes), Error> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+
+    match dotenvy::dotenv() {
+        Ok(path) => tracing::debug!("Loaded environment variables from {:?}", path),
+        Err(e) if e.not_found() => tracing::debug!("No .env file found"),
+        Err(e) => bail!("failed to load .env file: {}", e),
+    }
+    let args = Args::parse();
+
+    // Create a Boundless client from the provided parameters.
+    let client = BoundlessClient::builder()
+        .with_rpc_url(args.rpc_url)
+        .with_deployment(args.deployment)
+        .with_storage_provider_config(&args.storage_config)?
+        .with_private_key(args.private_key)
+        .build()
+        .await
+        .context("failed to build boundless client")?;
+
+let input_bytes = get_proof_data_input(
+        users,
+        markets,
+        target_chain_id,
+        chain_ids,
+        l1_inclusion,
+        fallback,
+    ).await;
+
+    // Build the request based on whether program URL is provided
+    let request = if let Some(program_url) = args.program_url {
+        // Use the provided URL
+        client
+            .new_request()
+            .with_program_url(program_url)?
+            .with_stdin(input_bytes.clone())
+    } else {
+        client
+            .new_request()
+            .with_program(GET_PROOF_DATA_ELF)
+            .with_stdin(input_bytes)
+    };
+
+    let (request_id, expires_at) = client.submit_offchain(request).await?;
+
+    // Wait for the request to be fulfilled. The market will return the journal and seal.
+    tracing::info!("Waiting for request {:x} to be fulfilled", request_id);
+    let (journal, seal) = client
+        .wait_for_request_fulfillment(
+            request_id,
+            Duration::from_secs(5), // check every 5 seconds
+            expires_at,
+        )
+        .await?;
+    tracing::info!("Request {:x} fulfilled", request_id);
+
+
+    Ok((journal, seal))
 }
 
 /// Executes proof data queries across multiple chains in parallel.
