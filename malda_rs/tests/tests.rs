@@ -360,8 +360,12 @@ mod tests {
     #[tokio::test]
     async fn test_validate_chain_length_input_correct() {
         let block_number = 21193475;
-        let linking_blocks =
-            get_linking_blocks(ETHEREUM_CHAIN_ID, get_rpc_url("ETHEREUM", false, false), block_number).await;
+        let linking_blocks = get_linking_blocks(
+            ETHEREUM_CHAIN_ID,
+            get_rpc_url("ETHEREUM", false, false),
+            block_number,
+        )
+        .await;
         if linking_blocks.is_empty() {
             // No linking blocks needed when reorg protection is zero
             return;
@@ -388,8 +392,12 @@ mod tests {
     #[tokio::test]
     async fn test_validate_chain_length_panics_if_chain_too_short() {
         let block_number = 21193475;
-        let linking_blocks =
-            get_linking_blocks(ETHEREUM_CHAIN_ID, get_rpc_url("ETHEREUM", false, false), block_number).await;
+        let linking_blocks = get_linking_blocks(
+            ETHEREUM_CHAIN_ID,
+            get_rpc_url("ETHEREUM", false, false),
+            block_number,
+        )
+        .await;
         if linking_blocks.is_empty() {
             // No linking blocks needed when reorg protection is zero
             return;
@@ -420,8 +428,12 @@ mod tests {
     #[tokio::test]
     async fn test_validate_chain_length_panics_if_hash_doesnt_match() {
         let block_number = 21193475;
-        let linking_blocks =
-            get_linking_blocks(ETHEREUM_CHAIN_ID, get_rpc_url("ETHEREUM", false, false), block_number).await;
+        let linking_blocks = get_linking_blocks(
+            ETHEREUM_CHAIN_ID,
+            get_rpc_url("ETHEREUM", false, false),
+            block_number,
+        )
+        .await;
         if linking_blocks.is_empty() {
             // No linking blocks needed when reorg protection is zero
             return;

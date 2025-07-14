@@ -49,7 +49,7 @@ use risc0_zkvm::{
     default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
 };
 
-use alloy::primitives::{Address, U256, U64, Bytes};
+use alloy::primitives::{Address, Bytes, U256, U64};
 use alloy_consensus::Header;
 
 use anyhow::{Error, Result};
@@ -66,14 +66,14 @@ use tracing::info;
 
 use dotenvy;
 
-
-use alloy::{
-    signers::local::PrivateKeySigner,
-    sol_types::SolValue,
-};
+use alloy::{signers::local::PrivateKeySigner, sol_types::SolValue};
 use anyhow::{bail, Context};
-use boundless_market::{Client as BoundlessClient, Deployment, StorageProviderConfig, storage::storage_provider_from_env};
+use boundless_market::{
+    storage::storage_provider_from_env, Client as BoundlessClient, Deployment,
+    StorageProviderConfig,
+};
 use clap::Parser;
+use std::str::FromStr;
 
 /// Timeout for the transaction to be confirmed.
 pub const TX_TIMEOUT: Duration = Duration::from_secs(30);
@@ -288,12 +288,10 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
 //     Ok((journal, seal))
 // }
 
-
 /// Arguments of the publisher CLI.
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-
     /// URL of the Ethereum RPC endpoint.
     #[clap(short, long, env)]
     rpc_url: Url,
@@ -316,12 +314,14 @@ struct Args {
     deployment: Option<Deployment>,
 }
 
-pub async fn get_proof_data_prove_boundless(    users: Vec<Vec<Address>>,
+pub async fn get_proof_data_prove_boundless(
+    users: Vec<Vec<Address>>,
     markets: Vec<Vec<Address>>,
     target_chain_id: Vec<Vec<u64>>,
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
-    fallback: bool,) -> Result<(Bytes, Bytes), Error> {
+    fallback: bool,
+) -> Result<(Bytes, Bytes), Error> {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
@@ -331,40 +331,39 @@ pub async fn get_proof_data_prove_boundless(    users: Vec<Vec<Address>>,
         Err(e) if e.not_found() => tracing::debug!("No .env file found"),
         Err(e) => bail!("failed to load .env file: {}", e),
     }
-    let args = Args::parse();
+
+    // Get environment variables instead of parsing CLI args
+    let rpc_url = dotenvy::var("RPC_URL").context("RPC_URL environment variable not set")?;
+    let private_key =
+        dotenvy::var("PRIVATE_KEY").context("PRIVATE_KEY environment variable not set")?;
+
+    let rpc_url = Url::parse(&rpc_url)?;
+    let private_key = PrivateKeySigner::from_str(&private_key)?;
 
     // Create a Boundless client from the provided parameters.
     let client = BoundlessClient::builder()
-        .with_rpc_url(args.rpc_url)
-        .with_deployment(args.deployment)
-        .with_storage_provider_config(&args.storage_config)?
-        .with_private_key(args.private_key)
+        .with_storage_provider(Some(storage_provider_from_env()?))
+        .with_rpc_url(rpc_url)
+        .with_private_key(private_key)
         .build()
         .await
         .context("failed to build boundless client")?;
 
-let input_bytes = get_proof_data_input(
+    let input_bytes = get_proof_data_input(
         users,
         markets,
         target_chain_id,
         chain_ids,
         l1_inclusion,
         fallback,
-    ).await;
+    )
+    .await;
 
-    // Build the request based on whether program URL is provided
-    let request = if let Some(program_url) = args.program_url {
-        // Use the provided URL
-        client
-            .new_request()
-            .with_program_url(program_url)?
-            .with_stdin(input_bytes.clone())
-    } else {
-        client
-            .new_request()
-            .with_program(GET_PROOF_DATA_ELF)
-            .with_stdin(input_bytes)
-    };
+    // Build the request - always use the program directly for now
+    let request = client
+        .new_request()
+        .with_program(GET_PROOF_DATA_ELF)
+        .with_stdin(input_bytes);
 
     let (request_id, expires_at) = client.submit_offchain(request).await?;
 
@@ -378,7 +377,6 @@ let input_bytes = get_proof_data_input(
         )
         .await?;
     tracing::info!("Request {:x} fulfilled", request_id);
-
 
     Ok((journal, seal))
 }
@@ -704,11 +702,14 @@ fn get_chain_params(chain_id: u64) -> (&'static str, bool) {
 }
 
 /// Helper function to get OpStack chain configuration
-fn get_opstack_config(chain_id: u64, fallback: bool) -> (&'static str, Address, &'static str, &'static str) {
+fn get_opstack_config(
+    chain_id: u64,
+    fallback: bool,
+) -> (&'static str, Address, &'static str, &'static str) {
     let (chain_name, is_testnet) = get_chain_params(chain_id);
     let l1_rpc_url = get_rpc_url("ETHEREUM", fallback, is_testnet);
     let l2_rpc_url = get_rpc_url(chain_name, fallback, is_testnet);
-    
+
     let portal = match chain_id {
         OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
         OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
@@ -716,7 +717,7 @@ fn get_opstack_config(chain_id: u64, fallback: bool) -> (&'static str, Address, 
         BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
         _ => panic!("Invalid OpStack chain ID: {}", chain_id),
     };
-    
+
     (l1_rpc_url, portal, l2_rpc_url, chain_name)
 }
 
@@ -799,7 +800,10 @@ pub async fn get_proof_data_zkvm_input(
 ) -> Vec<u8> {
     let is_sepolia = matches!(
         chain_id,
-        OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID | ETHEREUM_SEPOLIA_CHAIN_ID | LINEA_SEPOLIA_CHAIN_ID
+        OPTIMISM_SEPOLIA_CHAIN_ID
+            | BASE_SEPOLIA_CHAIN_ID
+            | ETHEREUM_SEPOLIA_CHAIN_ID
+            | LINEA_SEPOLIA_CHAIN_ID
     );
 
     let (chain_name, is_testnet) = get_chain_params(chain_id);
@@ -830,25 +834,29 @@ pub async fn get_proof_data_zkvm_input(
         )
         .await;
 
-    let block =
-        if l1_inclusion && is_linea_chain(chain_id) {
-            l2_block_number_on_l1.unwrap()
-        } else if is_ethereum_chain(chain_id) || (is_opstack_chain(chain_id) && l1_inclusion) {
-            ethereum_block_1.unwrap()
-        } else {
-            block.unwrap()
-        };
-
-    let (chaind_id_linking_blocks, rpc_url_linking_blocks) = if is_opstack_chain(chain_id) && l1_inclusion {
-        let (ethereum_chain_id, is_ethereum_testnet) = if matches!(chain_id, OPTIMISM_CHAIN_ID | BASE_CHAIN_ID) {
-            (ETHEREUM_CHAIN_ID, false)
-        } else {
-            (ETHEREUM_SEPOLIA_CHAIN_ID, true)
-        };
-        (ethereum_chain_id, get_rpc_url("ETHEREUM", fallback, is_ethereum_testnet))
+    let block = if l1_inclusion && is_linea_chain(chain_id) {
+        l2_block_number_on_l1.unwrap()
+    } else if is_ethereum_chain(chain_id) || (is_opstack_chain(chain_id) && l1_inclusion) {
+        ethereum_block_1.unwrap()
     } else {
-        (chain_id, rpc_url)
+        block.unwrap()
     };
+
+    let (chaind_id_linking_blocks, rpc_url_linking_blocks) =
+        if is_opstack_chain(chain_id) && l1_inclusion {
+            let (ethereum_chain_id, is_ethereum_testnet) =
+                if matches!(chain_id, OPTIMISM_CHAIN_ID | BASE_CHAIN_ID) {
+                    (ETHEREUM_CHAIN_ID, false)
+                } else {
+                    (ETHEREUM_SEPOLIA_CHAIN_ID, true)
+                };
+            (
+                ethereum_chain_id,
+                get_rpc_url("ETHEREUM", fallback, is_ethereum_testnet),
+            )
+        } else {
+            (chain_id, rpc_url)
+        };
 
     let (linking_blocks, (proof_data_call_input, proof_data_call_input_op)) = tokio::join!(
         get_linking_blocks(chaind_id_linking_blocks, rpc_url_linking_blocks, block),
@@ -976,7 +984,8 @@ pub async fn get_env_input_for_opstack_dispute_game(
     l1_block: u64,
     fallback: bool,
 ) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
-    let (l1_rpc_url, optimism_portal, l2_rpc_url, _chain_name) = get_opstack_config(chain_id, fallback);
+    let (l1_rpc_url, optimism_portal, l2_rpc_url, _chain_name) =
+        get_opstack_config(chain_id, fallback);
 
     let mut env = EthEvmEnv::builder()
         .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
@@ -1253,7 +1262,8 @@ pub async fn get_proof_data_call_input(
     // Use separate code paths for each environment type
     if is_opstack_chain(chain_id) && validate_l1_inclusion {
         // Build an environment based on the state of the latest finalized fault dispute game
-        let (l1_rpc_url, optimism_portal, chain_url_final, _chain_name) = get_opstack_config(chain_id, !fallback);
+        let (l1_rpc_url, optimism_portal, chain_url_final, _chain_name) =
+            get_opstack_config(chain_id, !fallback);
         let mut env = OpEvmEnv::builder()
             .dispute_game_from_rpc(
                 optimism_portal,
@@ -1352,7 +1362,10 @@ pub async fn get_sequencer_commitments_and_blocks(
     Option<u64>,
     Option<SequencerCommitment>,
 ) {
-    if is_opstack_chain(chain_id) || is_ethereum_chain(chain_id) || (is_linea_chain(chain_id) && l1_inclusion) {
+    if is_opstack_chain(chain_id)
+        || is_ethereum_chain(chain_id)
+        || (is_linea_chain(chain_id) && l1_inclusion)
+    {
         if !l1_inclusion && is_opstack_chain(chain_id) {
             let (commitment, block) = get_current_sequencer_commitment(chain_id, fallback).await;
             (
@@ -1363,7 +1376,8 @@ pub async fn get_sequencer_commitments_and_blocks(
             )
         } else {
             let default_chain = get_default_sequencer_chain(chain_id, is_sepolia);
-            let (commitment, block) = get_current_sequencer_commitment(default_chain, fallback).await;
+            let (commitment, block) =
+                get_current_sequencer_commitment(default_chain, fallback).await;
             (Some(block), Some(commitment), None, None)
         }
     } else if is_linea_chain(chain_id) {
