@@ -72,6 +72,9 @@
 //! - `PRIVATE_KEY`: Private key for signing transactions
 //! - `IMAGE_ID_BONSAI`: Bonsai image ID for ZK proof generation
 //!
+//! Optional environment variables:
+//! - `PROGRAM_URL`: URL of a pre-uploaded program to avoid re-upload latency in Boundless market submissions
+//!
 //! ## Error Handling
 //!
 //! Functions return `Result<T, Error>` where errors can occur due to:
@@ -308,6 +311,10 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
 /// handle the ZK proof generation in a decentralized manner. The function waits for the
 /// request to be fulfilled and returns the proof journal and seal.
 ///
+/// The function supports both onchain and offchain submission modes:
+/// - **Offchain**: Uses `client.submit_offchain()` for gasless submission
+/// - **Onchain**: Uses `client.submit_onchain()` for on-chain submission with gas costs
+///
 /// # Arguments
 /// * `users` - Vector of user address vectors, one per chain.
 /// * `markets` - Vector of market contract address vectors, one per chain.
@@ -315,6 +322,7 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
 /// * `chain_ids` - Vector of chain IDs to query.
 /// * `l1_inclusion` - Whether to include L1 data in the proof.
 /// * `fallback` - Whether to use fallback RPC URLs (default: false).
+/// * `onchain` - Whether to submit onchain (true) or offchain (false).
 ///
 /// # Returns
 /// * `Result<(Bytes, Bytes), Error>` - Tuple of (journal, seal) if successful, or an error.
@@ -331,6 +339,9 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
 /// - `RPC_URL`: Ethereum RPC endpoint for transactions
 /// - `PRIVATE_KEY`: Private key for signing transactions
 ///
+/// Optional environment variables:
+/// - `PROGRAM_URL`: URL of a pre-uploaded program to avoid re-upload latency
+///
 /// # Example
 /// ```rust
 /// let (journal, seal) = get_proof_data_prove_boundless(
@@ -338,8 +349,9 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
 ///     vec![vec![market_address]],
 ///     vec![vec![target_chain_id]],
 ///     vec![chain_id],
-///     true,  // l1_inclusion
-///     false, // fallback
+///     true,   // l1_inclusion
+///     false,  // fallback
+///     false,  // onchain (false for offchain submission)
 /// ).await?;
 /// ```
 pub async fn get_proof_data_prove_boundless(
@@ -349,10 +361,16 @@ pub async fn get_proof_data_prove_boundless(
     chain_ids: Vec<u64>,
     l1_inclusion: bool,
     fallback: bool,
+    onchain: bool,
 ) -> Result<(Bytes, Bytes), Error> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
+    // Only initialize tracing if it hasn't been set up already
+    if tracing_subscriber::util::SubscriberInitExt::try_init(
+        tracing_subscriber::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+    ).is_err() {
+        // Tracing is already initialized, which is fine
+        tracing::debug!("Tracing subscriber already initialized");
+    }
 
     match dotenvy::dotenv() {
         Ok(path) => tracing::debug!("Loaded environment variables from {:?}", path),
@@ -387,13 +405,31 @@ pub async fn get_proof_data_prove_boundless(
     )
     .await;
 
-    // Build the request - always use the program directly for now
-    let request = client
-        .new_request()
-        .with_program(GET_PROOF_DATA_ELF)
-        .with_stdin(input_bytes);
+    // let program_url = client.upload_program(GET_PROOF_DATA_ELF).await?;
+    // tracing::info!("Program URL: {}", program_url);
 
-    let (request_id, expires_at) = client.submit_offchain(request).await?;
+    // Build the request - use program URL if available to avoid re-upload
+    let request = if let Ok(program_url) = dotenvy::var("PROGRAM_URL") {
+        tracing::info!("Using pre-uploaded program from URL: {}", program_url);
+        let parsed_url = Url::parse(&program_url)
+            .context("Failed to parse PROGRAM_URL")?;
+        client
+            .new_request()
+            .with_program_url(parsed_url)?
+            .with_stdin(input_bytes)
+    } else {
+        tracing::info!("No PROGRAM_URL found, uploading program directly");
+        client
+            .new_request()
+            .with_program(GET_PROOF_DATA_ELF)
+            .with_stdin(input_bytes)
+    };
+
+    let (request_id, expires_at) = if onchain {
+        client.submit_onchain(request).await?
+    } else {
+        client.submit_offchain(request).await?
+    };
 
     // Wait for the request to be fulfilled. The market will return the journal and seal.
     tracing::info!("Waiting for request {:x} to be fulfilled", request_id);

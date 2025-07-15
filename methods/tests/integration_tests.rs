@@ -115,6 +115,7 @@ mod tests {
         l1_inclusion: bool,
         fallback: bool,
         boundless: bool,
+        onchain: bool,
     ) {
         // Assert that all input vectors have the same length
         let expected_length = users.len();
@@ -165,6 +166,7 @@ mod tests {
                 chain_ids.clone(),
                 l1_inclusion,
                 fallback,
+                onchain,
             )
             .await
             .unwrap();
@@ -309,6 +311,7 @@ mod tests {
             false,
             false,
             true,
+            true, // onchain = false for offchain submission
         )
         .await;
     }
@@ -326,6 +329,7 @@ mod tests {
             false,
             false,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -340,6 +344,7 @@ mod tests {
             false,
             true,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -354,6 +359,7 @@ mod tests {
             true,
             false,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -368,6 +374,7 @@ mod tests {
             true,
             true,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -382,6 +389,7 @@ mod tests {
             false,
             false,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -396,6 +404,7 @@ mod tests {
             false,
             true,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -410,6 +419,7 @@ mod tests {
             true,
             false,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -424,6 +434,7 @@ mod tests {
             true,
             true,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -438,6 +449,7 @@ mod tests {
             false,
             false,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -452,6 +464,7 @@ mod tests {
             false,
             true,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -470,6 +483,7 @@ mod tests {
             true,
             false,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -488,6 +502,7 @@ mod tests {
             true,
             true,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -524,6 +539,7 @@ mod tests {
             false,
             false,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -560,6 +576,7 @@ mod tests {
             false,
             true,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -579,6 +596,7 @@ mod tests {
             false,
             false,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -593,6 +611,7 @@ mod tests {
             false,
             true,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -608,6 +627,7 @@ mod tests {
             true,
             false,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -623,6 +643,7 @@ mod tests {
             true,
             true,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -638,6 +659,7 @@ mod tests {
             false,
             false,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -653,6 +675,7 @@ mod tests {
             false,
             true,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -668,6 +691,7 @@ mod tests {
             true,
             false,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -683,6 +707,7 @@ mod tests {
             true,
             true,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -698,6 +723,7 @@ mod tests {
             false,
             false,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -713,6 +739,7 @@ mod tests {
             false,
             true,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -728,6 +755,7 @@ mod tests {
             true,
             false,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -743,6 +771,7 @@ mod tests {
             true,
             true,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -762,6 +791,7 @@ mod tests {
             true,
             false,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -781,6 +811,7 @@ mod tests {
             true,
             true,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -818,6 +849,7 @@ mod tests {
             false,
             false,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -855,6 +887,7 @@ mod tests {
             false,
             true,
             false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
