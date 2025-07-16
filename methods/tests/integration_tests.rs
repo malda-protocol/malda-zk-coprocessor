@@ -17,8 +17,7 @@ mod tests {
     use alloy_primitives::{address, Address, Bytes, U256};
     use hex;
     use malda_rs::{
-        constants::*,
-        viewcalls::get_proof_data_exec,
+        constants::*, viewcalls::get_proof_data_exec, viewcalls::get_proof_data_prove_boundless,
     };
 
     use alloy::sol_types::SolValue;
@@ -108,13 +107,15 @@ mod tests {
         })
     }
 
-    async fn test_exec_get_proof_data_with_params(
+    async fn test_get_proof_data_with_params(
         users: Vec<Vec<Address>>,
         assets: Vec<Vec<Address>>,
         dst_chain_ids: Vec<Vec<u64>>,
         chain_ids: Vec<u64>,
         l1_inclusion: bool,
         fallback: bool,
+        boundless: bool,
+        onchain: bool,
     ) {
         // Assert that all input vectors have the same length
         let expected_length = users.len();
@@ -146,69 +147,173 @@ mod tests {
             assert_eq!(dst_chain_ids[i].len(), user_count, "Dst chain IDs inner vector length should match users inner vector length at index {}", i);
         }
 
-        let session_info = get_proof_data_exec(
-            users.clone(),
-            assets.clone(),
-            dst_chain_ids.clone(),
-            chain_ids.clone(),
-            l1_inclusion,
-            fallback,
-        )
-        .await
-        .unwrap();
+        if boundless {
+            // Initialize basic logging for the boundless test
+            println!("=== Starting Boundless Proof Test ===");
 
-        let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
-        println!("journal: 0x{}", hex::encode(&session_info.journal));
-        println!("Cycles: {}", cycles);
+            println!("Starting boundless proof test with parameters:");
+            println!("  Users: {:?}", users);
+            println!("  Assets: {:?}", assets);
+            println!("  Dst chain IDs: {:?}", dst_chain_ids);
+            println!("  Chain IDs: {:?}", chain_ids);
+            println!("  L1 inclusion: {}", l1_inclusion);
+            println!("  Fallback: {}", fallback);
 
-        let journals: Vec<Bytes> = <Vec<Bytes>>::abi_decode(&session_info.journal.bytes)
-            .expect("Failed to decode journal");
+            let (journal, seal) = get_proof_data_prove_boundless(
+                users.clone(),
+                assets.clone(),
+                dst_chain_ids.clone(),
+                chain_ids.clone(),
+                l1_inclusion,
+                fallback,
+                onchain,
+            )
+            .await
+            .unwrap();
 
-        // Assert that we have the expected number of journal entries
-        let total_expected_entries: usize = users.iter().map(|user_vec| user_vec.len()).sum();
-        assert_eq!(
-            journals.len(),
-            total_expected_entries,
-            "Expected {} journal entries",
-            total_expected_entries
-        );
+            println!("Boundless proof completed successfully!");
+            println!("Journal length: {} bytes", journal.len());
+            println!("Seal length: {} bytes", seal.len());
+            println!("Journal (hex): 0x{}", hex::encode(&journal));
+            println!("Seal (hex): 0x{}", hex::encode(&seal));
 
-        // Decode and assert each journal entry
-        let mut journal_index = 0;
-        for (outer_idx, user_vec) in users.iter().enumerate() {
-            for (inner_idx, user) in user_vec.iter().enumerate() {
-                let entry = decode_journal(&journals[journal_index]).unwrap();
+            // Decode and print journal entries
+            let journals: Vec<Bytes> =
+                <Vec<Bytes>>::abi_decode(&journal.0).expect("Failed to decode journal");
 
-                // Assert that all fields match the expected values for this entry
-                assert_eq!(
-                    entry.sender, *user,
-                    "Sender should match the test user at position [{}, {}]",
-                    outer_idx, inner_idx
-                );
-                assert_eq!(
-                    entry.market, assets[outer_idx][inner_idx],
-                    "Market should match the test asset at position [{}, {}]",
-                    outer_idx, inner_idx
-                );
-                assert_eq!(
-                    entry.chain_id, chain_ids[outer_idx] as u32,
-                    "Chain ID should match the test chain ID at position [{}, {}]",
-                    outer_idx, inner_idx
-                );
-                assert_eq!(
-                    entry.dst_chain_id, dst_chain_ids[outer_idx][inner_idx] as u32,
-                    "Dst chain ID should match the test dst chain ID at position [{}, {}]",
-                    outer_idx, inner_idx
-                );
-                assert_eq!(
-                    entry.l1_inclusion, l1_inclusion,
-                    "L1 inclusion should match the test parameter at position [{}, {}]",
-                    outer_idx, inner_idx
-                );
+            println!("Decoded {} journal entries", journals.len());
 
-                journal_index += 1;
+            // Decode and print each journal entry
+            let mut journal_index = 0;
+            for (outer_idx, user_vec) in users.iter().enumerate() {
+                for (inner_idx, user) in user_vec.iter().enumerate() {
+                    let entry = decode_journal(&journals[journal_index]).unwrap();
+
+                    println!(
+                        "Journal entry {}: [{}, {}]",
+                        journal_index, outer_idx, inner_idx
+                    );
+                    println!("  Sender: {:?}", entry.sender);
+                    println!("  Market: {:?}", entry.market);
+                    println!("  Chain ID: {}", entry.chain_id);
+                    println!("  Dst Chain ID: {}", entry.dst_chain_id);
+                    println!("  L1 Inclusion: {}", entry.l1_inclusion);
+
+                    // Assert that all fields match the expected values for this entry
+                    assert_eq!(
+                        entry.sender, *user,
+                        "Sender should match the test user at position [{}, {}]",
+                        outer_idx, inner_idx
+                    );
+                    assert_eq!(
+                        entry.market, assets[outer_idx][inner_idx],
+                        "Market should match the test asset at position [{}, {}]",
+                        outer_idx, inner_idx
+                    );
+                    assert_eq!(
+                        entry.chain_id, chain_ids[outer_idx] as u32,
+                        "Chain ID should match the test chain ID at position [{}, {}]",
+                        outer_idx, inner_idx
+                    );
+                    assert_eq!(
+                        entry.dst_chain_id, dst_chain_ids[outer_idx][inner_idx] as u32,
+                        "Dst chain ID should match the test dst chain ID at position [{}, {}]",
+                        outer_idx, inner_idx
+                    );
+                    assert_eq!(
+                        entry.l1_inclusion, l1_inclusion,
+                        "L1 inclusion should match the test parameter at position [{}, {}]",
+                        outer_idx, inner_idx
+                    );
+
+                    journal_index += 1;
+                }
+            }
+
+            println!("All journal entries validated successfully!");
+        } else {
+            let session_info = get_proof_data_exec(
+                users.clone(),
+                assets.clone(),
+                dst_chain_ids.clone(),
+                chain_ids.clone(),
+                l1_inclusion,
+                fallback,
+            )
+            .await
+            .unwrap();
+
+            let cycles = session_info.segments.iter().map(|s| s.cycles).sum::<u32>();
+            println!("journal: 0x{}", hex::encode(&session_info.journal));
+            println!("Cycles: {}", cycles);
+
+            let journals: Vec<Bytes> = <Vec<Bytes>>::abi_decode(&session_info.journal.bytes)
+                .expect("Failed to decode journal");
+
+            // Assert that we have the expected number of journal entries
+            let total_expected_entries: usize = users.iter().map(|user_vec| user_vec.len()).sum();
+            assert_eq!(
+                journals.len(),
+                total_expected_entries,
+                "Expected {} journal entries",
+                total_expected_entries
+            );
+
+            // Decode and assert each journal entry
+            let mut journal_index = 0;
+            for (outer_idx, user_vec) in users.iter().enumerate() {
+                for (inner_idx, user) in user_vec.iter().enumerate() {
+                    let entry = decode_journal(&journals[journal_index]).unwrap();
+
+                    // Assert that all fields match the expected values for this entry
+                    assert_eq!(
+                        entry.sender, *user,
+                        "Sender should match the test user at position [{}, {}]",
+                        outer_idx, inner_idx
+                    );
+                    assert_eq!(
+                        entry.market, assets[outer_idx][inner_idx],
+                        "Market should match the test asset at position [{}, {}]",
+                        outer_idx, inner_idx
+                    );
+                    assert_eq!(
+                        entry.chain_id, chain_ids[outer_idx] as u32,
+                        "Chain ID should match the test chain ID at position [{}, {}]",
+                        outer_idx, inner_idx
+                    );
+                    assert_eq!(
+                        entry.dst_chain_id, dst_chain_ids[outer_idx][inner_idx] as u32,
+                        "Dst chain ID should match the test dst chain ID at position [{}, {}]",
+                        outer_idx, inner_idx
+                    );
+                    assert_eq!(
+                        entry.l1_inclusion, l1_inclusion,
+                        "L1 inclusion should match the test parameter at position [{}, {}]",
+                        outer_idx, inner_idx
+                    );
+
+                    journal_index += 1;
+                }
             }
         }
+    }
+
+    // BOUNDLESS TESTS
+    ///////////////////
+
+    #[tokio::test]
+    async fn test_prove_get_proof_data_boundless_on_linea() {
+        test_get_proof_data_with_params(
+            vec![vec![TEST_USER]],
+            vec![vec![WETH_MARKET]],
+            vec![vec![OPTIMISM_CHAIN_ID]],
+            vec![LINEA_CHAIN_ID],
+            false,
+            false,
+            true,
+            true, // onchain = false for offchain submission
+        )
+        .await;
     }
 
     // MAINNET TESTS
@@ -216,130 +321,150 @@ mod tests {
 
     #[tokio::test]
     async fn test_exec_get_proof_data_on_linea() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![LINEA_CHAIN_ID],
             false,
             false,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
 
     #[tokio::test]
     async fn test_exec_get_proof_data_on_linea_fallback() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![LINEA_CHAIN_ID],
             false,
             true,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
 
     #[tokio::test]
     async fn test_exec_get_proof_data_on_linea_with_l1_inclusion() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![LINEA_CHAIN_ID],
             true,
             false,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
 
     #[tokio::test]
     async fn test_exec_get_proof_data_on_linea_with_l1_inclusion_fallback() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![LINEA_CHAIN_ID],
             true,
             true,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
 
     #[tokio::test]
     async fn test_exec_get_proof_data_on_base() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![BASE_CHAIN_ID],
             false,
             false,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
 
     #[tokio::test]
     async fn test_exec_get_proof_data_on_base_fallback() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![BASE_CHAIN_ID],
             false,
             true,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
 
     #[tokio::test]
     async fn test_exec_get_proof_data_on_base_with_l1_inclusion() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![BASE_CHAIN_ID],
             true,
             false,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
 
     #[tokio::test]
     async fn test_exec_get_proof_data_on_base_with_l1_inclusion_fallback() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET]],
             vec![vec![OPTIMISM_CHAIN_ID]],
             vec![BASE_CHAIN_ID],
             true,
             true,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
 
     #[tokio::test]
     async fn test_exec_get_proof_data_on_ethereum() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET]],
             vec![vec![LINEA_CHAIN_ID]],
             vec![ETHEREUM_CHAIN_ID],
             false,
             false,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
 
     #[tokio::test]
     async fn test_exec_get_proof_data_on_ethereum_fallback() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET]],
             vec![vec![LINEA_CHAIN_ID]],
             vec![ETHEREUM_CHAIN_ID],
             false,
             true,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -350,13 +475,15 @@ mod tests {
     )]
     async fn test_exec_get_proof_data_on_ethereum_with_l1_inclusion() {
         // This test should fail because L1 inclusion is not supported for Ethereum
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET]],
             vec![vec![LINEA_CHAIN_ID]],
             vec![ETHEREUM_CHAIN_ID],
             true,
             false,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -367,13 +494,15 @@ mod tests {
     )]
     async fn test_exec_get_proof_data_on_ethereum_with_l1_inclusion_fallback() {
         // This test should fail because L1 inclusion is not supported for Ethereum
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET]],
             vec![vec![LINEA_CHAIN_ID]],
             vec![ETHEREUM_CHAIN_ID],
             true,
             true,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -386,7 +515,7 @@ mod tests {
         let user3 = address!("6446021F4E396dA3df4235C62537431372195D38");
         let user4 = address!("F04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E");
 
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![
                 vec![user1, user2], // Linea users
                 vec![user3],        // Base user
@@ -409,6 +538,8 @@ mod tests {
             ],
             false,
             false,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -421,7 +552,7 @@ mod tests {
         let user3 = address!("6446021F4E396dA3df4235C62537431372195D38");
         let user4 = address!("F04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E");
 
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![
                 vec![user1, user2], // Linea users
                 vec![user3],        // Base user
@@ -444,6 +575,8 @@ mod tests {
             ],
             false,
             true,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -455,26 +588,30 @@ mod tests {
 
     #[tokio::test]
     async fn test_sepolia_exec_get_proof_data_on_linea() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
             vec![LINEA_SEPOLIA_CHAIN_ID],
             false,
             false,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
 
     #[tokio::test]
     async fn test_sepolia_exec_get_proof_data_on_linea_fallback() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
             vec![LINEA_SEPOLIA_CHAIN_ID],
             false,
             true,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -482,13 +619,15 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_sepolia_exec_get_proof_data_on_linea_with_l1_inclusion() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
             vec![LINEA_SEPOLIA_CHAIN_ID],
             true,
             false,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -496,13 +635,15 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_sepolia_exec_get_proof_data_on_linea_with_l1_inclusion_fallback() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
             vec![LINEA_SEPOLIA_CHAIN_ID],
             true,
             true,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -510,13 +651,15 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_sepolia_exec_get_proof_data_on_base() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
             vec![BASE_SEPOLIA_CHAIN_ID],
             false,
             false,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -524,13 +667,15 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_sepolia_exec_get_proof_data_on_base_fallback() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
             vec![BASE_SEPOLIA_CHAIN_ID],
             false,
             true,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -538,13 +683,15 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_sepolia_exec_get_proof_data_on_base_with_l1_inclusion() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
             vec![BASE_SEPOLIA_CHAIN_ID],
             true,
             false,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -552,13 +699,15 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_sepolia_exec_get_proof_data_on_base_with_l1_inclusion_fallback() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![OPTIMISM_SEPOLIA_CHAIN_ID]],
             vec![BASE_SEPOLIA_CHAIN_ID],
             true,
             true,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -566,13 +715,15 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_sepolia_exec_get_proof_data_on_optimism() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![LINEA_SEPOLIA_CHAIN_ID]],
             vec![OPTIMISM_SEPOLIA_CHAIN_ID],
             false,
             false,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -580,13 +731,15 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_sepolia_exec_get_proof_data_on_optimism_fallback() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![LINEA_SEPOLIA_CHAIN_ID]],
             vec![OPTIMISM_SEPOLIA_CHAIN_ID],
             false,
             true,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -594,13 +747,15 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_sepolia_exec_get_proof_data_on_optimism_with_l1_inclusion() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![LINEA_SEPOLIA_CHAIN_ID]],
             vec![OPTIMISM_SEPOLIA_CHAIN_ID],
             true,
             false,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -608,13 +763,15 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_sepolia_exec_get_proof_data_on_optimism_with_l1_inclusion_fallback() {
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![LINEA_SEPOLIA_CHAIN_ID]],
             vec![OPTIMISM_SEPOLIA_CHAIN_ID],
             true,
             true,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -626,13 +783,15 @@ mod tests {
     #[ignore]
     async fn test_sepolia_exec_get_proof_data_on_ethereum_with_l1_inclusion() {
         // This test should fail because L1 inclusion is not supported for Ethereum
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![LINEA_SEPOLIA_CHAIN_ID]],
             vec![ETHEREUM_SEPOLIA_CHAIN_ID],
             true,
             false,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -644,13 +803,15 @@ mod tests {
     #[ignore]
     async fn test_sepolia_exec_get_proof_data_on_ethereum_with_l1_inclusion_fallback() {
         // This test should fail because L1 inclusion is not supported for Ethereum
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
             vec![vec![WETH_MARKET_SEPOLIA]],
             vec![vec![LINEA_SEPOLIA_CHAIN_ID]],
             vec![ETHEREUM_SEPOLIA_CHAIN_ID],
             true,
             true,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -664,7 +825,7 @@ mod tests {
         let user3 = address!("6446021F4E396dA3df4235C62537431372195D38");
         let user4 = address!("F04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E");
 
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![
                 vec![user1, user2], // Linea Sepolia users
                 vec![user3],        // Base Sepolia user
@@ -687,6 +848,8 @@ mod tests {
             ],
             false,
             false,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }
@@ -700,7 +863,7 @@ mod tests {
         let user3 = address!("6446021F4E396dA3df4235C62537431372195D38");
         let user4 = address!("F04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E");
 
-        test_exec_get_proof_data_with_params(
+        test_get_proof_data_with_params(
             vec![
                 vec![user1, user2], // Linea Sepolia users
                 vec![user3],        // Base Sepolia user
@@ -723,6 +886,8 @@ mod tests {
             ],
             false,
             true,
+            false,
+            false, // onchain = false for exec tests
         )
         .await;
     }

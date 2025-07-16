@@ -12,18 +12,77 @@
 //
 //! Ethereum view call utilities for cross-chain view call proof.
 //!
-//! This module provides functionality to:
-//! - Execute and prove user proof data queries across multiple EVM chains
-//! - Handle sequencer commitments for L2 chains (Optimism, Base)
-//! - Process L1 block verification for L2 chains
-//! - Manage linking blocks for reorg protection
-//! - Support parallel processing of multi-chain proof data queries
+//! This module provides comprehensive functionality for executing and proving user proof data queries
+//! across multiple EVM chains with support for various L2 solutions and security mechanisms.
+//!
+//! ## Core Features
+//!
+//! - **Multi-chain Proof Data Queries**: Execute and prove user proof data queries across multiple EVM chains
+//! - **Sequencer Commitment Handling**: Process sequencer commitments for L2 chains (Optimism, Base)
+//! - **L1 Block Verification**: Verify L1 block data for L2 chains with dispute game validation
+//! - **Reorg Protection**: Manage linking blocks to protect against chain reorganizations
+//! - **Parallel Processing**: Support parallel processing of multi-chain proof data queries
+//! - **Bonsai Integration**: Generate ZK proofs using the Bonsai SDK for enhanced performance
+//! - **Boundless Market Integration**: Submit proof requests to the Boundless market for decentralized proving
+//!
+//! ## Supported Networks
 //!
 //! The module supports both mainnet and testnet (Sepolia) environments for:
-//! - Ethereum (L1)
-//! - Optimism
-//! - Base
-//! - Linea
+//! - **Ethereum (L1)**: Main chain with full L1 block verification
+//! - **Optimism**: OpStack L2 with dispute game validation
+//! - **Base**: OpStack L2 with dispute game validation
+//! - **Linea**: L2 with L1 message service integration
+//!
+//! ## Security Features
+//!
+//! - **Reorg Protection**: Configurable depth protection against chain reorganizations
+//! - **Dispute Game Validation**: For OpStack chains, validates finalized dispute games
+//! - **Proof Maturity Checks**: Ensures sufficient time has passed since dispute resolution
+//! - **Blacklist Verification**: Checks that dispute games are not blacklisted
+//! - **Game Type Validation**: Verifies dispute games use the correct game type
+//!
+//! ## Usage Examples
+//!
+//! ```rust
+//! // Generate a ZK proof for proof data queries
+//! let proof_info = get_proof_data_prove(
+//!     vec![vec![user_address]],
+//!     vec![vec![market_address]],
+//!     vec![vec![target_chain_id]],
+//!     vec![chain_id],
+//!     true,  // l1_inclusion
+//!     false, // fallback
+//! ).await?;
+//!
+//! // Submit to Boundless market for decentralized proving
+//! let (journal, seal) = get_proof_data_prove_boundless(
+//!     vec![vec![user_address]],
+//!     vec![vec![market_address]],
+//!     vec![vec![target_chain_id]],
+//!     vec![chain_id],
+//!     true,  // l1_inclusion
+//!     false, // fallback
+//! ).await?;
+//! ```
+//!
+//! ## Environment Variables
+//!
+//! The following environment variables are required for certain functions:
+//! - `RPC_URL`: Ethereum RPC endpoint for transactions
+//! - `PRIVATE_KEY`: Private key for signing transactions
+//! - `IMAGE_ID_BONSAI`: Bonsai image ID for ZK proof generation
+//!
+//! Optional environment variables:
+//! - `PROGRAM_URL`: URL of a pre-uploaded program to avoid re-upload latency in Boundless market submissions
+//!
+//! ## Error Handling
+//!
+//! Functions return `Result<T, Error>` where errors can occur due to:
+//! - Network connectivity issues
+//! - Invalid chain configurations
+//! - RPC endpoint failures
+//! - ZK proof generation failures
+//! - Dispute game validation failures
 
 use crate::constants::*;
 use crate::elfs_ids::*;
@@ -49,7 +108,7 @@ use risc0_zkvm::{
     default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
 };
 
-use alloy::primitives::{Address, U256, U64};
+use alloy::primitives::{Address, Bytes, U256, U64};
 use alloy_consensus::Header;
 
 use anyhow::{Error, Result};
@@ -66,6 +125,32 @@ use tracing::info;
 
 use dotenvy;
 
+use alloy::{signers::local::PrivateKeySigner, sol_types::SolValue};
+use anyhow::{bail, Context};
+use boundless_market::{
+    storage::storage_provider_from_env, Client as BoundlessClient, Deployment,
+    StorageProviderConfig,
+};
+use clap::Parser;
+use std::str::FromStr;
+
+/// Timeout duration for transaction confirmation.
+///
+/// The maximum time to wait for a transaction to be confirmed on the blockchain.
+/// This is used for operations that require transaction confirmation, such as
+/// submitting proof requests to the Boundless market.
+pub const TX_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Statistics for a Malda ZK proof session.
+///
+/// Contains information about the computational resources used during proof generation.
+///
+/// # Fields
+/// * `segments` - Number of proof segments generated.
+/// * `total_cycles` - Total computational cycles used.
+/// * `user_cycles` - User-specific computational cycles.
+/// * `paging_cycles` - Cycles used for memory paging operations.
+/// * `reserved_cycles` - Reserved cycles for system operations.
 #[derive(Debug, Clone)]
 pub struct MaldaSessionStats {
     pub segments: usize,
@@ -75,6 +160,16 @@ pub struct MaldaSessionStats {
     pub reserved_cycles: u64,
 }
 
+/// Information about a completed Malda ZK proof.
+///
+/// Contains the proof receipt, session statistics, and timing information.
+///
+/// # Fields
+/// * `receipt` - The ZK proof receipt containing the proof data.
+/// * `stats` - Statistics about the proof generation session.
+/// * `uuid` - Unique identifier for the proof session.
+/// * `stark_time` - Time taken for STARK proof generation in seconds.
+/// * `snark_time` - Time taken for SNARK proof generation in seconds.
 #[derive(Debug)]
 pub struct MaldaProveInfo {
     pub receipt: Receipt,
@@ -85,6 +180,15 @@ pub struct MaldaProveInfo {
 }
 
 /// Runs a Bonsai ZK proof session with the provided input data.
+///
+/// This function handles the complete Bonsai SDK workflow:
+/// 1. Uploads input data to Bonsai
+/// 2. Creates a proof session
+/// 3. Polls for session completion
+/// 4. Creates a SNARK session
+/// 5. Downloads and deserializes the proof receipt
+///
+/// The function provides detailed timing information for both STARK and SNARK phases.
 ///
 /// # Arguments
 /// * `input_data` - The serialized input data for the ZKVM session.
@@ -98,9 +202,14 @@ pub struct MaldaProveInfo {
 /// - The input upload, session creation, or polling fails.
 /// - The SNARK proof or receipt download fails.
 /// - The receipt cannot be deserialized.
+/// - Session status indicates failure.
 ///
 /// # Panics
 /// Panics if the required environment variable `IMAGE_ID_BONSAI` is not set.
+///
+/// # Environment Variables
+/// Requires the following environment variable:
+/// - `IMAGE_ID_BONSAI`: Bonsai image ID for ZK proof generation
 fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
     let client = Client::from_env(risc0_zkvm::VERSION)?;
 
@@ -195,7 +304,152 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
     })
 }
 
+
+/// Submits a proof data request to the Boundless market for decentralized proving.
+///
+/// This function creates a proof request and submits it to the Boundless market, which will
+/// handle the ZK proof generation in a decentralized manner. The function waits for the
+/// request to be fulfilled and returns the proof journal and seal.
+///
+/// The function supports both onchain and offchain submission modes:
+/// - **Offchain**: Uses `client.submit_offchain()` for gasless submission
+/// - **Onchain**: Uses `client.submit_onchain()` for on-chain submission with gas costs
+///
+/// # Arguments
+/// * `users` - Vector of user address vectors, one per chain.
+/// * `markets` - Vector of market contract address vectors, one per chain.
+/// * `target_chain_id` - Vector of target chain IDs to query (vector of vectors).
+/// * `chain_ids` - Vector of chain IDs to query.
+/// * `l1_inclusion` - Whether to include L1 data in the proof.
+/// * `fallback` - Whether to use fallback RPC URLs (default: false).
+/// * `onchain` - Whether to submit onchain (true) or offchain (false).
+///
+/// # Returns
+/// * `Result<(Bytes, Bytes), Error>` - Tuple of (journal, seal) if successful, or an error.
+///
+/// # Errors
+/// Returns an error if:
+/// - Environment variables `RPC_URL` or `PRIVATE_KEY` are not set.
+/// - The Boundless client fails to initialize.
+/// - The request submission or fulfillment fails.
+/// - The input data preparation fails.
+///
+/// # Environment Variables
+/// Requires the following environment variables:
+/// - `RPC_URL`: Ethereum RPC endpoint for transactions
+/// - `PRIVATE_KEY`: Private key for signing transactions
+///
+/// Optional environment variables:
+/// - `PROGRAM_URL`: URL of a pre-uploaded program to avoid re-upload latency
+///
+/// # Example
+/// ```rust
+/// let (journal, seal) = get_proof_data_prove_boundless(
+///     vec![vec![user_address]],
+///     vec![vec![market_address]],
+///     vec![vec![target_chain_id]],
+///     vec![chain_id],
+///     true,   // l1_inclusion
+///     false,  // fallback
+///     false,  // onchain (false for offchain submission)
+/// ).await?;
+/// ```
+pub async fn get_proof_data_prove_boundless(
+    users: Vec<Vec<Address>>,
+    markets: Vec<Vec<Address>>,
+    target_chain_id: Vec<Vec<u64>>,
+    chain_ids: Vec<u64>,
+    l1_inclusion: bool,
+    fallback: bool,
+    onchain: bool,
+) -> Result<(Bytes, Bytes), Error> {
+    // Only initialize tracing if it hasn't been set up already
+    if tracing_subscriber::util::SubscriberInitExt::try_init(
+        tracing_subscriber::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+    ).is_err() {
+        // Tracing is already initialized, which is fine
+        tracing::debug!("Tracing subscriber already initialized");
+    }
+
+    match dotenvy::dotenv() {
+        Ok(path) => tracing::debug!("Loaded environment variables from {:?}", path),
+        Err(e) if e.not_found() => tracing::debug!("No .env file found"),
+        Err(e) => bail!("failed to load .env file: {}", e),
+    }
+
+    // Get environment variables instead of parsing CLI args
+    let rpc_url = dotenvy::var("RPC_URL").context("RPC_URL environment variable not set")?;
+    let private_key =
+        dotenvy::var("PRIVATE_KEY").context("PRIVATE_KEY environment variable not set")?;
+
+    let rpc_url = Url::parse(&rpc_url)?;
+    let private_key = PrivateKeySigner::from_str(&private_key)?;
+
+    // Create a Boundless client from the provided parameters.
+    let client = BoundlessClient::builder()
+        .with_storage_provider(Some(storage_provider_from_env()?))
+        .with_rpc_url(rpc_url)
+        .with_private_key(private_key)
+        .build()
+        .await
+        .context("failed to build boundless client")?;
+
+    let input_bytes = get_proof_data_input(
+        users,
+        markets,
+        target_chain_id,
+        chain_ids,
+        l1_inclusion,
+        fallback,
+    )
+    .await;
+
+    // let program_url = client.upload_program(GET_PROOF_DATA_ELF).await?;
+    // tracing::info!("Program URL: {}", program_url);
+
+    // Build the request - use program URL if available to avoid re-upload
+    let request = if let Ok(program_url) = dotenvy::var("PROGRAM_URL") {
+        tracing::info!("Using pre-uploaded program from URL: {}", program_url);
+        let parsed_url = Url::parse(&program_url)
+            .context("Failed to parse PROGRAM_URL")?;
+        client
+            .new_request()
+            .with_program_url(parsed_url)?
+            .with_stdin(input_bytes)
+    } else {
+        tracing::info!("No PROGRAM_URL found, uploading program directly");
+        client
+            .new_request()
+            .with_program(GET_PROOF_DATA_ELF)
+            .with_stdin(input_bytes)
+    };
+
+    let (request_id, expires_at) = if onchain {
+        client.submit_onchain(request).await?
+    } else {
+        client.submit_offchain(request).await?
+    };
+
+    // Wait for the request to be fulfilled. The market will return the journal and seal.
+    tracing::info!("Waiting for request {:x} to be fulfilled", request_id);
+    let (journal, seal) = client
+        .wait_for_request_fulfillment(
+            request_id,
+            Duration::from_secs(5), // check every 5 seconds
+            expires_at,
+        )
+        .await?;
+    tracing::info!("Request {:x} fulfilled", request_id);
+
+    Ok((journal, seal))
+}
+
 /// Executes proof data queries across multiple chains in parallel.
+///
+/// This function executes ZKVM sessions for proof data queries without generating
+/// full proofs. It's useful for testing and validation purposes. The function
+/// processes each chain's proof data in parallel and then executes the ZKVM.
 ///
 /// # Arguments
 /// * `users` - Vector of user address vectors, one per chain.
@@ -213,6 +467,7 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
 /// - Array lengths don't match.
 /// - RPC calls fail.
 /// - ZKVM execution fails.
+/// - Parallel task execution fails.
 pub async fn get_proof_data_exec(
     users: Vec<Vec<Address>>,
     markets: Vec<Vec<Address>>,
@@ -274,6 +529,12 @@ pub async fn get_proof_data_exec(
 
 /// Creates the executor environment with proof data from multiple chains.
 ///
+/// This function prepares the ZKVM executor environment by collecting proof data inputs
+/// from multiple chains in parallel and combining them into a single environment.
+///
+/// The function processes each chain's proof data independently and then combines
+/// all inputs into a single executor environment for ZKVM execution.
+///
 /// # Arguments
 /// * `users` - Vector of user address vectors, one per chain.
 /// * `markets` - Vector of market contract address vectors, one per chain.
@@ -288,6 +549,8 @@ pub async fn get_proof_data_exec(
 /// # Panics
 /// Panics if:
 /// - Array lengths don't match.
+/// - Parallel task execution fails.
+/// - Environment building fails.
 async fn get_proof_data_env(
     users: Vec<Vec<Address>>,
     markets: Vec<Vec<Address>>,
@@ -337,12 +600,20 @@ async fn get_proof_data_env(
 
 /// Prepares input data for the ZKVM for multiple chains' proof data queries.
 ///
+/// This function prepares the input data for Bonsai SDK proof generation by collecting
+/// proof data inputs from multiple chains in parallel and serializing them into the
+/// format expected by the Bonsai SDK.
+///
+/// The function processes each chain's proof data independently and then combines
+/// all inputs into a single serialized format for Bonsai processing.
+///
 /// # Arguments
 /// * `users` - Vector of user address vectors, one per chain.
 /// * `markets` - Vector of market contract address vectors, one per chain.
 /// * `target_chain_ids` - Vector of target chain IDs to query (vector of vectors).
 /// * `chain_ids` - Vector of chain IDs to query.
 /// * `l1_inclusion` - Whether to include L1 data in the proof.
+/// * `fallback` - Whether to use fallback RPC URLs.
 ///
 /// # Returns
 /// * `Vec<u8>` - Serialized input data for the ZKVM.
@@ -350,6 +621,8 @@ async fn get_proof_data_env(
 /// # Panics
 /// Panics if:
 /// - Array lengths don't match.
+/// - Parallel task execution fails.
+/// - Serialization fails.
 async fn get_proof_data_input(
     users: Vec<Vec<Address>>,
     markets: Vec<Vec<Address>>,
@@ -398,6 +671,10 @@ async fn get_proof_data_input(
 
 /// Generates ZK proofs for proof data queries across multiple chains.
 ///
+/// This function generates ZK proofs using the local RISC Zero prover. It runs the
+/// proof generation in a blocking task to avoid blocking the async runtime. The function
+/// provides detailed timing information for environment creation and proof generation.
+///
 /// # Arguments
 /// * `users` - Vector of user address vectors, one per chain.
 /// * `markets` - Vector of market contract address vectors, one per chain.
@@ -414,6 +691,7 @@ async fn get_proof_data_input(
 /// - Array lengths don't match.
 /// - RPC calls fail.
 /// - Proof generation fails.
+/// - ZKVM execution fails.
 pub async fn get_proof_data_prove(
     users: Vec<Vec<Address>>,
     markets: Vec<Vec<Address>>,
@@ -451,12 +729,17 @@ pub async fn get_proof_data_prove(
 
 /// Generates ZK proofs for proof data queries across multiple chains using the Bonsai SDK.
 ///
+/// This function uses the Bonsai SDK to generate ZK proofs for proof data queries.
+/// It runs the proof generation in a blocking task to avoid blocking the async runtime.
+/// The function provides detailed timing information for both STARK and SNARK phases.
+///
 /// # Arguments
 /// * `users` - Vector of user address vectors, one per chain.
 /// * `markets` - Vector of market contract address vectors, one per chain.
 /// * `target_chain_ids` - Vector of target chain IDs to query (vector of vectors).
 /// * `chain_ids` - Vector of chain IDs to query.
 /// * `l1_inclusion` - Whether to include L1 data in the proof.
+/// * `fallback` - Whether to use fallback RPC URLs (default: false).
 ///
 /// # Returns
 /// * `Result<MaldaProveInfo, Error>` - Proof information from the Bonsai SDK.
@@ -466,6 +749,7 @@ pub async fn get_proof_data_prove(
 /// - Array lengths don't match.
 /// - RPC calls fail.
 /// - Proof generation fails.
+/// - Bonsai SDK operations fail.
 pub async fn get_proof_data_prove_sdk(
     users: Vec<Vec<Address>>,
     markets: Vec<Vec<Address>>,
@@ -500,7 +784,24 @@ pub async fn get_proof_data_prove_sdk(
     prove_info
 }
 
-/// Helper function to get chain parameters from chain ID
+/// Helper function to get chain parameters from chain ID.
+///
+/// Maps a chain ID to its corresponding chain name and testnet status.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to look up.
+///
+/// # Returns
+/// * `(&'static str, bool)` - Tuple of (chain_name, is_testnet).
+///
+/// # Panics
+/// Panics if an invalid chain ID is provided.
+///
+/// # Supported Chains
+/// - Ethereum mainnet and Sepolia
+/// - Optimism mainnet and Sepolia
+/// - Base mainnet and Sepolia
+/// - Linea mainnet and Sepolia
 fn get_chain_params(chain_id: u64) -> (&'static str, bool) {
     match chain_id {
         BASE_CHAIN_ID => ("BASE", false),
@@ -515,12 +816,31 @@ fn get_chain_params(chain_id: u64) -> (&'static str, bool) {
     }
 }
 
-/// Helper function to get OpStack chain configuration
-fn get_opstack_config(chain_id: u64, fallback: bool) -> (&'static str, Address, &'static str, &'static str) {
+/// Helper function to get OpStack chain configuration.
+///
+/// Returns the RPC URLs, portal address, and chain name for OpStack chains.
+///
+/// # Arguments
+/// * `chain_id` - The OpStack chain ID.
+/// * `fallback` - Whether to use fallback RPC URLs.
+///
+/// # Returns
+/// * `(&'static str, Address, &'static str, &'static str)` - Tuple of (l1_rpc_url, portal_address, l2_rpc_url, chain_name).
+///
+/// # Panics
+/// Panics if an invalid OpStack chain ID is provided.
+///
+/// # Supported OpStack Chains
+/// - Optimism mainnet and Sepolia
+/// - Base mainnet and Sepolia
+fn get_opstack_config(
+    chain_id: u64,
+    fallback: bool,
+) -> (&'static str, Address, &'static str, &'static str) {
     let (chain_name, is_testnet) = get_chain_params(chain_id);
     let l1_rpc_url = get_rpc_url("ETHEREUM", fallback, is_testnet);
     let l2_rpc_url = get_rpc_url(chain_name, fallback, is_testnet);
-    
+
     let portal = match chain_id {
         OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
         OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
@@ -528,11 +848,26 @@ fn get_opstack_config(chain_id: u64, fallback: bool) -> (&'static str, Address, 
         BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
         _ => panic!("Invalid OpStack chain ID: {}", chain_id),
     };
-    
+
     (l1_rpc_url, portal, l2_rpc_url, chain_name)
 }
 
-/// Helper function to get portal address for a chain
+/// Helper function to get portal address for a chain.
+///
+/// Returns the portal contract address for OpStack chains.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to look up.
+///
+/// # Returns
+/// * `Address` - The portal contract address.
+///
+/// # Panics
+/// Panics if an invalid chain ID is provided.
+///
+/// # Supported Chains
+/// - Optimism mainnet and Sepolia
+/// - Base mainnet and Sepolia
 fn get_portal_address(chain_id: u64) -> Address {
     match chain_id {
         OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
@@ -543,7 +878,19 @@ fn get_portal_address(chain_id: u64) -> Address {
     }
 }
 
-/// Helper function to check if a chain is an OpStack chain
+/// Helper function to check if a chain is an OpStack chain.
+///
+/// Determines whether a given chain ID corresponds to an OpStack L2 chain.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to check.
+///
+/// # Returns
+/// * `bool` - True if the chain is an OpStack chain, false otherwise.
+///
+/// # Supported OpStack Chains
+/// - Optimism mainnet and Sepolia
+/// - Base mainnet and Sepolia
 fn is_opstack_chain(chain_id: u64) -> bool {
     matches!(
         chain_id,
@@ -551,17 +898,53 @@ fn is_opstack_chain(chain_id: u64) -> bool {
     )
 }
 
-/// Helper function to check if a chain is a Linea chain
+/// Helper function to check if a chain is a Linea chain.
+///
+/// Determines whether a given chain ID corresponds to a Linea L2 chain.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to check.
+///
+/// # Returns
+/// * `bool` - True if the chain is a Linea chain, false otherwise.
+///
+/// # Supported Linea Chains
+/// - Linea mainnet and Sepolia
 fn is_linea_chain(chain_id: u64) -> bool {
     matches!(chain_id, LINEA_CHAIN_ID | LINEA_SEPOLIA_CHAIN_ID)
 }
 
-/// Helper function to check if a chain is an Ethereum chain
+/// Helper function to check if a chain is an Ethereum chain.
+///
+/// Determines whether a given chain ID corresponds to an Ethereum L1 chain.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to check.
+///
+/// # Returns
+/// * `bool` - True if the chain is an Ethereum chain, false otherwise.
+///
+/// # Supported Ethereum Chains
+/// - Ethereum mainnet and Sepolia
 fn is_ethereum_chain(chain_id: u64) -> bool {
     matches!(chain_id, ETHEREUM_CHAIN_ID | ETHEREUM_SEPOLIA_CHAIN_ID)
 }
 
-/// Helper function to get the default sequencer commitment chain for a given chain
+/// Helper function to get the default sequencer commitment chain for a given chain.
+///
+/// Returns the default chain ID to use for sequencer commitment queries based on whether
+/// the target chain is a testnet or mainnet.
+///
+/// # Arguments
+/// * `_chain_id` - The chain ID (unused, kept for interface consistency).
+/// * `is_sepolia` - Whether the chain is a Sepolia testnet variant.
+///
+/// # Returns
+/// * `u64` - The default sequencer commitment chain ID.
+///
+/// # Default Chains
+/// - Sepolia: Optimism Sepolia
+/// - Mainnet: Optimism mainnet
 fn get_default_sequencer_chain(_chain_id: u64, is_sepolia: bool) -> u64 {
     if is_sepolia {
         OPTIMISM_SEPOLIA_CHAIN_ID
@@ -570,7 +953,25 @@ fn get_default_sequencer_chain(_chain_id: u64, is_sepolia: bool) -> u64 {
     }
 }
 
-/// Helper function to get reorg protection depth for a chain
+/// Helper function to get reorg protection depth for a chain.
+///
+/// Returns the number of blocks to look back for reorg protection based on the chain type.
+/// This ensures that blocks used in proofs are sufficiently confirmed to avoid chain reorganizations.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to get the protection depth for.
+///
+/// # Returns
+/// * `u64` - The reorg protection depth in blocks.
+///
+/// # Panics
+/// Panics if an invalid chain ID is provided.
+///
+/// # Protection Depths
+/// Different chains have different protection depths based on their finality characteristics:
+/// - Ethereum: Higher depth due to longer finality
+/// - L2 chains: Lower depth due to faster finality
+/// - Testnets: Lower depth for faster testing
 fn get_reorg_protection_depth(chain_id: u64) -> u64 {
     match chain_id {
         OPTIMISM_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM,
@@ -587,12 +988,24 @@ fn get_reorg_protection_depth(chain_id: u64) -> u64 {
 
 /// Prepares input data for the ZKVM for a single chain's proof data queries.
 ///
+/// This function orchestrates the entire proof data preparation process for a single chain:
+/// 1. Gets sequencer commitments and block numbers
+/// 2. Prepares L1 block call inputs if needed
+/// 3. Handles L1 inclusion environment setup
+/// 4. Fetches linking blocks for reorg protection
+/// 5. Prepares proof data call inputs
+/// 6. Serializes everything into ZKVM input format
+///
+/// The function handles different chain types (OpStack, Linea, Ethereum) with their
+/// specific requirements for L1 inclusion and block validation.
+///
 /// # Arguments
 /// * `users` - Vector of user addresses to query.
 /// * `markets` - Vector of market contract addresses to query.
 /// * `target_chain_ids` - Vector of target chain IDs to query.
 /// * `chain_id` - Chain ID for the queries.
 /// * `l1_inclusion` - Whether to include L1 data in the proof.
+/// * `fallback` - Whether to use fallback RPC URLs.
 ///
 /// # Returns
 /// * `Vec<u8>` - Serialized input data for the ZKVM.
@@ -601,6 +1014,8 @@ fn get_reorg_protection_depth(chain_id: u64) -> u64 {
 /// Panics if:
 /// - Invalid chain ID is provided.
 /// - RPC calls fail.
+/// - Required block numbers are not available.
+/// - Serialization fails.
 pub async fn get_proof_data_zkvm_input(
     users: Vec<Address>,
     markets: Vec<Address>,
@@ -611,7 +1026,10 @@ pub async fn get_proof_data_zkvm_input(
 ) -> Vec<u8> {
     let is_sepolia = matches!(
         chain_id,
-        OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID | ETHEREUM_SEPOLIA_CHAIN_ID | LINEA_SEPOLIA_CHAIN_ID
+        OPTIMISM_SEPOLIA_CHAIN_ID
+            | BASE_SEPOLIA_CHAIN_ID
+            | ETHEREUM_SEPOLIA_CHAIN_ID
+            | LINEA_SEPOLIA_CHAIN_ID
     );
 
     let (chain_name, is_testnet) = get_chain_params(chain_id);
@@ -642,25 +1060,29 @@ pub async fn get_proof_data_zkvm_input(
         )
         .await;
 
-    let block =
-        if l1_inclusion && is_linea_chain(chain_id) {
-            l2_block_number_on_l1.unwrap()
-        } else if is_ethereum_chain(chain_id) || (is_opstack_chain(chain_id) && l1_inclusion) {
-            ethereum_block_1.unwrap()
-        } else {
-            block.unwrap()
-        };
-
-    let (chaind_id_linking_blocks, rpc_url_linking_blocks) = if is_opstack_chain(chain_id) && l1_inclusion {
-        let (ethereum_chain_id, is_ethereum_testnet) = if matches!(chain_id, OPTIMISM_CHAIN_ID | BASE_CHAIN_ID) {
-            (ETHEREUM_CHAIN_ID, false)
-        } else {
-            (ETHEREUM_SEPOLIA_CHAIN_ID, true)
-        };
-        (ethereum_chain_id, get_rpc_url("ETHEREUM", fallback, is_ethereum_testnet))
+    let block = if l1_inclusion && is_linea_chain(chain_id) {
+        l2_block_number_on_l1.unwrap()
+    } else if is_ethereum_chain(chain_id) || (is_opstack_chain(chain_id) && l1_inclusion) {
+        ethereum_block_1.unwrap()
     } else {
-        (chain_id, rpc_url)
+        block.unwrap()
     };
+
+    let (chaind_id_linking_blocks, rpc_url_linking_blocks) =
+        if is_opstack_chain(chain_id) && l1_inclusion {
+            let (ethereum_chain_id, is_ethereum_testnet) =
+                if matches!(chain_id, OPTIMISM_CHAIN_ID | BASE_CHAIN_ID) {
+                    (ETHEREUM_CHAIN_ID, false)
+                } else {
+                    (ETHEREUM_SEPOLIA_CHAIN_ID, true)
+                };
+            (
+                ethereum_chain_id,
+                get_rpc_url("ETHEREUM", fallback, is_ethereum_testnet),
+            )
+        } else {
+            (chain_id, rpc_url)
+        };
 
     let (linking_blocks, (proof_data_call_input, proof_data_call_input_op)) = tokio::join!(
         get_linking_blocks(chaind_id_linking_blocks, rpc_url_linking_blocks, block),
@@ -700,11 +1122,15 @@ pub async fn get_proof_data_zkvm_input(
 /// Returns the environment input for L1 inclusion and the L2 block number for a given chain.
 /// This function handles non-OpStack chains (Ethereum and Linea).
 ///
+/// For OpStack chains, this function delegates to `get_env_input_for_opstack_dispute_game`.
+/// For Linea chains, it calls `get_env_input_for_linea_l1_call` to get L2 block information.
+///
 /// # Arguments
 /// * `chain_id` - The chain ID to query.
 /// * `is_sepolia` - Whether the chain is a Sepolia testnet variant.
 /// * `l1_inclusion` - Whether to include L1 data in the proof.
-/// * `ethereum_block` - The Ethereum block number (optional).
+/// * `ethereum_block` - The Ethereum block number (optional, required if l1_inclusion is true).
+/// * `fallback` - Whether to use fallback RPC URLs.
 ///
 /// # Returns
 /// * `(Option<EvmInput<EthEvmFactory>>, Option<u64>)` - The environment input and L2 block number, if available.
@@ -713,6 +1139,7 @@ pub async fn get_proof_data_zkvm_input(
 /// Panics if:
 /// - L1 inclusion is requested for an unsupported chain.
 /// - OpStack chain ID is provided (use get_env_input_for_opstack_l1_inclusion instead).
+/// - Ethereum block number is not provided when l1_inclusion is true.
 pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
     chain_id: u64,
     is_sepolia: bool,
@@ -750,16 +1177,21 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
 
 /// Returns the environment input for L1 inclusion and the L2 block number for OpStack chains.
 ///
+/// This is a wrapper function that delegates to `get_env_input_for_opstack_dispute_game`
+/// for OpStack chains. It provides a consistent interface for L1 inclusion handling.
+///
 /// # Arguments
 /// * `chain_id` - The chain ID to query (must be an OpStack chain).
 /// * `l1_block` - The L1 block number.
+/// * `fallback` - Whether to use fallback RPC URLs.
 ///
 /// # Returns
-/// * `(Option<OpEvmInput>, Option<u64>)` - The environment input and L2 block number, if available.
+/// * `(Option<EvmInput<EthEvmFactory>>, Option<u64>)` - The environment input and L2 block number, if available.
 ///
 /// # Panics
 /// Panics if:
 /// - Non-OpStack chain ID is provided.
+/// - Dispute game validation fails.
 pub async fn get_env_input_for_opstack_l1_inclusion(
     chain_id: u64,
     l1_block: u64,
@@ -773,22 +1205,36 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
 
 /// Returns the environment input for OpStack dispute game and a dummy L2 block number.
 ///
+/// This function performs comprehensive validation of the dispute game state:
+/// 1. Builds OpStack environment with dispute game from RPC
+/// 2. Validates game type is correct (0 = fault game)
+/// 3. Checks game was created after respected game type update
+/// 4. Verifies game status is DEFENDER_WINS
+/// 5. Ensures game is not blacklisted
+/// 6. Validates sufficient time has passed since game resolution
+/// 7. Confirms root claim matches the commitment
+///
 /// # Arguments
-/// * `chain_id` - The chain ID to query.
-/// * `l1_block` - The L1 block number.
+/// * `chain_id` - The chain ID to query (must be an OpStack chain).
+/// * `l1_block` - The L1 block number for the dispute game.
+/// * `fallback` - Whether to use fallback RPC URLs.
 ///
 /// # Returns
-/// * `(Option<OpEvmInput>, Option<u64>)` - The environment input and a dummy L2 block number.
+/// * `(Option<EvmInput<EthEvmFactory>>, Option<u64>)` - The environment input and a dummy L2 block number.
 ///
 /// # Panics
 /// Panics if:
 /// - Invalid chain ID is provided.
+/// - Dispute game validation fails (wrong game type, status, blacklisted, etc.).
+/// - Insufficient time has passed since game resolution.
+/// - Root claim does not match the commitment.
 pub async fn get_env_input_for_opstack_dispute_game(
     chain_id: u64,
     l1_block: u64,
     fallback: bool,
 ) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
-    let (l1_rpc_url, optimism_portal, l2_rpc_url, _chain_name) = get_opstack_config(chain_id, fallback);
+    let (l1_rpc_url, optimism_portal, l2_rpc_url, _chain_name) =
+        get_opstack_config(chain_id, fallback);
 
     let mut env = EthEvmEnv::builder()
         .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
@@ -947,19 +1393,26 @@ pub async fn get_env_input_for_opstack_dispute_game(
 
 /// Returns L1 block call inputs and L1 block numbers for a given chain.
 ///
+/// This function prepares L1 block call inputs for chains that require L1 inclusion
+/// or are Ethereum chains themselves. It currently only processes one block (block_2
+/// is unused but kept for interface consistency).
+///
 /// # Arguments
 /// * `chain_id` - The chain ID to query.
 /// * `is_sepolia` - Whether the chain is a Sepolia testnet variant.
 /// * `l1_inclusion` - Whether to include L1 data in the proof.
-/// * `block` - The block number (optional).
-/// * `_block_2` - The second block number (optional, unused).
+/// * `block` - The block number (optional, required if l1_inclusion is true or chain is Ethereum).
+/// * `_block_2` - The second block number (optional, unused, kept for interface consistency).
+/// * `fallback` - Whether to use fallback RPC URLs.
 ///
 /// # Returns
-/// * Tuple of optional L1 block call inputs and block numbers.
+/// * `(Option<EvmInput<EthEvmFactory>>, Option<u64>, Option<EvmInput<EthEvmFactory>>, Option<u64>)` -
+///   Tuple of optional L1 block call inputs and block numbers.
 ///
 /// # Panics
 /// Panics if:
 /// - Block number is not provided when required.
+/// - L1 block call input generation fails.
 pub async fn get_l1block_call_inputs_and_l1_block_numbers(
     chain_id: u64,
     is_sepolia: bool,
@@ -1001,14 +1454,22 @@ pub async fn get_l1block_call_inputs_and_l1_block_numbers(
 
 /// Prepares multicall input for batch proof data checking.
 ///
+/// This function creates a multicall to batch multiple `getProofData(address,uint32)` calls
+/// for efficient proof data retrieval. It handles both standard EVM chains and OpStack chains
+/// with L1 inclusion validation.
+///
+/// The function applies reorg protection by querying blocks that are sufficiently confirmed
+/// based on the chain's protection depth.
+///
 /// # Arguments
 /// * `chain_id` - Chain ID for the queries.
 /// * `chain_url` - RPC URL for the chain.
-/// * `block` - Block number to query at.
-/// * `users` - Vector of user addresses.
-/// * `markets` - Vector of market contract addresses.
-/// * `target_chain_ids` - Vector of target chain IDs to query.
+/// * `block` - Block number to query at (will be adjusted for reorg protection).
+/// * `users` - Vector of user addresses to query proof data for.
+/// * `markets` - Vector of market contract addresses to query.
+/// * `target_chain_ids` - Vector of target chain IDs to query proof data for.
 /// * `validate_l1_inclusion` - Whether to validate L1 inclusion for OpStack chains.
+/// * `fallback` - Whether to use fallback RPC URLs.
 ///
 /// # Returns
 /// * `(Option<EvmInput<EthEvmFactory>>, Option<OpEvmInput>)` - Formatted EVM input for the multicall and optional OpEvmInput.
@@ -1017,6 +1478,7 @@ pub async fn get_l1block_call_inputs_and_l1_block_numbers(
 /// Panics if:
 /// - Invalid chain ID is provided.
 /// - RPC connection fails.
+/// - Environment building fails.
 pub async fn get_proof_data_call_input(
     chain_id: u64,
     chain_url: &str,
@@ -1065,7 +1527,8 @@ pub async fn get_proof_data_call_input(
     // Use separate code paths for each environment type
     if is_opstack_chain(chain_id) && validate_l1_inclusion {
         // Build an environment based on the state of the latest finalized fault dispute game
-        let (l1_rpc_url, optimism_portal, chain_url_final, _chain_name) = get_opstack_config(chain_id, !fallback);
+        let (l1_rpc_url, optimism_portal, chain_url_final, _chain_name) =
+            get_opstack_config(chain_id, !fallback);
         let mut env = OpEvmEnv::builder()
             .dispute_game_from_rpc(
                 optimism_portal,
@@ -1138,11 +1601,19 @@ pub async fn get_proof_data_call_input(
 
 /// Fetches sequencer commitments and block numbers for a given chain, handling L1 inclusion and Sepolia/mainnet variants.
 ///
+/// This function handles different chain types:
+/// - **OpStack chains**: Fetches sequencer commitments from the sequencer API
+/// - **Ethereum chains**: Uses default sequencer chain for commitments
+/// - **Linea chains**: Gets current block number directly from RPC
+///
+/// For L1 inclusion scenarios, it uses the default sequencer chain (Optimism) to get commitments.
+///
 /// # Arguments
 /// * `chain_id` - The chain ID to query.
 /// * `rpc_url` - The RPC URL for the chain.
 /// * `is_sepolia` - Whether the chain is a Sepolia testnet variant.
 /// * `l1_inclusion` - Whether to include L1 data in the proof.
+/// * `fallback` - Whether to use fallback RPC URLs.
 ///
 /// # Returns
 /// * `(Option<u64>, Option<SequencerCommitment>, Option<u64>, Option<SequencerCommitment>)` -
@@ -1152,6 +1623,7 @@ pub async fn get_proof_data_call_input(
 /// Panics if:
 /// - An invalid chain ID is provided.
 /// - RPC calls fail.
+/// - Sequencer API requests fail.
 pub async fn get_sequencer_commitments_and_blocks(
     chain_id: u64,
     rpc_url: &str,
@@ -1164,7 +1636,10 @@ pub async fn get_sequencer_commitments_and_blocks(
     Option<u64>,
     Option<SequencerCommitment>,
 ) {
-    if is_opstack_chain(chain_id) || is_ethereum_chain(chain_id) || (is_linea_chain(chain_id) && l1_inclusion) {
+    if is_opstack_chain(chain_id)
+        || is_ethereum_chain(chain_id)
+        || (is_linea_chain(chain_id) && l1_inclusion)
+    {
         if !l1_inclusion && is_opstack_chain(chain_id) {
             let (commitment, block) = get_current_sequencer_commitment(chain_id, fallback).await;
             (
@@ -1175,7 +1650,8 @@ pub async fn get_sequencer_commitments_and_blocks(
             )
         } else {
             let default_chain = get_default_sequencer_chain(chain_id, is_sepolia);
-            let (commitment, block) = get_current_sequencer_commitment(default_chain, fallback).await;
+            let (commitment, block) =
+                get_current_sequencer_commitment(default_chain, fallback).await;
             (Some(block), Some(commitment), None, None)
         }
     } else if is_linea_chain(chain_id) {
@@ -1197,8 +1673,13 @@ pub async fn get_sequencer_commitments_and_blocks(
 }
 /// Fetches the current sequencer commitment for L2 chains.
 ///
+/// This function queries the sequencer API to get the latest sequencer commitment
+/// for OpStack chains (Optimism, Base). The commitment contains execution payload
+/// data that can be used to verify L2 state.
+///
 /// # Arguments
 /// * `chain_id` - Chain ID (Optimism, Base, or their Sepolia variants).
+/// * `fallback` - Whether to use fallback RPC URLs.
 ///
 /// # Returns
 /// * `(SequencerCommitment, u64)` - Tuple of sequencer commitment and block number.
@@ -1207,6 +1688,8 @@ pub async fn get_sequencer_commitments_and_blocks(
 /// Panics if:
 /// - Invalid chain ID is provided.
 /// - Sequencer API request fails.
+/// - JSON parsing fails.
+/// - Execution payload conversion fails.
 pub async fn get_current_sequencer_commitment(
     chain_id: u64,
     fallback: bool,
@@ -1230,9 +1713,14 @@ pub async fn get_current_sequencer_commitment(
 
 /// Retrieves L1 block information for L2 chains.
 ///
+/// This function queries the L1Block contract on L2 chains to get L1 block information.
+/// It makes two calls: one to get the L1 block hash and another to get the L1 block number.
+/// This information is used for L1 inclusion proofs.
+///
 /// # Arguments
 /// * `block` - Block number or tag to query.
 /// * `chain_id` - Chain ID (Optimism, Base, or their Sepolia variants).
+/// * `fallback` - Whether to use fallback RPC URLs.
 ///
 /// # Returns
 /// * `(EvmInput<EthEvmFactory>, u64)` - Tuple of L1 block input and block number.
@@ -1241,6 +1729,8 @@ pub async fn get_current_sequencer_commitment(
 /// Panics if:
 /// - Invalid chain ID is provided.
 /// - RPC calls fail.
+/// - Environment building fails.
+/// - Contract calls fail.
 pub async fn get_l1block_call_input(
     block: BlockNumberOrTag,
     chain_id: u64,
@@ -1290,6 +1780,13 @@ pub async fn get_l1block_call_input(
 
 /// Fetches a sequence of blocks for reorg protection.
 ///
+/// This function fetches a sequence of block headers within the reorg protection window
+/// to ensure that the blocks used in proofs are sufficiently confirmed and not subject
+/// to chain reorganizations.
+///
+/// The function fetches blocks in parallel for efficiency, starting from
+/// `current_block - reorg_protection_depth + 1` up to `current_block`.
+///
 /// # Arguments
 /// * `chain_id` - Chain ID to query.
 /// * `rpc_url` - RPC URL for the chain.
@@ -1302,6 +1799,7 @@ pub async fn get_l1block_call_input(
 /// Panics if:
 /// - Invalid chain ID is provided.
 /// - RPC calls fail.
+/// - Block fetching tasks fail to join.
 pub async fn get_linking_blocks(
     chain_id: u64,
     rpc_url: &str,
@@ -1338,17 +1836,22 @@ pub async fn get_linking_blocks(
 
 /// Returns the environment input and L2 block number for Linea L1 call.
 ///
+/// This function queries the Linea L1 message service to get the current L2 block number
+/// that corresponds to the given L1 block. This is used for L1 inclusion proofs on Linea.
+///
 /// # Arguments
-/// * `chain_id` - The chain ID to query.
+/// * `chain_id` - The chain ID to query (must be a Linea chain).
 /// * `l1_rpc_url` - The L1 RPC URL.
-/// * `l1_block` - The L1 block number.
+/// * `l1_block` - The L1 block number to query at.
 ///
 /// # Returns
 /// * `(Option<EvmInput<EthEvmFactory>>, Option<u64>)` - The environment input and L2 block number, if available.
 ///
 /// # Panics
 /// Panics if:
-/// - Invalid chain ID is provided.
+/// - Invalid chain ID is provided (not a Linea chain).
+/// - RPC calls fail.
+/// - Environment building fails.
 pub async fn get_env_input_for_linea_l1_call(
     chain_id: u64,
     l1_rpc_url: &str,
