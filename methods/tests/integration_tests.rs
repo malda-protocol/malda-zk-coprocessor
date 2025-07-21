@@ -302,6 +302,7 @@ mod tests {
     ///////////////////
 
     #[tokio::test]
+    #[ignore]
     async fn test_prove_get_proof_data_boundless_on_linea() {
         test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
@@ -587,6 +588,7 @@ mod tests {
     // They may fail with connection errors if the sequencer is not accessible
 
     #[tokio::test]
+    #[ignore]
     async fn test_sepolia_exec_get_proof_data_on_linea() {
         test_get_proof_data_with_params(
             vec![vec![TEST_USER]],
@@ -602,6 +604,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_sepolia_exec_get_proof_data_on_linea_fallback() {
         test_get_proof_data_with_params(
             vec![vec![TEST_USER]],

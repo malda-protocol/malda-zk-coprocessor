@@ -41,13 +41,6 @@ fn get_env_var(env_var: &str) -> &'static str {
 /// * `chain_name` - The chain name (e.g., "LINEA", "ETHEREUM", "BASE", "OPTIMISM")
 /// * `fallback` - Whether to use fallback URL (default: false)
 /// * `testnet` - Whether to use testnet (Sepolia) URL (default: false)
-///
-/// # Examples
-/// ```
-/// let linea_mainnet = get_rpc_url("LINEA", false, false);
-/// let ethereum_sepolia = get_rpc_url("ETHEREUM", false, true);
-/// let optimism_fallback = get_rpc_url("OPTIMISM", true, false);
-/// ```
 pub fn get_rpc_url(chain_name: &str, fallback: bool, testnet: bool) -> &'static str {
     let chain_upper = chain_name.to_uppercase();
     let fallback_suffix = if fallback { "_FALLBACK" } else { "" };
@@ -66,13 +59,6 @@ pub fn get_rpc_url(chain_name: &str, fallback: bool, testnet: bool) -> &'static 
 /// * `chain_name` - The L2 chain name (e.g., "OPTIMISM", "BASE")
 /// * `fallback` - Whether to use fallback URL (default: false)
 /// * `testnet` - Whether to use testnet (Sepolia) URL (default: false)
-///
-/// # Examples
-/// ```
-/// let optimism_mainnet = get_sequencer_request_url("OPTIMISM", false, false);
-/// let base_sepolia = get_sequencer_request_url("BASE", false, true);
-/// let optimism_fallback = get_sequencer_request_url("OPTIMISM", true, false);
-/// ```
 pub fn get_sequencer_request_url(chain_name: &str, fallback: bool, testnet: bool) -> &'static str {
     let chain_upper = chain_name.to_uppercase();
     let fallback_suffix = if fallback { "_FALLBACK" } else { "" };

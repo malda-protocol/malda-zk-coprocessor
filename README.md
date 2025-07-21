@@ -105,16 +105,53 @@ To generate proofs independently:
    ```bash
    # Install RISC Zero zkVM and Bonsai SDK
    For detailed installation instructions, see the [RISC Zero documentation](https://dev.risczero.com/api/zkvm/install).
+   Also to request proof in boundless market, look at the setup here: (https://docs.beboundless.xyz/developers/what).
 
 2. **Environment Configuration**
    Create a `.env` file with required RPC endpoints:
+
    ```env
-   RPC_URL_LINEA=
-   RPC_URL_ETHEREUM=
-   RPC_URL_BASE=
-   RPC_URL_OPTIMISM=
-   RPC_URL_BEACON=https://www.lightclientdata.org
-   # ... other chain configurations
+   # --- Mainnet RPC Endpoints ---
+   RPC_URL_LINEA=<YOUR_LINEA_MAINNET_RPC_URL>
+   RPC_URL_ETHEREUM=<YOUR_ETHEREUM_MAINNET_RPC_URL>
+   RPC_URL_BASE=<YOUR_BASE_MAINNET_RPC_URL>
+   RPC_URL_OPTIMISM=<YOUR_OPTIMISM_MAINNET_RPC_URL>
+   RPC_URL_BEACON=https://www.lightclientdata.org   # Public Ethereum Beacon chain endpoint
+
+   # --- Mainnet Fallback RPC Endpoints ---
+   RPC_URL_LINEA_FALLBACK=<YOUR_LINEA_MAINNET_FALLBACK_RPC_URL>
+   RPC_URL_ETHEREUM_FALLBACK=<YOUR_ETHEREUM_MAINNET_FALLBACK_RPC_URL>
+   RPC_URL_BASE_FALLBACK=<YOUR_BASE_MAINNET_FALLBACK_RPC_URL>
+   RPC_URL_OPTIMISM_FALLBACK=<YOUR_OPTIMISM_MAINNET_FALLBACK_RPC_URL>
+
+   # --- Sepolia (Testnet) RPC Endpoints ---
+   RPC_URL_LINEA_SEPOLIA=<YOUR_LINEA_SEPOLIA_RPC_URL>
+   RPC_URL_ETHEREUM_SEPOLIA=<YOUR_ETHEREUM_SEPOLIA_RPC_URL>
+   RPC_URL_BASE_SEPOLIA=<YOUR_BASE_SEPOLIA_RPC_URL>
+   RPC_URL_OPTIMISM_SEPOLIA=<YOUR_OPTIMISM_SEPOLIA_RPC_URL>
+   RPC_URL_LINEA_SEPOLIA_FALLBACK=<YOUR_LINEA_SEPOLIA_FALLBACK_RPC_URL>
+   RPC_URL_ETHEREUM_SEPOLIA_FALLBACK=<YOUR_ETHEREUM_SEPOLIA_FALLBACK_RPC_URL>
+   RPC_URL_BASE_SEPOLIA_FALLBACK=<YOUR_BASE_SEPOLIA_FALLBACK_RPC_URL>
+   RPC_URL_OPTIMISM_SEPOLIA_FALLBACK=<YOUR_OPTIMISM_SEPOLIA_FALLBACK_RPC_URL>
+
+   # --- Sequencer Commitment Endpoints (Operation Solarstorm, public) ---
+   SEQUENCER_REQUEST_OPTIMISM=https://optimism.operationsolarstorm.org/latest
+   SEQUENCER_REQUEST_OPTIMISM_FALLBACK=https://optimism.operationsolarstorm.org/latest
+   SEQUENCER_REQUEST_BASE=https://base.operationsolarstorm.org/latest
+   SEQUENCER_REQUEST_BASE_FALLBACK=https://base.operationsolarstorm.org/latest
+ 
+
+   # --- ZK Prover via Bonsai ---
+
+   IMAGE_ID_BONSAI=<YOUR_BONSAI_IMAGE_ID>        # Bonsai image ID for ZK proof generation
+   BONSAI_API_KEY=<YOUR_BONSAI_API_KEY>
+   BONSAI_API_URL=<YOUR_BONSAI_API_URL>
+
+   # --- ZK Prover via Boundless Market ---
+   PINATA_JWT=<YOUR_PINATA_JWT>                  # Pinata JWT for IPFS uploads (if required)
+   PROGRAM_URL=<YOUR_PROGRAM_URL>                # Program URL
+   PRIVATE_KEY=<YOUR_PRIVATE_KEY>                # Private key for proof request on boundless market on BASE
+   RPC_URL=<YOUR_RPC_URL>                        # RPC URL for BASE mainnet
    ```
 
 3. **Proof Generation**
@@ -162,6 +199,17 @@ Note: For self-sequencing, `l1_inclusion` must be set to `true` to ensure additi
 ```bash
 cargo build
 ```
+
+### Environment Setup for Testing
+
+Before running tests, you must configure your environment variables. Create and fill out a `.env` file as described in the [Environment Configuration](#environment-configuration) section above. Ensure that all required RPC endpoints and `SEQUENCER_REQUEST` URLs are set for the relevant networks.
+
+- **RPC Endpoints:** You must provide valid RPC URLs for Ethereum, Linea, Base, and Optimism (both mainnet and testnet, as needed).
+- **Sequencer Commitment Endpoints:** The `SEQUENCER_REQUEST` variables for Optimism and Base must be set to enable proof data retrieval.
+
+#### Integration Test Details
+
+The test suite uses integration tests that interact with real contract deployments on both mainnet and testnet. This is necessary to obtain authentic Merkle proof data for proof building. However, note that tests targeting Sepolia (testnet) are marked as `ignore` by default. This is because the sequencer commitment endpoints for Optimism and Base testnets are not publicly available, making it impossible to fetch the required data for those tests.
 
 ### Testing
 
