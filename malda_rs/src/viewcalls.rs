@@ -376,12 +376,14 @@ pub async fn get_proof_data_prove_boundless(
             .new_request()
             .with_program_url(parsed_url)?
             .with_stdin(input_bytes)
+            .with_groth16_proof()
     } else {
         tracing::info!("No PROGRAM_URL found, uploading program directly");
         client
             .new_request()
             .with_program(GET_PROOF_DATA_ELF)
             .with_stdin(input_bytes)
+            .with_groth16_proof()
     };
 
     // Submit the request to the Boundless market (onchain or offchain)
