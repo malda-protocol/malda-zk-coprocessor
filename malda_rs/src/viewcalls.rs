@@ -41,7 +41,6 @@
 //! - **Blacklist Verification**: Checks that dispute games are not blacklisted
 //! - **Game Type Validation**: Verifies dispute games use the correct game type
 
-
 use crate::constants::*;
 use crate::elfs_ids::*;
 use crate::types::*;
@@ -66,8 +65,11 @@ use risc0_zkvm::{
     default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
 };
 
+use boundless_market::request_builder::OfferParams;
+
 use alloy::primitives::{Address, Bytes, U256, U64};
 use alloy_consensus::Header;
+use alloy_primitives::utils::parse_units;
 
 use anyhow::{Error, Result};
 use bonsai_sdk;
@@ -85,10 +87,10 @@ use dotenvy;
 
 use alloy::{signers::local::PrivateKeySigner, sol_types::SolValue};
 use anyhow::{bail, Context};
-use boundless_market::{
-    storage::storage_provider_from_env, Client as BoundlessClient
-};
+use boundless_market::{storage::storage_provider_from_env, Client as BoundlessClient};
 use std::str::FromStr;
+
+
 
 /// Timeout duration for transaction confirmation.
 ///
@@ -212,7 +214,7 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
                 segments: stats.segments,
                 total_cycles: stats.total_cycles,
                 user_cycles: stats.cycles,
-                paging_cycles: 0, // Paging cycles not tracked in this context
+                paging_cycles: 0,   // Paging cycles not tracked in this context
                 reserved_cycles: 0, // Reserved cycles not tracked in this context
             };
         } else {
@@ -277,7 +279,6 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
     })
 }
 
-
 /// Submits a proof data request to the Boundless market for decentralized proving.
 ///
 /// This function creates a proof request and submits it to the Boundless market, which will
@@ -326,8 +327,10 @@ pub async fn get_proof_data_prove_boundless(
     // Only initialize tracing if it hasn't been set up already
     if tracing_subscriber::util::SubscriberInitExt::try_init(
         tracing_subscriber::fmt()
-            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-    ).is_err() {
+            .with_env_filter(tracing_subscriber::EnvFilter::from_default_env()),
+    )
+    .is_err()
+    {
         // Tracing is already initialized, which is fine
         tracing::debug!("Tracing subscriber already initialized");
     }
@@ -352,6 +355,18 @@ pub async fn get_proof_data_prove_boundless(
         .with_storage_provider(Some(storage_provider_from_env()?))
         .with_rpc_url(rpc_url)
         .with_private_key(private_key)
+        .config_offer_layer(
+            |config| {
+                config
+                    // Set the price per cycle for automatic pricing calculations
+                    .max_price_per_cycle(parse_units("0.001", "gwei").unwrap())
+                    .min_price_per_cycle(parse_units("0.000", "gwei").unwrap())
+                    // .ramp_up_period(10)
+                    // .lock_timeout(180)
+                    // .timeout(540)
+            }, // Configure default timeouts and auction parameters
+  
+        )
         .build()
         .await
         .context("failed to build boundless client")?;
@@ -367,28 +382,51 @@ pub async fn get_proof_data_prove_boundless(
     )
     .await;
 
-    // Build the request - use program URL if available to avoid re-upload
-    let request = if let Ok(program_url) = dotenvy::var("PROGRAM_URL") {
+    // Get program URL - upload if not available in environment
+    let program_url = if let Ok(program_url) = dotenvy::var("PROGRAM_URL") {
         tracing::info!("Using pre-uploaded program from URL: {}", program_url);
-        let parsed_url = Url::parse(&program_url)
-            .context("Failed to parse PROGRAM_URL")?;
-        client
-            .new_request()
-            .with_program_url(parsed_url)?
-            .with_stdin(input_bytes)
-            .with_groth16_proof()
+        Url::parse(&program_url).context("Failed to parse PROGRAM_URL")?
     } else {
         tracing::info!("No PROGRAM_URL found, uploading program directly");
-        client
-            .new_request()
-            .with_program(GET_PROOF_DATA_ELF)
-            .with_stdin(input_bytes)
-            .with_groth16_proof()
+        let program_url = client.upload_program(GET_PROOF_DATA_ELF).await?;
+        tracing::info!("program uploaded to {}", program_url);
+        program_url
     };
 
+    use std::time::SystemTime;
+    use std::time::UNIX_EPOCH;
+
+    let current_unix_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+
+    // Build the request
+    let request = client
+        .new_request()
+        .with_program_url(program_url)?
+        .with_stdin(input_bytes)
+        .with_offer(
+            OfferParams::builder()
+              // The market uses a reverse Dutch auction mechanism to match requests with provers.
+              // Each request has a price range that a prover can bid on.
+            //   .min_price(parse_ether("0.001")?)
+            //   .max_price(parse_ether("0.002")?)
+              .bidding_start(current_unix_time + 5)
+              // The timeout is the maximum number of blocks the request can stay
+              // unfulfilled in the market before it expires. If a prover locks in
+              // the request and does not fulfill it before the lock timeout, the
+              // prover can be slashed.
+            //   .timeout(1000)
+            //   .lock_timeout(500)
+            //   .ramp_up_period(100)
+          )
+        .with_groth16_proof();
+    tracing::info!("request built");
+
     // Submit the request to the Boundless market (onchain or offchain)
+    tracing::info!("submitting request");
     let (request_id, expires_at) = if onchain {
-        client.submit_onchain(request).await?
+        let cl = client.submit_onchain(request).await?;
+        tracing::info!("request submitted onchain");
+        cl
     } else {
         client.submit_offchain(request).await?
     };
@@ -765,7 +803,6 @@ pub async fn get_proof_data_prove_sdk(
 
     prove_info
 }
-
 
 /// Prepares input data for the ZKVM for a single chain's proof data queries.
 ///
@@ -1907,4 +1944,3 @@ fn get_reorg_protection_depth(chain_id: u64) -> u64 {
         _ => panic!("invalid chain id"),
     }
 }
-

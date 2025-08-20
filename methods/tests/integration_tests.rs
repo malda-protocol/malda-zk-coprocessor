@@ -17,7 +17,7 @@ mod tests {
     use alloy_primitives::{address, Address, Bytes, U256};
     use hex;
     use malda_rs::{
-        constants::*, viewcalls::get_proof_data_exec, viewcalls::get_proof_data_prove_boundless,
+        constants::*, viewcalls::{get_proof_data_exec, get_proof_data_prove_boundless},
     };
 
     use alloy::sol_types::SolValue;
@@ -301,8 +301,152 @@ mod tests {
     // BOUNDLESS TESTS
     ///////////////////
 
+    // Generate test users (up to 30 available)
+    fn generate_test_users() -> Vec<Address> {
+        vec![
+            address!("2693946791da99dA78Ac441abA6D5Ce2Bccd96D3"),
+            address!("e50fA9b3c56FfB159cB0FCA61F5c9D750e8128c8"),
+            address!("6446021F4E396dA3df4235C62537431372195D38"),
+            address!("F04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E"),
+            address!("8B5F94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("9C6F94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("AD7F94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("BE8F94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("CF9F94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("D0AF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("E1BF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("F2CF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("03DF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("14EF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("25FF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("36FF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("47FF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("58FF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("69FF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("7AFF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("8BFF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("9CFF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("ADFF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("BEFF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("CFFF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("D0FF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("E1FF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("F2FF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("03FF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("14FF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+            address!("25FF94C4C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5C5"),
+        ]
+    }
+
     #[tokio::test]
-    #[ignore]
+    async fn test_prove_get_proof_data_boundless_load_test() {
+        use std::time::Instant;
+        use tokio::time::{sleep, Duration};
+        use tokio::task::JoinHandle;
+        use std::fs::OpenOptions;
+        use std::io::Write;
+
+        let test_users = generate_test_users();
+        let mut handles: Vec<JoinHandle<()>> = Vec::new();
+        
+        // Helper function to spawn a test task
+        async fn spawn_test_task(
+            users: Vec<Vec<Address>>,
+            assets: Vec<Vec<Address>>,
+            dst_chain_ids: Vec<Vec<u64>>,
+            chain_ids: Vec<u64>,
+            total_users: usize,
+        ) -> JoinHandle<()> {
+            tokio::spawn(async move {
+                let start_time = Instant::now();
+                let start_time_str = format!("{:?}", start_time);
+                
+                // Wrap the entire test in a catch_unwind to handle panics gracefully
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    test_get_proof_data_with_params(
+                        users,
+                        assets,
+                        dst_chain_ids,
+                        chain_ids,
+                        false,
+                        false,
+                        true,
+                        false,
+                    )
+                }));
+                
+                // Await the result
+                let test_result = match result {
+                    Ok(future) => Some(future.await),
+                    Err(_) => None,
+                };
+                
+                let end_time = Instant::now();
+                let end_time_str = format!("{:?}", end_time);
+                let total_time = end_time.duration_since(start_time);
+                let total_time_str = format!("{:?}", total_time);
+                
+                // Write to file
+                let mut file = OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("output.txt")
+                    .unwrap();
+                
+                match test_result {
+                    Some(_) => {
+                        writeln!(file, "Start: {}, End: {}, Total: {}, Users: {}, Status: SUCCESS", 
+                            start_time_str, end_time_str, total_time_str, total_users).unwrap();
+                    },
+                    None => {
+                        writeln!(file, "Start: {}, End: {}, Total: {}, Users: {}, Status: PANIC", 
+                            start_time_str, end_time_str, total_time_str, total_users).unwrap();
+                    }
+                }
+            })
+        }
+        
+        // Simple load test: 2 users on LINEA + 2 users on ETHEREUM, repeated every 15 seconds
+        let num_iterations = 200; // Change this to control how many times to run the test
+        
+        for iteration in 1..=num_iterations {
+            let users = vec![
+                test_users[..2].to_vec(), // 2 users on LINEA,
+                test_users[..2].to_vec(), // 2 users on ETHEREUM
+            ];
+            let assets = vec![
+                vec![WETH_MARKET; 2],
+                vec![WETH_MARKET; 2]
+            ];
+            let dst_chain_ids = vec![
+                vec![OPTIMISM_CHAIN_ID; 2],
+                vec![OPTIMISM_CHAIN_ID; 2]
+            ];
+            let chain_ids = vec![LINEA_CHAIN_ID, ETHEREUM_CHAIN_ID];
+            
+            let handle = spawn_test_task(
+                users,
+                assets,
+                dst_chain_ids,
+                chain_ids,
+                4, // 2 + 2 = 4 total users
+            ).await;
+            
+            handles.push(handle);
+            
+            // Wait 15 seconds before starting the next thread
+            sleep(Duration::from_secs(15)).await;
+        }
+        
+        // Wait for all threads to complete
+        for handle in handles {
+            // Don't unwrap here - just await and ignore panics
+            let _ = handle.await;
+        }
+    }
+
+    #[tokio::test]
+    // #[ignore]
     async fn test_prove_get_proof_data_boundless_on_linea() {
         test_get_proof_data_with_params(
             vec![vec![TEST_USER]],

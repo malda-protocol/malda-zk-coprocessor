@@ -1,0 +1,32 @@
+{
+  "execution_params": {
+    "num_iterations": 200,
+    "time_delay_secs": 15,
+    "chains": [
+      {
+        "name": "LINEA",
+        "chain_id": "LINEA_CHAIN_ID",
+        "num_users": 2,
+        "asset": "WETH_MARKET",
+        "dst_chain_id": "OPTIMISM_CHAIN_ID"
+      },
+      {
+        "name": "ETHEREUM",
+        "chain_id": "ETHEREUM_CHAIN_ID",
+        "num_users": 2,
+        "asset": "WETH_MARKET",
+        "dst_chain_id": "OPTIMISM_CHAIN_ID"
+      }
+    ]
+  },
+  "boundless_params": {
+    "client_builder": {
+      "max_price_per_cycle_gwei": "0.001",
+      "min_price_per_cycle_gwei": "0.000",
+      "ramp_up_period": "10",
+      "lock_timeout": "100",
+      "timeout": "300"
+    },
+    "bidding_start_delay_secs": 5
+  }
+}
