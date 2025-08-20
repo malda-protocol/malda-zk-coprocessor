@@ -118,8 +118,8 @@ impl Default for BoundlessParams {
             max_price_per_cycle: parse_units("0.001", "gwei").unwrap().try_into().unwrap(),
             min_price_per_cycle: parse_units("0.000", "gwei").unwrap().try_into().unwrap(),
             ramp_up_period: 10,
-            lock_timeout: 180,
-            timeout: 540,
+            lock_timeout: 600,
+            timeout: 1200,
             bidding_start_delay: 5,
         }
     }
@@ -423,6 +423,7 @@ pub async fn get_proof_data_prove_boundless(
         Url::parse(&program_url).context("Failed to parse PROGRAM_URL")?
     } else {
         tracing::info!("No PROGRAM_URL found, uploading program directly");
+        let image_id_hex: String =
         let program_url = client.upload_program(GET_PROOF_DATA_ELF).await?;
         tracing::info!("program uploaded to {}", program_url);
         program_url

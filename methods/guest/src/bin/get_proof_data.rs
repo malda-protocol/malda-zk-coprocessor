@@ -39,14 +39,14 @@ fn main() {
         let env_op_input_2: Option<EthEvmInput> = env::read();
 
         // This makes the guest program only compatible with mainnet chains, remove for testnet and enable the below testnet code
-        if chain_id != LINEA_CHAIN_ID && chain_id != BASE_CHAIN_ID && chain_id != ETHEREUM_CHAIN_ID && chain_id != OPTIMISM_CHAIN_ID {
-            panic!("Chain ID is not Linea, Base, Ethereum or Optimism");
-        }
+        // if chain_id != LINEA_CHAIN_ID && chain_id != BASE_CHAIN_ID && chain_id != ETHEREUM_CHAIN_ID && chain_id != OPTIMISM_CHAIN_ID {
+        //     panic!("Chain ID is not Linea, Base, Ethereum or Optimism");
+        // }
 
         // This makes the guest program only compatible with testnet chains, remove for mainnet and enable the above mainnet code
-        // if chain_id != LINEA_SEPOLIA_CHAIN_ID && chain_id != BASE_SEPOLIA_CHAIN_ID && chain_id != ETHEREUM_SEPOLIA_CHAIN_ID && chain_id != OPTIMISM_SEPOLIA_CHAIN_ID {
-        //     panic!("Chain ID is not Linea Sepolia, Base Sepolia, Ethereum Sepolia or Optimism Sepolia");
-        // }
+        if chain_id != LINEA_SEPOLIA_CHAIN_ID && chain_id != BASE_SEPOLIA_CHAIN_ID && chain_id != ETHEREUM_SEPOLIA_CHAIN_ID && chain_id != OPTIMISM_SEPOLIA_CHAIN_ID {
+            panic!("Chain ID is not Linea Sepolia, Base Sepolia, Ethereum Sepolia or Optimism Sepolia");
+        }
         
         validate_get_proof_data_call(chain_id, account, asset, target_chain_ids, env_input, sequencer_commitment, env_op_input, &linking_blocks, &mut output, &env_eth_input, op_evm_input, sequencer_commitment_opstack_2, env_op_input_2);
     }
