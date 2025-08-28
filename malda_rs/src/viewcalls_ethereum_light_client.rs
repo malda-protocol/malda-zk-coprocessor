@@ -42,7 +42,7 @@ fn rpc_url_ethereum() -> &'static str {
 }
 
 fn rpc_url_beacon() -> &'static str {
-    get_rpc_url("BEACON", false, false)
+    get_env_var("RPC_URL_BEACON")
 }
 
 /// Generates a zero-knowledge proof for a user's proof data query.

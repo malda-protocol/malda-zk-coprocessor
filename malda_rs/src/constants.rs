@@ -27,7 +27,7 @@ mod constants;
 pub use constants::*;
 
 /// Generic function to retrieve environment variables as static strings
-fn get_env_var(env_var: &str) -> &'static str {
+pub fn get_env_var(env_var: &str) -> &'static str {
     Box::leak(
         dotenvy::var(env_var)
             .unwrap_or_else(|_| panic!("{env_var} must be set in environment"))

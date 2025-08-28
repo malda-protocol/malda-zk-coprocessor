@@ -14,10 +14,11 @@
 #[cfg(test)]
 mod tests {
 
-    use alloy_primitives::{address, Address, Bytes, U256};
+    use alloy_primitives::{address, Address, Bytes, U256, B256};
     use hex;
     use malda_rs::{
         constants::*, viewcalls::{get_proof_data_exec, get_proof_data_prove_boundless, BoundlessParams},
+        viewcalls_ethereum_light_client::get_proof_data_exec as get_proof_data_exec_ethereum_light_client,
     };
 
     use alloy::sol_types::SolValue;
@@ -894,5 +895,29 @@ mod tests {
             false, // onchain = false for exec tests
         )
         .await;
+    }
+
+    #[tokio::test]
+    async fn prove_get_proof_data_on_ethereum_via_light_client() {
+        let user_ethereum = address!("F04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E");
+        let asset = WETH_MARKET_SEPOLIA;
+        let chain_id = ETHEREUM_CHAIN_ID;
+
+        // update this to recent available checkpoint
+        let trusted_hash_bytes: [u8; 32] = [0x9d, 0x57, 0xa7, 0x21, 0xfa, 0x75, 0xcc, 0xb5, 0xb1, 0x28, 0x97, 0x0b, 0xd7, 0x6e, 0x85, 0xaa, 0x25, 0xd9, 0xb6, 0x4a, 0xaf, 0x18, 0x78, 0x03, 0x7b, 0x4f, 0xc8, 0x68, 0xda, 0x7f, 0x9d, 0x5b];
+        let trusted_hash = B256::from(trusted_hash_bytes);
+
+        let session_info =
+            get_proof_data_exec_ethereum_light_client(user_ethereum, asset, chain_id, trusted_hash)
+                .await
+                .unwrap();
+
+        let cycles = session_info
+            .segments
+            .iter()
+            .map(|s| s.cycles as u64)
+            .sum::<u64>();
+        println!("Cycles: {}", cycles);
+        panic!("test");
     }
 }
