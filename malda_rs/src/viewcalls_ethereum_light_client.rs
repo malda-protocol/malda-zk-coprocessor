@@ -10,10 +10,12 @@
 use alloy_consensus::Header;
 use alloy_primitives::{Address, B256};
 
+use helios_ethereum::rpc::http_rpc::HttpRpc;
+use helios_ethereum::rpc::ConsensusRpc;
 use consensus_core::{
     calc_sync_period,
-    types::{Bootstrap, OptimisticUpdate, Update, BootstrapElectra, LightClientHeader, SyncCommittee, SyncAggregate},
     consensus_spec::MainnetConsensusSpec,
+    types::{Bootstrap, Update, OptimisticUpdate, BeaconBlock},
 };
 use ssz_types::FixedVector;
 
@@ -33,11 +35,6 @@ use crate::constants::*;
 use crate::elfs_ids::GET_PROOF_DATA_ETHEREUM_LIGHT_CLIENT_ELF;
 use crate::types::{IMaldaMarket, SequencerCommitment};
 
-// Add missing constants
-pub const SCROLL_CHAIN_ID: u64 = 534352;
-pub const SCROLL_SEPOLIA_CHAIN_ID: u64 = 534351;
-pub const REORG_PROTECTION_DEPTH_SCROLL: u64 = 2;
-pub const REORG_PROTECTION_DEPTH_SCROLL_SEPOLIA: u64 = 2;
 
 // Add RPC URL functions
 fn rpc_url_ethereum() -> &'static str {
@@ -144,30 +141,18 @@ pub async fn get_proof_data_zkvm_env(
         _ => panic!("Invalid chain ID"),
     };
 
-    // For now, we'll use placeholder data since we don't have the actual RPC implementation
-    // In a real implementation, you would use the actual RPC calls
+    let beacon_rpc = <HttpRpc as ConsensusRpc<MainnetConsensusSpec>>::new(rpc_url_beacon);
     let beacon_root = trusted_hash;
-    
-    // Create placeholder data structures - using default values for now
-    let bootstrap = Bootstrap::<MainnetConsensusSpec>::Electra(BootstrapElectra {
-        header: LightClientHeader::default(),
-        current_sync_committee: SyncCommittee::<MainnetConsensusSpec>::default(),
-        current_sync_committee_branch: FixedVector::from(vec![]),
-    });
-    
+    let bootstrap: Bootstrap<MainnetConsensusSpec> = beacon_rpc.get_bootstrap(beacon_root).await.unwrap();
     let current_period = calc_sync_period::<MainnetConsensusSpec>(bootstrap.header().beacon().slot);
-    
-    let updates: Vec<Update<MainnetConsensusSpec>> = vec![];
-    
-    // Create a simple placeholder for finality update
-    let finality_update = OptimisticUpdate::<MainnetConsensusSpec> {
-        attested_header: LightClientHeader::default(),
-        sync_aggregate: SyncAggregate::<MainnetConsensusSpec>::default(),
-        signature_slot: 0,
-    };
 
+    let updates: Vec<Update<MainnetConsensusSpec>> = beacon_rpc.get_updates(current_period, 10).await.unwrap();
+    let finality_update = beacon_rpc.get_optimistic_update().await.unwrap();
+
+    // let current_beacon_root = finality_update.attested_header.tree_root_hash();
     let beacon_block_slot = finality_update.attested_header.beacon().slot;
-    let block = 1000000; // Placeholder block number
+    let beacon_block: BeaconBlock<MainnetConsensusSpec> = beacon_rpc.get_block(beacon_block_slot).await.unwrap();
+    let block = beacon_block.body.execution_payload().block_number().clone();
 
     let linking_blocks = get_linking_blocks(chain_id, rpc_url, block).await;
     let proof_data_call_input =
@@ -226,12 +211,10 @@ pub async fn get_proof_data_call_input(
         BASE_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE,
         LINEA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA,
         ETHEREUM_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM,
-        SCROLL_CHAIN_ID => REORG_PROTECTION_DEPTH_SCROLL,
         OPTIMISM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM_SEPOLIA,
         BASE_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE_SEPOLIA,
         LINEA_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA_SEPOLIA,
         ETHEREUM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA,
-        SCROLL_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_SCROLL_SEPOLIA,
         _ => panic!("invalid chain id"),
     };
 
@@ -286,12 +269,10 @@ pub async fn get_linking_blocks(
         BASE_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE,
         LINEA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA,
         ETHEREUM_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM,
-        SCROLL_CHAIN_ID => REORG_PROTECTION_DEPTH_SCROLL,
         OPTIMISM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM_SEPOLIA,
         BASE_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE_SEPOLIA,
         LINEA_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA_SEPOLIA,
         ETHEREUM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA,
-        SCROLL_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_SCROLL_SEPOLIA,
         _ => panic!("invalid chain id"),
     };
 
