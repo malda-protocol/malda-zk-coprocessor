@@ -25,6 +25,7 @@ use risc0_steel::ethereum::EthEvmInput;
 use risc0_zkvm::guest::env;
 
 use consensus_core::types::{SyncAggregate, SyncCommittee};
+use consensus_core::consensus_spec::MainnetConsensusSpec;
 
 use crate::constants::*;
 use crate::types::*;
@@ -40,7 +41,7 @@ use risc0_steel::{
 /// bootstrap, sync committee updates, and optimistic updates.
 #[derive(Debug)]
 pub struct L1ChainBuilder {
-    pub store: LightClientStore,
+    pub store: LightClientStore<MainnetConsensusSpec>,
     pub last_checkpoint: Option<B256>,
     pub genesis_time: u64,
     pub genesis_root: B256,
@@ -85,10 +86,10 @@ impl L1ChainBuilder {
     /// * Latest beacon chain root after applying all updates
     pub fn build_beacon_chain(
         &mut self,
-        bootstrap: Bootstrap,
+        bootstrap: Bootstrap<MainnetConsensusSpec>,
         checkpoint: B256,
-        updates: Vec<Update>,
-        optimistic_update: OptimisticUpdate,
+        updates: Vec<Update<MainnetConsensusSpec>>,
+        optimistic_update: OptimisticUpdate<MainnetConsensusSpec>,
     ) -> Result<B256> {
         self.bootstrap(bootstrap, checkpoint)?;
         self.advance_updates(updates)?;
@@ -102,7 +103,7 @@ impl L1ChainBuilder {
     /// # Arguments
     /// * `bootstrap` - Bootstrap data containing initial header and sync committee
     /// * `checkpoint` - Trust checkpoint to verify against
-    pub fn bootstrap(&mut self, bootstrap: Bootstrap, checkpoint: B256) -> Result<()> {
+    pub fn bootstrap(&mut self, bootstrap: Bootstrap<MainnetConsensusSpec>, checkpoint: B256) -> Result<()> {
         verify_bootstrap(&bootstrap, checkpoint, &self.forks).unwrap();
         apply_bootstrap(&mut self.store, &bootstrap);
         Ok(())
@@ -112,7 +113,7 @@ impl L1ChainBuilder {
     ///
     /// # Arguments
     /// * `updates` - Vector of updates to apply
-    pub fn advance_updates(&mut self, updates: Vec<Update>) -> Result<()> {
+    pub fn advance_updates(&mut self, updates: Vec<Update<MainnetConsensusSpec>>) -> Result<()> {
         for update in updates {
             let res = self.verify_update(&update);
             if res.is_ok() {
@@ -127,7 +128,7 @@ impl L1ChainBuilder {
     ///
     /// # Arguments
     /// * `update` - Optimistic update to apply
-    pub fn advance_optimistic_update(&mut self, update: OptimisticUpdate) -> Result<()> {
+    pub fn advance_optimistic_update(&mut self, update: OptimisticUpdate<MainnetConsensusSpec>) -> Result<()> {
         let res = self.verify_optimistic_update(&update);
         if res.is_ok() {
             self.apply_optimistic_update(&update);
@@ -139,10 +140,10 @@ impl L1ChainBuilder {
     ///
     /// # Arguments
     /// * `update` - Update to verify
-    pub fn verify_update(&self, update: &Update) -> Result<()> {
+    pub fn verify_update(&self, update: &Update<MainnetConsensusSpec>) -> Result<()> {
         verify_update(
             update,
-            update.signature_slot,
+            *update.signature_slot(),
             &self.store,
             self.genesis_root,
             &self.forks,
@@ -153,7 +154,7 @@ impl L1ChainBuilder {
     ///
     /// # Arguments
     /// * `update` - Optimistic update to verify
-    fn verify_optimistic_update(&self, update: &OptimisticUpdate) -> Result<()> {
+    fn verify_optimistic_update(&self, update: &OptimisticUpdate<MainnetConsensusSpec>) -> Result<()> {
         verify_optimistic_update(
             update,
             update.signature_slot,
@@ -167,7 +168,7 @@ impl L1ChainBuilder {
     ///
     /// # Arguments
     /// * `update` - Verified update to apply
-    pub fn apply_update(&mut self, update: &Update) {
+    pub fn apply_update(&mut self, update: &Update<MainnetConsensusSpec>) {
         let new_checkpoint = apply_update(&mut self.store, update);
         if new_checkpoint.is_some() {
             self.last_checkpoint = Some(B256::new(new_checkpoint.unwrap().0));
@@ -178,7 +179,7 @@ impl L1ChainBuilder {
     ///
     /// # Arguments
     /// * `update` - Verified optimistic update to apply
-    fn apply_optimistic_update(&mut self, update: &OptimisticUpdate) {
+    fn apply_optimistic_update(&mut self, update: &OptimisticUpdate<MainnetConsensusSpec>) {
         let new_checkpoint = apply_optimistic_update(&mut self.store, update);
         if new_checkpoint.is_some() {
             self.last_checkpoint = Some(B256::new(new_checkpoint.unwrap().0));
@@ -198,52 +199,52 @@ impl L1ChainBuilder {
 /// # Returns
 /// Tuple containing all deserialized components needed for light client verification
 pub fn read_l1_chain_builder_input() -> (
-    Bootstrap,
+    Bootstrap<MainnetConsensusSpec>,
     B256,
-    Vec<Update>,
-    OptimisticUpdate,
+    Vec<Update<MainnetConsensusSpec>>,
+    OptimisticUpdate<MainnetConsensusSpec>,
     EthEvmInput,
 ) {
     let bootstrap_header: LightClientHeader = env::read();
-    let bootstrap_current_sync_committee: SyncCommittee = env::read();
+    let bootstrap_current_sync_committee: SyncCommittee<MainnetConsensusSpec> = env::read();
     let bootstrap_current_sync_committee_branch: Vec<B256> = env::read();
 
     let checkpoint: B256 = env::read();
 
     let finality_update_attested_header: LightClientHeader = env::read();
-    let finality_update_sync_aggregate: SyncAggregate = env::read();
+    let finality_update_sync_aggregate: SyncAggregate<MainnetConsensusSpec> = env::read();
     let finality_update_signature_slot: u64 = env::read();
 
     let update_len: usize = env::read();
-    let mut updates: Vec<Update> = Vec::new();
+    let mut updates: Vec<Update<MainnetConsensusSpec>> = Vec::new();
     for _ in 0..update_len {
         let update_attested_header: LightClientHeader = env::read();
-        let update_next_sync_committee: SyncCommittee = env::read();
+        let update_next_sync_committee: SyncCommittee<MainnetConsensusSpec> = env::read();
         let update_next_sync_committee_branch: Vec<B256> = env::read();
         let update_finalized_header: LightClientHeader = env::read();
         let update_finality_branch: Vec<B256> = env::read();
-        let update_sync_aggregate: SyncAggregate = env::read();
+        let update_sync_aggregate: SyncAggregate<MainnetConsensusSpec> = env::read();
         let update_signature_slot: u64 = env::read();
 
-        let update = Update {
-            attested_header: update_attested_header,
-            next_sync_committee: update_next_sync_committee,
-            next_sync_committee_branch: update_next_sync_committee_branch,
-            finalized_header: update_finalized_header,
-            finality_branch: update_finality_branch,
-            sync_aggregate: update_sync_aggregate,
-            signature_slot: update_signature_slot,
-        };
+        let update = Update::<MainnetConsensusSpec>::new(
+            update_attested_header,
+            update_next_sync_committee,
+            update_next_sync_committee_branch,
+            update_finalized_header,
+            update_finality_branch,
+            update_sync_aggregate,
+            update_signature_slot,
+        );
         updates.push(update);
     }
 
-    let bootstrap = Bootstrap {
-        header: bootstrap_header,
-        current_sync_committee: bootstrap_current_sync_committee,
-        current_sync_committee_branch: bootstrap_current_sync_committee_branch,
-    };
+    let bootstrap = Bootstrap::<MainnetConsensusSpec>::new(
+        bootstrap_header,
+        bootstrap_current_sync_committee,
+        bootstrap_current_sync_committee_branch,
+    );
 
-    let finality_update = OptimisticUpdate {
+    let finality_update = OptimisticUpdate::<MainnetConsensusSpec> {
         attested_header: finality_update_attested_header,
         sync_aggregate: finality_update_sync_aggregate,
         signature_slot: finality_update_signature_slot,
@@ -373,10 +374,10 @@ pub fn validate_get_proof_data_call(
 /// # Returns
 /// Tuple of (current beacon root, new checkpoint)
 pub fn validate_ethereum_env_via_sync_committee(
-    bootstrap: Bootstrap,
+    bootstrap: Bootstrap<MainnetConsensusSpec>,
     checkpoint: B256,
-    updates: Vec<Update>,
-    optimistic_update: OptimisticUpdate,
+    updates: Vec<Update<MainnetConsensusSpec>>,
+    optimistic_update: OptimisticUpdate<MainnetConsensusSpec>,
 ) -> (B256, B256) {
     let mut l1_chain_builder = L1ChainBuilder::new();
     let verified_root = l1_chain_builder

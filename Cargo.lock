@@ -2782,28 +2782,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "consensus-core"
-version = "0.6.1"
-dependencies = [
- "alloy",
- "bls12_381",
- "ethereum_ssz",
- "ethereum_ssz_derive",
- "eyre",
- "getrandom 0.2.16",
- "serde",
- "sha2 0.9.9",
- "ssz_types",
- "superstruct",
- "thiserror 1.0.69",
- "tracing",
- "tree_hash",
- "tree_hash_derive",
- "typenum",
- "zduny-wasm-timer",
-]
-
-[[package]]
 name = "const-hex"
 version = "1.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
