@@ -5322,6 +5322,7 @@ dependencies = [
  "boundless-market",
  "bytemuck",
  "clap",
+ "consensus-core",
  "dotenvy",
  "ethereum_ssz",
  "ethereum_ssz_derive",
