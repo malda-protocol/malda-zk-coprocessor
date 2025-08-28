@@ -11,7 +11,7 @@
 // use alloy_primitives::{Address, B256};
 // use alloy_primitives_old::B256 as OldB256;
 
-// use consensus::rpc::{nimbus_rpc::NimbusRpc, ConsensusRpc};
+// use helios_ethereum::consensus::rpc::{nimbus_rpc::NimbusRpc, ConsensusRpc};
 // use consensus_core::{
 //     calc_sync_period,
 //     types::{Bootstrap, OptimisticUpdate, Update},

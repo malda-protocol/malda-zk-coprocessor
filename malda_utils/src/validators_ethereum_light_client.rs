@@ -12,8 +12,10 @@ use consensus_core::{
 };
 
 pub use consensus_core::types::{
-    Bootstrap, Forks, LightClientHeader, LightClientStore, OptimisticUpdate, Update,
+    Bootstrap, BootstrapElectra, Forks, LightClientHeader, LightClientStore, OptimisticUpdate, Update, UpdateElectra
 };
+
+use ssz_types::FixedVector;
 
 use alloy_primitives::{b256, B256, fixed_bytes};
 use alloy_sol_types::sol;
@@ -226,23 +228,39 @@ pub fn read_l1_chain_builder_input() -> (
         let update_sync_aggregate: SyncAggregate<MainnetConsensusSpec> = env::read();
         let update_signature_slot: u64 = env::read();
 
-        let update = Update::<MainnetConsensusSpec>::new(
-            update_attested_header,
-            update_next_sync_committee,
-            update_next_sync_committee_branch,
-            update_finalized_header,
-            update_finality_branch,
-            update_sync_aggregate,
-            update_signature_slot,
-        );
+        // let update = Update::<MainnetConsensusSpec>::new(
+        //     update_attested_header,
+        //     update_next_sync_committee,
+        //     update_next_sync_committee_branch,
+        //     update_finalized_header,
+        //     update_finality_branch,
+        //     update_sync_aggregate,
+        //     update_signature_slot,
+        // );
+        let update = Update::Electra(UpdateElectra {
+            attested_header: update_attested_header,
+            next_sync_committee: update_next_sync_committee,
+            next_sync_committee_branch: FixedVector::from(update_next_sync_committee_branch),
+            finalized_header: update_finalized_header,
+            finality_branch: FixedVector::from(update_finality_branch),
+            sync_aggregate: update_sync_aggregate,
+            signature_slot: update_signature_slot,
+        });
         updates.push(update);
     }
 
-    let bootstrap = Bootstrap::<MainnetConsensusSpec>::new(
-        bootstrap_header,
-        bootstrap_current_sync_committee,
-        bootstrap_current_sync_committee_branch,
-    );
+    // let bootstrap = Bootstrap::<MainnetConsensusSpec>::new(
+    //     bootstrap_header,
+    //     bootstrap_current_sync_committee,
+    //     bootstrap_current_sync_committee_branch,
+    // );
+
+    // Create the Bootstrap::Electra variant
+    let bootstrap = Bootstrap::<MainnetConsensusSpec>::Electra(BootstrapElectra {
+        header: bootstrap_header,
+        current_sync_committee: bootstrap_current_sync_committee,
+        current_sync_committee_branch: FixedVector::from(bootstrap_current_sync_committee_branch),
+    });
 
     let finality_update = OptimisticUpdate::<MainnetConsensusSpec> {
         attested_header: finality_update_attested_header,
