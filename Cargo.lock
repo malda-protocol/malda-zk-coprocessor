@@ -245,6 +245,8 @@ dependencies = [
  "c-kzg",
  "derive_more 2.0.1",
  "either",
+ "ethereum_ssz",
+ "ethereum_ssz_derive",
  "serde",
  "sha2 0.10.9",
 ]
@@ -583,6 +585,7 @@ checksum = "c000cab4ec26a4b3e29d144e999e1c539c2fa0abed871bf90311eb3466187ca8"
 dependencies = [
  "alloy-primitives 1.2.0",
  "alloy-rpc-types-anvil",
+ "alloy-rpc-types-beacon",
  "alloy-rpc-types-engine",
  "alloy-rpc-types-eth",
  "alloy-rpc-types-trace",
@@ -615,6 +618,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "alloy-rpc-types-beacon"
+version = "1.0.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "149a5c4d1f3aed206cf736c7538e67962196cf474e53a5352cdc49f7694b86a4"
+dependencies = [
+ "alloy-eips",
+ "alloy-primitives 1.2.0",
+ "alloy-rpc-types-engine",
+ "ethereum_ssz",
+ "ethereum_ssz_derive",
+ "serde",
+ "serde_with",
+ "thiserror 2.0.12",
+ "tree_hash",
+ "tree_hash_derive",
+]
+
+[[package]]
 name = "alloy-rpc-types-debug"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -636,6 +657,8 @@ dependencies = [
  "alloy-rlp",
  "alloy-serde",
  "derive_more 2.0.1",
+ "ethereum_ssz",
+ "ethereum_ssz_derive",
  "jsonwebtoken 9.3.1",
  "rand 0.8.5",
  "serde",
@@ -2164,6 +2187,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "bls12_381"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7bc6d6292be3a19e6379786dac800f551e5865a5bb51ebbe3064ab80433f403"
+dependencies = [
+ "digest 0.9.0",
+ "ff 0.13.1",
+ "group 0.13.0",
+ "pairing",
+ "rand_core 0.6.4",
+ "subtle",
+]
+
+[[package]]
 name = "blst"
 version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2496,7 +2533,7 @@ dependencies = [
  "anstream",
  "anstyle",
  "clap_lex",
- "strsim",
+ "strsim 0.11.1",
 ]
 
 [[package]]
@@ -2597,6 +2634,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ca0197aee26d1ae37445ee532fefce43251d24cc7c166799f4d46817f1d3973"
 dependencies = [
  "crossbeam-utils",
+]
+
+[[package]]
+name = "consensus-core"
+version = "0.6.1"
+dependencies = [
+ "alloy",
+ "bls12_381",
+ "ethereum_ssz",
+ "ethereum_ssz_derive",
+ "eyre",
+ "getrandom 0.2.16",
+ "serde",
+ "sha2 0.9.9",
+ "ssz_types",
+ "superstruct",
+ "thiserror 1.0.69",
+ "tracing",
+ "tree_hash",
+ "tree_hash_derive",
+ "typenum",
+ "zduny-wasm-timer",
 ]
 
 [[package]]
@@ -2827,12 +2886,36 @@ dependencies = [
 
 [[package]]
 name = "darling"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a01d95850c592940db9b8194bc39f4bc0e89dee5c4265e4b1807c34a9aba453c"
+dependencies = [
+ "darling_core 0.13.4",
+ "darling_macro 0.13.4",
+]
+
+[[package]]
+name = "darling"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc7f46116c46ff9ab3eb1597a45688b6715c6e628b5c133e288e709a29bcb4ee"
 dependencies = [
- "darling_core",
- "darling_macro",
+ "darling_core 0.20.11",
+ "darling_macro 0.20.11",
+]
+
+[[package]]
+name = "darling_core"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "859d65a907b6852c9361e3185c862aae7fafd2887876799fa55f5f99dc40d610"
+dependencies = [
+ "fnv",
+ "ident_case",
+ "proc-macro2",
+ "quote",
+ "strsim 0.10.0",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -2845,8 +2928,19 @@ dependencies = [
  "ident_case",
  "proc-macro2",
  "quote",
- "strsim",
+ "strsim 0.11.1",
  "syn 2.0.103",
+]
+
+[[package]]
+name = "darling_macro"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c972679f83bdf9c42bd905396b6c3588a843a17f0f16dfcfa3e2c5d57441835"
+dependencies = [
+ "darling_core 0.13.4",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -2855,7 +2949,7 @@ version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
 dependencies = [
- "darling_core",
+ "darling_core 0.20.11",
  "quote",
  "syn 2.0.103",
 ]
@@ -2947,7 +3041,7 @@ version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d5bcf7b024d6835cfb3d473887cd966994907effbe9227e8c8219824d06c4e8"
 dependencies = [
- "darling",
+ "darling 0.20.11",
  "proc-macro2",
  "quote",
  "syn 2.0.103",
@@ -3518,7 +3612,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0dd55d08012b4e0dfcc92b8d6081234df65f2986ad34cc76eeed69c5e2ce7506"
 dependencies = [
- "darling",
+ "darling 0.20.11",
  "proc-macro2",
  "quote",
  "syn 2.0.103",
@@ -3853,6 +3947,7 @@ version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0b50bfb653653f9ca9095b427bed08ab8d75a137839d9ad64eb11810d5b6393"
 dependencies = [
+ "bitvec",
  "rand_core 0.6.4",
  "subtle",
 ]
@@ -5249,7 +5344,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber 0.3.19",
- "tree_hash 0.7.0",
+ "tree_hash",
  "url",
 ]
 
@@ -5261,6 +5356,7 @@ dependencies = [
  "alloy-primitives 1.2.0",
  "alloy-rlp",
  "alloy-sol-types",
+ "consensus-core",
  "derive_more 1.0.0",
  "ethereum_ssz",
  "ethereum_ssz_derive",
@@ -5274,7 +5370,7 @@ dependencies = [
  "serde",
  "snap",
  "ssz_types",
- "tree_hash 0.7.0",
+ "tree_hash",
  "url",
 ]
 
@@ -5842,6 +5938,15 @@ dependencies = [
  "elliptic-curve 0.13.8",
  "primeorder",
  "sha2 0.10.9",
+]
+
+[[package]]
+name = "pairing"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81fec4625e73cf41ef4bb6846cafa6d44736525f442ba45e407c4a000a13996f"
+dependencies = [
+ "group 0.13.0",
 ]
 
 [[package]]
@@ -7994,7 +8099,7 @@ version = "3.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81679d9ed988d5e9a5e6531dc3f2c28efbd639cbd1dfb628df08edea6004da77"
 dependencies = [
- "darling",
+ "darling 0.20.11",
  "proc-macro2",
  "quote",
  "syn 2.0.103",
@@ -8273,7 +8378,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "smallvec",
- "tree_hash 0.10.0",
+ "tree_hash",
  "typenum",
 ]
 
@@ -8310,6 +8415,12 @@ dependencies = [
  "phf_shared",
  "precomputed-hash",
 ]
+
+[[package]]
+name = "strsim"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "strsim"
@@ -8366,6 +8477,20 @@ name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
+
+[[package]]
+name = "superstruct"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f4e1f478a7728f8855d7e620e9a152cf8932c6614f86564c886f9b8141f3201"
+dependencies = [
+ "darling 0.13.4",
+ "itertools 0.10.5",
+ "proc-macro2",
+ "quote",
+ "smallvec",
+ "syn 1.0.109",
+]
 
 [[package]]
 name = "svm-rs"
@@ -8985,17 +9110,6 @@ dependencies = [
 
 [[package]]
 name = "tree_hash"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f113108f55d589941862727b5a74f75276a54c157060983611d99f7f7fa6368"
-dependencies = [
- "alloy-primitives 0.7.7",
- "ethereum_hashing 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "smallvec",
-]
-
-[[package]]
-name = "tree_hash"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee44f4cef85f88b4dea21c0b1f58320bdf35715cf56d840969487cff00613321"
@@ -9005,6 +9119,18 @@ dependencies = [
  "ethereum_ssz",
  "smallvec",
  "typenum",
+]
+
+[[package]]
+name = "tree_hash_derive"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bee2ea1551f90040ab0e34b6fb7f2fa3bad8acc925837ac654f2c78a13e3089"
+dependencies = [
+ "darling 0.20.11",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.103",
 ]
 
 [[package]]
@@ -9837,6 +9963,21 @@ dependencies = [
  "quote",
  "syn 2.0.103",
  "synstructure 0.13.2",
+]
+
+[[package]]
+name = "zduny-wasm-timer"
+version = "0.2.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f52bd30296679f51dce4a4da2a5050d9401d09866d89b89d860da37bc3ec08df"
+dependencies = [
+ "futures",
+ "js-sys",
+ "parking_lot",
+ "pin-utils",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]

@@ -28,5 +28,8 @@ pub mod types;
 /// Validation and verification utilities
 pub mod validators;
 
+/// Ethereum light client validators
+pub mod validators_ethereum_light_client;
+
 /// Cryptographic operations and primitives
 pub mod cryptography;
