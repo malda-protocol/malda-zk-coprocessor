@@ -503,7 +503,7 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
- "wasmtimer",
+ "wasmtimer 0.4.1",
 ]
 
 [[package]]
@@ -524,7 +524,7 @@ dependencies = [
  "tokio-stream",
  "tower",
  "tracing",
- "wasmtimer",
+ "wasmtimer 0.4.1",
 ]
 
 [[package]]
@@ -574,7 +574,7 @@ dependencies = [
  "tracing",
  "tracing-futures",
  "url",
- "wasmtimer",
+ "wasmtimer 0.4.1",
 ]
 
 [[package]]
@@ -846,7 +846,7 @@ dependencies = [
  "tower",
  "tracing",
  "url",
- "wasmtimer",
+ "wasmtimer 0.4.1",
 ]
 
 [[package]]
@@ -4394,6 +4394,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
+name = "helios-consensus-core"
+version = "0.9.0"
+dependencies = [
+ "alloy",
+ "alloy-rlp",
+ "bls12_381",
+ "ethereum_ssz",
+ "ethereum_ssz_derive",
+ "eyre",
+ "getrandom 0.2.16",
+ "serde",
+ "sha2 0.9.9",
+ "ssz_types",
+ "superstruct",
+ "thiserror 1.0.69",
+ "tracing",
+ "tree_hash",
+ "tree_hash_derive",
+ "typenum",
+ "wasmtimer 0.2.1",
+ "zduny-wasm-timer",
+]
+
+[[package]]
 name = "hermit-abi"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5322,13 +5346,13 @@ dependencies = [
  "boundless-market",
  "bytemuck",
  "clap",
- "consensus-core",
  "dotenvy",
  "ethereum_ssz",
  "ethereum_ssz_derive",
  "ethers",
  "eyre",
  "futures",
+ "helios-consensus-core",
  "hex",
  "k256 0.13.4",
  "log",
@@ -5357,11 +5381,11 @@ dependencies = [
  "alloy-primitives 1.2.0",
  "alloy-rlp",
  "alloy-sol-types",
- "consensus-core",
  "derive_more 1.0.0",
  "ethereum_ssz",
  "ethereum_ssz_derive",
  "eyre",
+ "helios-consensus-core",
  "hex",
  "k256 0.13.4",
  "revm 25.0.0",
@@ -9521,6 +9545,20 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "wasmtimer"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7ed9d8b15c7fb594d72bfb4b5a276f3d2029333cd93a932f376f5937f6f80ee"
+dependencies = [
+ "futures",
+ "js-sys",
+ "parking_lot",
+ "pin-utils",
+ "slab",
+ "wasm-bindgen",
 ]
 
 [[package]]

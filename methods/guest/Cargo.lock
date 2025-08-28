@@ -315,9 +315,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-rlp"
-version = "0.3.10"
+version = "0.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f542548a609dca89fcd72b3b9f355928cf844d4363c5eed9c5273a3dd225e097"
+checksum = "5f70d83b765fdc080dbcd4f4db70d8d23fe4761f2f02ebfa9146b833900634b4"
 dependencies = [
  "alloy-rlp-derive",
  "arrayvec",
@@ -326,9 +326,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-rlp-derive"
-version = "0.3.10"
+version = "0.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a833d97bf8a5f0f878daf2c8451fff7de7f9de38baa5a45d936ec718d81255a"
+checksum = "64b728d511962dda67c1bc7ea7c03736ec275ed2cf4c35d9585298ac9ccf3b73"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1288,28 +1288,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 
 [[package]]
-name = "consensus-core"
-version = "0.6.1"
-dependencies = [
- "alloy",
- "bls12_381",
- "ethereum_ssz",
- "ethereum_ssz_derive",
- "eyre",
- "getrandom 0.2.15",
- "serde",
- "sha2 0.9.9",
- "ssz_types",
- "superstruct",
- "thiserror 1.0.61",
- "tracing",
- "tree_hash",
- "tree_hash_derive",
- "typenum",
- "zduny-wasm-timer",
-]
-
-[[package]]
 name = "const-hex"
 version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2122,6 +2100,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
+name = "helios-consensus-core"
+version = "0.9.0"
+dependencies = [
+ "alloy",
+ "alloy-rlp",
+ "bls12_381",
+ "ethereum_ssz",
+ "ethereum_ssz_derive",
+ "eyre",
+ "getrandom 0.2.15",
+ "serde",
+ "sha2 0.9.9",
+ "ssz_types",
+ "superstruct",
+ "thiserror 1.0.61",
+ "tracing",
+ "tree_hash",
+ "tree_hash_derive",
+ "typenum",
+ "wasmtimer",
+ "zduny-wasm-timer",
+]
+
+[[package]]
 name = "hermit-abi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2565,11 +2567,11 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "alloy-sol-types",
- "consensus-core",
  "derive_more 1.0.0",
  "ethereum_ssz",
  "ethereum_ssz_derive",
  "eyre",
+ "helios-consensus-core",
  "hex",
  "k256",
  "revm 25.0.0",
@@ -4887,6 +4889,20 @@ name = "wasm-bindgen-shared"
 version = "0.2.99"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "943aab3fdaaa029a6e0271b35ea10b72b943135afe9bffca82384098ad0e06a6"
+
+[[package]]
+name = "wasmtimer"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7ed9d8b15c7fb594d72bfb4b5a276f3d2029333cd93a932f376f5937f6f80ee"
+dependencies = [
+ "futures",
+ "js-sys",
+ "parking_lot",
+ "pin-utils",
+ "slab",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "web-sys"

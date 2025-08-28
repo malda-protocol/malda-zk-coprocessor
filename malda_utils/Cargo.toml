@@ -28,5 +28,5 @@ revm = { workspace = true }
 tree_hash = { workspace = true }
 derive_more = { workspace = true }
 
-consensus-core = { path = "../consensus-core" }
+consensus-core = { path = "../../helios/ethereum/consensus-core", package = "helios-consensus-core" }
 
