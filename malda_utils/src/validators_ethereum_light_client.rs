@@ -45,16 +45,22 @@ fn read_light_client_header() -> LightClientHeader {
     match variant {
         0 => {
             // Bellatrix variant - only has beacon field
+            println!("Reading Bellatrix beacon header");
             let beacon: consensus_core::types::BeaconBlockHeader = env::read();
+            println!("Read Bellatrix beacon header successfully");
             LightClientHeader::Bellatrix(consensus_core::types::LightClientHeaderBellatrix {
                 beacon,
             })
         }
         1 => {
             // Capella variant - has beacon, execution, and execution_branch
+            println!("Reading Capella beacon header");
             let beacon: consensus_core::types::BeaconBlockHeader = env::read();
+            println!("Read Capella beacon header, now reading execution payload header");
             let execution = read_execution_payload_header();
+            println!("Read Capella execution payload header, now reading execution branch");
             let execution_branch: Vec<B256> = env::read();
+            println!("Read Capella execution branch successfully");
             LightClientHeader::Capella(consensus_core::types::LightClientHeaderCapella {
                 beacon,
                 execution,
@@ -63,9 +69,13 @@ fn read_light_client_header() -> LightClientHeader {
         }
         2 => {
             // Deneb variant
+            println!("Reading Deneb beacon header");
             let beacon: consensus_core::types::BeaconBlockHeader = env::read();
+            println!("Read Deneb beacon header, now reading execution payload header");
             let execution = read_execution_payload_header();
+            println!("Read Deneb execution payload header, now reading execution branch");
             let execution_branch: Vec<B256> = env::read();
+            println!("Read Deneb execution branch successfully");
             LightClientHeader::Deneb(consensus_core::types::LightClientHeaderDeneb {
                 beacon,
                 execution,
@@ -74,9 +84,13 @@ fn read_light_client_header() -> LightClientHeader {
         }
         3 => {
             // Electra variant
+            println!("Reading Electra beacon header");
             let beacon: consensus_core::types::BeaconBlockHeader = env::read();
+            println!("Read Electra beacon header, now reading execution payload header");
             let execution = read_execution_payload_header();
+            println!("Read Electra execution payload header, now reading execution branch");
             let execution_branch: Vec<B256> = env::read();
+            println!("Read Electra execution branch successfully");
             LightClientHeader::Electra(consensus_core::types::LightClientHeaderElectra {
                 beacon,
                 execution,
@@ -94,95 +108,161 @@ fn read_execution_payload_header() -> consensus_core::types::ExecutionPayloadHea
     
     match variant {
         0 => {
-            // Bellatrix variant - basic fields only
-            // Read all fields but use default for now
-            let _parent_hash: B256 = env::read();
-            let _fee_recipient: Address = env::read();
-            let _state_root: B256 = env::read();
-            let _receipts_root: B256 = env::read();
-            let _logs_bloom: consensus_core::types::LogsBloom = env::read();
-            let _prev_randao: B256 = env::read();
-            let _block_number: u64 = env::read();
-            let _gas_limit: u64 = env::read();
-            let _gas_used: u64 = env::read();
-            let _timestamp: u64 = env::read();
-            let _extra_data: Vec<u8> = env::read();
-            let _base_fee_per_gas: alloy_primitives::U256 = env::read();
-            let _block_hash: B256 = env::read();
-            let _transactions_root: B256 = env::read();
+            // Bellatrix variant - read all fields
+            let parent_hash: B256 = env::read();
+            let fee_recipient: Address = env::read();
+            let state_root: B256 = env::read();
+            let receipts_root: B256 = env::read();
+            let logs_bloom: consensus_core::types::LogsBloom = env::read();
+            let prev_randao: B256 = env::read();
+            let block_number: u64 = env::read();
+            let gas_limit: u64 = env::read();
+            let gas_used: u64 = env::read();
+            let timestamp: u64 = env::read();
+            let extra_data: Vec<u8> = env::read();
+            let base_fee_per_gas: alloy_primitives::U256 = env::read();
+            let block_hash: B256 = env::read();
+            let transactions_root: B256 = env::read();
             
             consensus_core::types::ExecutionPayloadHeader::Bellatrix(
-                consensus_core::types::ExecutionPayloadHeaderBellatrix::default()
+                consensus_core::types::ExecutionPayloadHeaderBellatrix {
+                    parent_hash,
+                    fee_recipient,
+                    state_root,
+                    receipts_root,
+                    logs_bloom,
+                    prev_randao,
+                    block_number,
+                    gas_limit,
+                    gas_used,
+                    timestamp,
+                    extra_data: consensus_core::types::ByteList::from(extra_data),
+                    base_fee_per_gas,
+                    block_hash,
+                    transactions_root,
+                }
             )
         }
         1 => {
-            // Capella variant - includes withdrawals_root
-            let _parent_hash: B256 = env::read();
-            let _fee_recipient: Address = env::read();
-            let _state_root: B256 = env::read();
-            let _receipts_root: B256 = env::read();
-            let _logs_bloom: consensus_core::types::LogsBloom = env::read();
-            let _prev_randao: B256 = env::read();
-            let _block_number: u64 = env::read();
-            let _gas_limit: u64 = env::read();
-            let _gas_used: u64 = env::read();
-            let _timestamp: u64 = env::read();
-            let _extra_data: Vec<u8> = env::read();
-            let _base_fee_per_gas: alloy_primitives::U256 = env::read();
-            let _block_hash: B256 = env::read();
-            let _transactions_root: B256 = env::read();
-            let _withdrawals_root: B256 = env::read();
+            // Capella variant - read all fields
+            let parent_hash: B256 = env::read();
+            let fee_recipient: Address = env::read();
+            let state_root: B256 = env::read();
+            let receipts_root: B256 = env::read();
+            let logs_bloom: consensus_core::types::LogsBloom = env::read();
+            let prev_randao: B256 = env::read();
+            let block_number: u64 = env::read();
+            let gas_limit: u64 = env::read();
+            let gas_used: u64 = env::read();
+            let timestamp: u64 = env::read();
+            let extra_data: Vec<u8> = env::read();
+            let base_fee_per_gas: alloy_primitives::U256 = env::read();
+            let block_hash: B256 = env::read();
+            let transactions_root: B256 = env::read();
+            let withdrawals_root: B256 = env::read();
             
             consensus_core::types::ExecutionPayloadHeader::Capella(
-                consensus_core::types::ExecutionPayloadHeaderCapella::default()
+                consensus_core::types::ExecutionPayloadHeaderCapella {
+                    parent_hash,
+                    fee_recipient,
+                    state_root,
+                    receipts_root,
+                    logs_bloom,
+                    prev_randao,
+                    block_number,
+                    gas_limit,
+                    gas_used,
+                    timestamp,
+                    extra_data: consensus_core::types::ByteList::from(extra_data),
+                    base_fee_per_gas,
+                    block_hash,
+                    transactions_root,
+                    withdrawals_root,
+                }
             )
         }
         2 => {
-            // Deneb variant - includes blob_gas_used and excess_blob_gas
-            let _parent_hash: B256 = env::read();
-            let _fee_recipient: Address = env::read();
-            let _state_root: B256 = env::read();
-            let _receipts_root: B256 = env::read();
-            let _logs_bloom: consensus_core::types::LogsBloom = env::read();
-            let _prev_randao: B256 = env::read();
-            let _block_number: u64 = env::read();
-            let _gas_limit: u64 = env::read();
-            let _gas_used: u64 = env::read();
-            let _timestamp: u64 = env::read();
-            let _extra_data: Vec<u8> = env::read();
-            let _base_fee_per_gas: alloy_primitives::U256 = env::read();
-            let _block_hash: B256 = env::read();
-            let _transactions_root: B256 = env::read();
-            let _withdrawals_root: B256 = env::read();
-            let _blob_gas_used: u64 = env::read();
-            let _excess_blob_gas: u64 = env::read();
+            // Deneb variant - read all fields
+            let parent_hash: B256 = env::read();
+            let fee_recipient: Address = env::read();
+            let state_root: B256 = env::read();
+            let receipts_root: B256 = env::read();
+            let logs_bloom: consensus_core::types::LogsBloom = env::read();
+            let prev_randao: B256 = env::read();
+            let block_number: u64 = env::read();
+            let gas_limit: u64 = env::read();
+            let gas_used: u64 = env::read();
+            let timestamp: u64 = env::read();
+            let extra_data: Vec<u8> = env::read();
+            let base_fee_per_gas: alloy_primitives::U256 = env::read();
+            let block_hash: B256 = env::read();
+            let transactions_root: B256 = env::read();
+            let withdrawals_root: B256 = env::read();
+            let blob_gas_used: u64 = env::read();
+            let excess_blob_gas: u64 = env::read();
             
             consensus_core::types::ExecutionPayloadHeader::Deneb(
-                consensus_core::types::ExecutionPayloadHeaderDeneb::default()
+                consensus_core::types::ExecutionPayloadHeaderDeneb {
+                    parent_hash,
+                    fee_recipient,
+                    state_root,
+                    receipts_root,
+                    logs_bloom,
+                    prev_randao,
+                    block_number,
+                    gas_limit,
+                    gas_used,
+                    timestamp,
+                    extra_data: consensus_core::types::ByteList::from(extra_data),
+                    base_fee_per_gas,
+                    block_hash,
+                    transactions_root,
+                    withdrawals_root,
+                    blob_gas_used,
+                    excess_blob_gas,
+                }
             )
         }
         3 => {
-            // Electra variant - same as Deneb
-            let _parent_hash: B256 = env::read();
-            let _fee_recipient: Address = env::read();
-            let _state_root: B256 = env::read();
-            let _receipts_root: B256 = env::read();
-            let _logs_bloom: consensus_core::types::LogsBloom = env::read();
-            let _prev_randao: B256 = env::read();
-            let _block_number: u64 = env::read();
-            let _gas_limit: u64 = env::read();
-            let _gas_used: u64 = env::read();
-            let _timestamp: u64 = env::read();
-            let _extra_data: Vec<u8> = env::read();
-            let _base_fee_per_gas: alloy_primitives::U256 = env::read();
-            let _block_hash: B256 = env::read();
-            let _transactions_root: B256 = env::read();
-            let _withdrawals_root: B256 = env::read();
-            let _blob_gas_used: u64 = env::read();
-            let _excess_blob_gas: u64 = env::read();
+            // Electra variant - read all fields
+            let parent_hash: B256 = env::read();
+            let fee_recipient: Address = env::read();
+            let state_root: B256 = env::read();
+            let receipts_root: B256 = env::read();
+            let logs_bloom: consensus_core::types::LogsBloom = env::read();
+            let prev_randao: B256 = env::read();
+            let block_number: u64 = env::read();
+            let gas_limit: u64 = env::read();
+            let gas_used: u64 = env::read();
+            let timestamp: u64 = env::read();
+            let extra_data: Vec<u8> = env::read();
+            let base_fee_per_gas: alloy_primitives::U256 = env::read();
+            let block_hash: B256 = env::read();
+            let transactions_root: B256 = env::read();
+            let withdrawals_root: B256 = env::read();
+            let blob_gas_used: u64 = env::read();
+            let excess_blob_gas: u64 = env::read();
             
             consensus_core::types::ExecutionPayloadHeader::Electra(
-                consensus_core::types::ExecutionPayloadHeaderElectra::default()
+                consensus_core::types::ExecutionPayloadHeaderElectra {
+                    parent_hash,
+                    fee_recipient,
+                    state_root,
+                    receipts_root,
+                    logs_bloom,
+                    prev_randao,
+                    block_number,
+                    gas_limit,
+                    gas_used,
+                    timestamp,
+                    extra_data: consensus_core::types::ByteList::from(extra_data),
+                    base_fee_per_gas,
+                    block_hash,
+                    transactions_root,
+                    withdrawals_root,
+                    blob_gas_used,
+                    excess_blob_gas,
+                }
             )
         }
         _ => panic!("Invalid ExecutionPayloadHeader variant: {}", variant),
