@@ -900,7 +900,7 @@ mod tests {
     #[tokio::test]
     async fn prove_get_proof_data_on_ethereum_via_light_client() {
         let user_ethereum = address!("F04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E");
-        let asset = WETH_MARKET_SEPOLIA;
+        let asset = WETH_MARKET;
         let chain_id = ETHEREUM_CHAIN_ID;
 
         // update this to recent available checkpoint

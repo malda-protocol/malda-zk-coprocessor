@@ -37,6 +37,158 @@ use risc0_steel::{serde::RlpHeader, Contract};
 use risc0_steel::{
     ethereum::ETH_MAINNET_CHAIN_SPEC};
 
+/// Helper function to read LightClientHeader by deconstructing its fields
+fn read_light_client_header() -> LightClientHeader {
+    let variant: u8 = env::read(); // 0 = Bellatrix, 1 = Capella, 2 = Deneb, 3 = Electra
+    println!("Reading LightClientHeader variant: {}", variant);
+    
+    match variant {
+        0 => {
+            // Bellatrix variant - only has beacon field
+            let beacon: consensus_core::types::BeaconBlockHeader = env::read();
+            LightClientHeader::Bellatrix(consensus_core::types::LightClientHeaderBellatrix {
+                beacon,
+            })
+        }
+        1 => {
+            // Capella variant - has beacon, execution, and execution_branch
+            let beacon: consensus_core::types::BeaconBlockHeader = env::read();
+            let execution = read_execution_payload_header();
+            let execution_branch: Vec<B256> = env::read();
+            LightClientHeader::Capella(consensus_core::types::LightClientHeaderCapella {
+                beacon,
+                execution,
+                execution_branch: FixedVector::from(execution_branch),
+            })
+        }
+        2 => {
+            // Deneb variant
+            let beacon: consensus_core::types::BeaconBlockHeader = env::read();
+            let execution = read_execution_payload_header();
+            let execution_branch: Vec<B256> = env::read();
+            LightClientHeader::Deneb(consensus_core::types::LightClientHeaderDeneb {
+                beacon,
+                execution,
+                execution_branch: FixedVector::from(execution_branch),
+            })
+        }
+        3 => {
+            // Electra variant
+            let beacon: consensus_core::types::BeaconBlockHeader = env::read();
+            let execution = read_execution_payload_header();
+            let execution_branch: Vec<B256> = env::read();
+            LightClientHeader::Electra(consensus_core::types::LightClientHeaderElectra {
+                beacon,
+                execution,
+                execution_branch: FixedVector::from(execution_branch),
+            })
+        }
+        _ => panic!("Invalid LightClientHeader variant: {}", variant),
+    }
+}
+
+/// Helper function to read ExecutionPayloadHeader by deconstructing its fields
+fn read_execution_payload_header() -> consensus_core::types::ExecutionPayloadHeader {
+    let variant: u8 = env::read(); // 0 = Bellatrix, 1 = Capella, 2 = Deneb, 3 = Electra
+    println!("Reading ExecutionPayloadHeader variant: {}", variant);
+    
+    match variant {
+        0 => {
+            // Bellatrix variant - basic fields only
+            // Read all fields but use default for now
+            let _parent_hash: B256 = env::read();
+            let _fee_recipient: Address = env::read();
+            let _state_root: B256 = env::read();
+            let _receipts_root: B256 = env::read();
+            let _logs_bloom: consensus_core::types::LogsBloom = env::read();
+            let _prev_randao: B256 = env::read();
+            let _block_number: u64 = env::read();
+            let _gas_limit: u64 = env::read();
+            let _gas_used: u64 = env::read();
+            let _timestamp: u64 = env::read();
+            let _extra_data: Vec<u8> = env::read();
+            let _base_fee_per_gas: alloy_primitives::U256 = env::read();
+            let _block_hash: B256 = env::read();
+            let _transactions_root: B256 = env::read();
+            
+            consensus_core::types::ExecutionPayloadHeader::Bellatrix(
+                consensus_core::types::ExecutionPayloadHeaderBellatrix::default()
+            )
+        }
+        1 => {
+            // Capella variant - includes withdrawals_root
+            let _parent_hash: B256 = env::read();
+            let _fee_recipient: Address = env::read();
+            let _state_root: B256 = env::read();
+            let _receipts_root: B256 = env::read();
+            let _logs_bloom: consensus_core::types::LogsBloom = env::read();
+            let _prev_randao: B256 = env::read();
+            let _block_number: u64 = env::read();
+            let _gas_limit: u64 = env::read();
+            let _gas_used: u64 = env::read();
+            let _timestamp: u64 = env::read();
+            let _extra_data: Vec<u8> = env::read();
+            let _base_fee_per_gas: alloy_primitives::U256 = env::read();
+            let _block_hash: B256 = env::read();
+            let _transactions_root: B256 = env::read();
+            let _withdrawals_root: B256 = env::read();
+            
+            consensus_core::types::ExecutionPayloadHeader::Capella(
+                consensus_core::types::ExecutionPayloadHeaderCapella::default()
+            )
+        }
+        2 => {
+            // Deneb variant - includes blob_gas_used and excess_blob_gas
+            let _parent_hash: B256 = env::read();
+            let _fee_recipient: Address = env::read();
+            let _state_root: B256 = env::read();
+            let _receipts_root: B256 = env::read();
+            let _logs_bloom: consensus_core::types::LogsBloom = env::read();
+            let _prev_randao: B256 = env::read();
+            let _block_number: u64 = env::read();
+            let _gas_limit: u64 = env::read();
+            let _gas_used: u64 = env::read();
+            let _timestamp: u64 = env::read();
+            let _extra_data: Vec<u8> = env::read();
+            let _base_fee_per_gas: alloy_primitives::U256 = env::read();
+            let _block_hash: B256 = env::read();
+            let _transactions_root: B256 = env::read();
+            let _withdrawals_root: B256 = env::read();
+            let _blob_gas_used: u64 = env::read();
+            let _excess_blob_gas: u64 = env::read();
+            
+            consensus_core::types::ExecutionPayloadHeader::Deneb(
+                consensus_core::types::ExecutionPayloadHeaderDeneb::default()
+            )
+        }
+        3 => {
+            // Electra variant - same as Deneb
+            let _parent_hash: B256 = env::read();
+            let _fee_recipient: Address = env::read();
+            let _state_root: B256 = env::read();
+            let _receipts_root: B256 = env::read();
+            let _logs_bloom: consensus_core::types::LogsBloom = env::read();
+            let _prev_randao: B256 = env::read();
+            let _block_number: u64 = env::read();
+            let _gas_limit: u64 = env::read();
+            let _gas_used: u64 = env::read();
+            let _timestamp: u64 = env::read();
+            let _extra_data: Vec<u8> = env::read();
+            let _base_fee_per_gas: alloy_primitives::U256 = env::read();
+            let _block_hash: B256 = env::read();
+            let _transactions_root: B256 = env::read();
+            let _withdrawals_root: B256 = env::read();
+            let _blob_gas_used: u64 = env::read();
+            let _excess_blob_gas: u64 = env::read();
+            
+            consensus_core::types::ExecutionPayloadHeader::Electra(
+                consensus_core::types::ExecutionPayloadHeaderElectra::default()
+            )
+        }
+        _ => panic!("Invalid ExecutionPayloadHeader variant: {}", variant),
+    }
+}
+
 /// Builder for managing Ethereum L1 light client state.
 ///
 /// Maintains the light client store and handles beacon chain updates through
@@ -207,36 +359,29 @@ pub fn read_l1_chain_builder_input() -> (
     OptimisticUpdate<MainnetConsensusSpec>,
     EthEvmInput,
 ) {
-    let bootstrap_header: LightClientHeader = env::read();
+    println!("1");
+    let bootstrap_header = read_light_client_header();
+    println!("a");
     let bootstrap_current_sync_committee: SyncCommittee<MainnetConsensusSpec> = env::read();
     let bootstrap_current_sync_committee_branch: Vec<B256> = env::read();
-
+    println!("2");
     let checkpoint: B256 = env::read();
 
-    let finality_update_attested_header: LightClientHeader = env::read();
+    let finality_update_attested_header = read_light_client_header();
     let finality_update_sync_aggregate: SyncAggregate<MainnetConsensusSpec> = env::read();
     let finality_update_signature_slot: u64 = env::read();
-
+    println!("3");
     let update_len: usize = env::read();
     let mut updates: Vec<Update<MainnetConsensusSpec>> = Vec::new();
     for _ in 0..update_len {
-        let update_attested_header: LightClientHeader = env::read();
+        let update_attested_header = read_light_client_header();
         let update_next_sync_committee: SyncCommittee<MainnetConsensusSpec> = env::read();
         let update_next_sync_committee_branch: Vec<B256> = env::read();
-        let update_finalized_header: LightClientHeader = env::read();
+        let update_finalized_header = read_light_client_header();
         let update_finality_branch: Vec<B256> = env::read();
         let update_sync_aggregate: SyncAggregate<MainnetConsensusSpec> = env::read();
         let update_signature_slot: u64 = env::read();
 
-        // let update = Update::<MainnetConsensusSpec>::new(
-        //     update_attested_header,
-        //     update_next_sync_committee,
-        //     update_next_sync_committee_branch,
-        //     update_finalized_header,
-        //     update_finality_branch,
-        //     update_sync_aggregate,
-        //     update_signature_slot,
-        // );
         let update = Update::Electra(UpdateElectra {
             attested_header: update_attested_header,
             next_sync_committee: update_next_sync_committee,
@@ -248,12 +393,8 @@ pub fn read_l1_chain_builder_input() -> (
         });
         updates.push(update);
     }
+    println!("4");
 
-    // let bootstrap = Bootstrap::<MainnetConsensusSpec>::new(
-    //     bootstrap_header,
-    //     bootstrap_current_sync_committee,
-    //     bootstrap_current_sync_committee_branch,
-    // );
 
     // Create the Bootstrap::Electra variant
     let bootstrap = Bootstrap::<MainnetConsensusSpec>::Electra(BootstrapElectra {
@@ -261,15 +402,15 @@ pub fn read_l1_chain_builder_input() -> (
         current_sync_committee: bootstrap_current_sync_committee,
         current_sync_committee_branch: FixedVector::from(bootstrap_current_sync_committee_branch),
     });
-
+    println!("5");
     let finality_update = OptimisticUpdate::<MainnetConsensusSpec> {
         attested_header: finality_update_attested_header,
         sync_aggregate: finality_update_sync_aggregate,
         signature_slot: finality_update_signature_slot,
     };
-
+    println!("6");
     let beacon_input: EthEvmInput = env::read();
-
+    println!("7");
     (
         bootstrap,
         checkpoint,

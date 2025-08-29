@@ -15,7 +15,7 @@ use helios_ethereum::rpc::ConsensusRpc;
 use consensus_core::{
     calc_sync_period,
     consensus_spec::MainnetConsensusSpec,
-    types::{Bootstrap, Update, OptimisticUpdate, BeaconBlock},
+    types::{Bootstrap, Update, OptimisticUpdate, BeaconBlock, LightClientHeader},
 };
 use ssz_types::FixedVector;
 
@@ -35,6 +35,122 @@ use crate::constants::*;
 use crate::elfs_ids::GET_PROOF_DATA_ETHEREUM_LIGHT_CLIENT_ELF;
 use crate::types::{IMaldaMarket, SequencerCommitment};
 
+/// Helper function to write LightClientHeader by deconstructing its fields
+fn write_light_client_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, header: &LightClientHeader) {
+    match header {
+        LightClientHeader::Bellatrix(bellatrix) => {
+            println!("Writing LightClientHeader variant: 0 (Bellatrix)");
+            env.write(&0u8).unwrap(); // Variant discriminant
+            env.write(&bellatrix.beacon).unwrap();
+        }
+        LightClientHeader::Capella(capella) => {
+            println!("Writing LightClientHeader variant: 1 (Capella)");
+            env.write(&1u8).unwrap(); // Variant discriminant
+            env.write(&capella.beacon).unwrap();
+            write_execution_payload_header(env, &capella.execution);
+            env.write(&capella.execution_branch).unwrap();
+        }
+        LightClientHeader::Deneb(deneb) => {
+            println!("Writing LightClientHeader variant: 2 (Deneb)");
+            env.write(&2u8).unwrap(); // Variant discriminant
+            env.write(&deneb.beacon).unwrap();
+            write_execution_payload_header(env, &deneb.execution);
+            env.write(&deneb.execution_branch).unwrap();
+        }
+        LightClientHeader::Electra(electra) => {
+            println!("Writing LightClientHeader variant: 3 (Electra)");
+            env.write(&3u8).unwrap(); // Variant discriminant
+            env.write(&electra.beacon).unwrap();
+            write_execution_payload_header(env, &electra.execution);
+            env.write(&electra.execution_branch).unwrap();
+        }
+    }
+}
+
+/// Helper function to write ExecutionPayloadHeader by deconstructing its fields
+fn write_execution_payload_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, header: &consensus_core::types::ExecutionPayloadHeader) {
+    match header {
+        consensus_core::types::ExecutionPayloadHeader::Bellatrix(bellatrix) => {
+            println!("Writing ExecutionPayloadHeader variant: 0 (Bellatrix)");
+            env.write(&0u8).unwrap(); // Variant discriminant
+            env.write(&bellatrix.parent_hash).unwrap();
+            env.write(&bellatrix.fee_recipient).unwrap();
+            env.write(&bellatrix.state_root).unwrap();
+            env.write(&bellatrix.receipts_root).unwrap();
+            env.write(&bellatrix.logs_bloom).unwrap();
+            env.write(&bellatrix.prev_randao).unwrap();
+            env.write(&bellatrix.block_number).unwrap();
+            env.write(&bellatrix.gas_limit).unwrap();
+            env.write(&bellatrix.gas_used).unwrap();
+            env.write(&bellatrix.timestamp).unwrap();
+            env.write(&bellatrix.extra_data).unwrap();
+            env.write(&bellatrix.base_fee_per_gas).unwrap();
+            env.write(&bellatrix.block_hash).unwrap();
+            env.write(&bellatrix.transactions_root).unwrap();
+        }
+        consensus_core::types::ExecutionPayloadHeader::Capella(capella) => {
+            println!("Writing ExecutionPayloadHeader variant: 1 (Capella)");
+            env.write(&1u8).unwrap(); // Variant discriminant
+            env.write(&capella.parent_hash).unwrap();
+            env.write(&capella.fee_recipient).unwrap();
+            env.write(&capella.state_root).unwrap();
+            env.write(&capella.receipts_root).unwrap();
+            env.write(&capella.logs_bloom).unwrap();
+            env.write(&capella.prev_randao).unwrap();
+            env.write(&capella.block_number).unwrap();
+            env.write(&capella.gas_limit).unwrap();
+            env.write(&capella.gas_used).unwrap();
+            env.write(&capella.timestamp).unwrap();
+            env.write(&capella.extra_data).unwrap();
+            env.write(&capella.base_fee_per_gas).unwrap();
+            env.write(&capella.block_hash).unwrap();
+            env.write(&capella.transactions_root).unwrap();
+            env.write(&capella.withdrawals_root).unwrap();
+        }
+        consensus_core::types::ExecutionPayloadHeader::Deneb(deneb) => {
+            println!("Writing ExecutionPayloadHeader variant: 2 (Deneb)");
+            env.write(&2u8).unwrap(); // Variant discriminant
+            env.write(&deneb.parent_hash).unwrap();
+            env.write(&deneb.fee_recipient).unwrap();
+            env.write(&deneb.state_root).unwrap();
+            env.write(&deneb.receipts_root).unwrap();
+            env.write(&deneb.logs_bloom).unwrap();
+            env.write(&deneb.prev_randao).unwrap();
+            env.write(&deneb.block_number).unwrap();
+            env.write(&deneb.gas_limit).unwrap();
+            env.write(&deneb.gas_used).unwrap();
+            env.write(&deneb.timestamp).unwrap();
+            env.write(&deneb.extra_data).unwrap();
+            env.write(&deneb.base_fee_per_gas).unwrap();
+            env.write(&deneb.block_hash).unwrap();
+            env.write(&deneb.transactions_root).unwrap();
+            env.write(&deneb.withdrawals_root).unwrap();
+            env.write(&deneb.blob_gas_used).unwrap();
+            env.write(&deneb.excess_blob_gas).unwrap();
+        }
+        consensus_core::types::ExecutionPayloadHeader::Electra(electra) => {
+            println!("Writing ExecutionPayloadHeader variant: 3 (Electra)");
+            env.write(&3u8).unwrap(); // Variant discriminant
+            env.write(&electra.parent_hash).unwrap();
+            env.write(&electra.fee_recipient).unwrap();
+            env.write(&electra.state_root).unwrap();
+            env.write(&electra.receipts_root).unwrap();
+            env.write(&electra.logs_bloom).unwrap();
+            env.write(&electra.prev_randao).unwrap();
+            env.write(&electra.block_number).unwrap();
+            env.write(&electra.gas_limit).unwrap();
+            env.write(&electra.gas_used).unwrap();
+            env.write(&electra.timestamp).unwrap();
+            env.write(&electra.extra_data).unwrap();
+            env.write(&electra.base_fee_per_gas).unwrap();
+            env.write(&electra.block_hash).unwrap();
+            env.write(&electra.transactions_root).unwrap();
+            env.write(&electra.withdrawals_root).unwrap();
+            env.write(&electra.blob_gas_used).unwrap();
+            env.write(&electra.excess_blob_gas).unwrap();
+        }
+    }
+}
 
 // Add RPC URL functions
 fn rpc_url_ethereum() -> &'static str {
@@ -334,18 +450,18 @@ pub fn build_l1_chain_builder_environment(
         .write(&env_op_input)
         .unwrap()
         .write(&linking_blocks)
-        .unwrap()
-        .write(&bootstrap.header())
-        .unwrap()
-        .write(&bootstrap.current_sync_committee())
+        .unwrap();
+    
+    write_light_client_header(&mut env, &bootstrap.header());
+    env.write(&bootstrap.current_sync_committee())
         .unwrap()
         .write(&bootstrap.current_sync_committee_branch())
         .unwrap()
         .write(&checkpoint)
-        .unwrap()
-        .write(&finality_update.attested_header)
-        .unwrap()
-        .write(&finality_update.sync_aggregate)
+        .unwrap();
+    
+    write_light_client_header(&mut env, &finality_update.attested_header);
+    env.write(&finality_update.sync_aggregate)
         .unwrap()
         .write(&finality_update.signature_slot)
         .unwrap()
@@ -353,10 +469,10 @@ pub fn build_l1_chain_builder_environment(
         .unwrap();
 
     for update in updates {
-        env.write(&update.attested_header()).unwrap();
+        write_light_client_header(&mut env, &update.attested_header());
         env.write(&update.next_sync_committee()).unwrap();
         env.write(&update.next_sync_committee_branch()).unwrap();
-        env.write(&update.finalized_header()).unwrap();
+        write_light_client_header(&mut env, &update.finalized_header());
         env.write(&update.finality_branch()).unwrap();
         env.write(&update.sync_aggregate()).unwrap();
         env.write(&update.signature_slot()).unwrap();
