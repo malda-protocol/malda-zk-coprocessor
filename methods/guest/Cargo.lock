@@ -2582,6 +2582,7 @@ dependencies = [
  "snap",
  "ssz_types",
  "tree_hash",
+ "typenum",
  "url",
 ]
 

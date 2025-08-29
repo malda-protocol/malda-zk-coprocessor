@@ -35,32 +35,41 @@ use crate::constants::*;
 use crate::elfs_ids::GET_PROOF_DATA_ETHEREUM_LIGHT_CLIENT_ELF;
 use crate::types::{IMaldaMarket, SequencerCommitment};
 
+/// Helper function to write BeaconBlockHeader by deconstructing its fields
+fn write_beacon_block_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, header: &consensus_core::types::BeaconBlockHeader) {
+    env.write(&header.slot).unwrap();
+    env.write(&header.proposer_index).unwrap();
+    env.write(&header.parent_root).unwrap();
+    env.write(&header.state_root).unwrap();
+    env.write(&header.body_root).unwrap();
+}
+
 /// Helper function to write LightClientHeader by deconstructing its fields
 fn write_light_client_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, header: &LightClientHeader) {
     match header {
         LightClientHeader::Bellatrix(bellatrix) => {
             println!("Writing LightClientHeader variant: 0 (Bellatrix)");
             env.write(&0u8).unwrap(); // Variant discriminant
-            env.write(&bellatrix.beacon).unwrap();
+            write_beacon_block_header(env, &bellatrix.beacon);
         }
         LightClientHeader::Capella(capella) => {
             println!("Writing LightClientHeader variant: 1 (Capella)");
             env.write(&1u8).unwrap(); // Variant discriminant
-            env.write(&capella.beacon).unwrap();
+            write_beacon_block_header(env, &capella.beacon);
             write_execution_payload_header(env, &capella.execution);
             env.write(&capella.execution_branch).unwrap();
         }
         LightClientHeader::Deneb(deneb) => {
             println!("Writing LightClientHeader variant: 2 (Deneb)");
             env.write(&2u8).unwrap(); // Variant discriminant
-            env.write(&deneb.beacon).unwrap();
+            write_beacon_block_header(env, &deneb.beacon);
             write_execution_payload_header(env, &deneb.execution);
             env.write(&deneb.execution_branch).unwrap();
         }
         LightClientHeader::Electra(electra) => {
             println!("Writing LightClientHeader variant: 3 (Electra)");
             env.write(&3u8).unwrap(); // Variant discriminant
-            env.write(&electra.beacon).unwrap();
+            write_beacon_block_header(env, &electra.beacon);
             write_execution_payload_header(env, &electra.execution);
             env.write(&electra.execution_branch).unwrap();
         }
