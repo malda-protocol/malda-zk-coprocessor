@@ -17,7 +17,7 @@ mod tests {
     use alloy_primitives::{address, Address, Bytes, U256};
     use hex;
     use malda_rs::{
-        constants::*, viewcalls::get_proof_data_exec, viewcalls::get_proof_data_prove_boundless,
+        constants::*, viewcalls::{get_proof_data_exec, get_proof_data_prove_boundless, BoundlessParams},
     };
 
     use alloy::sol_types::SolValue;
@@ -167,6 +167,7 @@ mod tests {
                 l1_inclusion,
                 fallback,
                 onchain,
+                BoundlessParams::default(),
             )
             .await
             .unwrap();
