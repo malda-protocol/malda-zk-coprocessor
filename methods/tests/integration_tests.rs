@@ -18,7 +18,8 @@ mod tests {
     use hex;
     use malda_rs::{
         constants::*, viewcalls::{get_proof_data_exec, get_proof_data_prove_boundless, BoundlessParams},
-        viewcalls_ethereum_light_client::get_proof_data_exec as get_proof_data_exec_ethereum_light_client,
+        viewcalls_ethereum_light_client::get_proof_data_exec as get_proof_data_exec_ethereum_light_client, viewcalls_ethereum_light_client::get_light_client_input,
+        validators_ethereum_light_client::validate_ethereum_env_via_sync_committee
     };
 
     use alloy::sol_types::SolValue;
@@ -904,7 +905,7 @@ mod tests {
         let chain_id = ETHEREUM_CHAIN_ID;
 
         // update this to recent available checkpoint
-        let trusted_hash_bytes: [u8; 32] = [0x9d, 0x57, 0xa7, 0x21, 0xfa, 0x75, 0xcc, 0xb5, 0xb1, 0x28, 0x97, 0x0b, 0xd7, 0x6e, 0x85, 0xaa, 0x25, 0xd9, 0xb6, 0x4a, 0xaf, 0x18, 0x78, 0x03, 0x7b, 0x4f, 0xc8, 0x68, 0xda, 0x7f, 0x9d, 0x5b];
+        let trusted_hash_bytes: [u8; 32] = [0x17, 0xdd, 0x3b, 0xed, 0x3b, 0x05, 0x60, 0xe5, 0xb3, 0x56, 0x76, 0x2b, 0x12, 0xdb, 0x6b, 0xba, 0xc4, 0xc1, 0x55, 0x5c, 0x16, 0xc8, 0xbe, 0x0f, 0x5f, 0x73, 0x98, 0x7f, 0xf3, 0x5b, 0x29, 0x8e];
         let trusted_hash = B256::from(trusted_hash_bytes);
 
         let session_info =
@@ -918,6 +919,26 @@ mod tests {
             .map(|s| s.cycles as u64)
             .sum::<u64>();
         println!("Cycles: {}", cycles);
+        panic!("test");
+    }
+
+    #[tokio::test]
+    async fn test_light_client_basic_test() {
+        let user_ethereum = address!("F04a5cC80B1E94C69B48f5ee68a08CD2F09A7c3E");
+        let asset = WETH_MARKET;
+        let chain_id = ETHEREUM_CHAIN_ID;
+
+        // update this to recent available checkpoint
+        let trusted_hash_bytes: [u8; 32] = [0x17, 0xdd, 0x3b, 0xed, 0x3b, 0x05, 0x60, 0xe5, 0xb3, 0x56, 0x76, 0x2b, 0x12, 0xdb, 0x6b, 0xba, 0xc4, 0xc1, 0x55, 0x5c, 0x16, 0xc8, 0xbe, 0x0f, 0x5f, 0x73, 0x98, 0x7f, 0xf3, 0x5b, 0x29, 0x8e];
+        let trusted_hash = B256::from(trusted_hash_bytes);
+
+        let (bootstrap, trusted_hash, updates, finality_update) = get_light_client_input(user_ethereum, asset, chain_id, trusted_hash).await;
+
+        let (verified_root, new_checkpoint) = validate_ethereum_env_via_sync_committee(bootstrap, trusted_hash, updates, finality_update);
+
+        println!("Verified root: {:?}", verified_root);
+        println!("New checkpoint: {:?}", new_checkpoint);
+
         panic!("test");
     }
 }

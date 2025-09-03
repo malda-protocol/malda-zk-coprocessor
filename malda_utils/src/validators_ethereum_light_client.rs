@@ -40,27 +40,11 @@ use risc0_steel::{
 
 /// Helper function to read BeaconBlockHeader by deconstructing its fields
 fn read_beacon_block_header() -> consensus_core::types::BeaconBlockHeader {
-    println!("Reading BeaconBlockHeader slot...");
     let slot: u64 = env::read();
-    println!("Read slot: {}", slot);
-    
-    println!("Reading BeaconBlockHeader proposer_index...");
     let proposer_index: u64 = env::read();
-    println!("Read proposer_index: {}", proposer_index);
-    
-    println!("Reading BeaconBlockHeader parent_root...");
     let parent_root: B256 = env::read();
-    println!("Read parent_root: {:?}", parent_root);
-    
-    println!("Reading BeaconBlockHeader state_root...");
     let state_root: B256 = env::read();
-    println!("Read state_root: {:?}", state_root);
-    
-    println!("Reading BeaconBlockHeader body_root...");
     let body_root: B256 = env::read();
-    println!("Read body_root: {:?}", body_root);
-    
-    println!("Finished reading BeaconBlockHeader");
     
     consensus_core::types::BeaconBlockHeader {
         slot,
@@ -74,27 +58,20 @@ fn read_beacon_block_header() -> consensus_core::types::BeaconBlockHeader {
 /// Helper function to read LightClientHeader by deconstructing its fields
 fn read_light_client_header() -> LightClientHeader {
     let variant: u8 = env::read(); // 0 = Bellatrix, 1 = Capella, 2 = Deneb, 3 = Electra
-    println!("Reading LightClientHeader variant: {}", variant);
     
     match variant {
         0 => {
             // Bellatrix variant - only has beacon field
-            println!("Reading Bellatrix beacon header");
             let beacon = read_beacon_block_header();
-            println!("Read Bellatrix beacon header successfully");
             LightClientHeader::Bellatrix(consensus_core::types::LightClientHeaderBellatrix {
                 beacon,
             })
         }
         1 => {
             // Capella variant - has beacon, execution, and execution_branch
-            println!("Reading Capella beacon header");
             let beacon = read_beacon_block_header();
-            println!("Read Capella beacon header, now reading execution payload header");
             let execution = read_execution_payload_header();
-            println!("Read Capella execution payload header, now reading execution branch");
             let execution_branch: Vec<B256> = env::read();
-            println!("Read Capella execution branch successfully");
             LightClientHeader::Capella(consensus_core::types::LightClientHeaderCapella {
                 beacon,
                 execution,
@@ -103,13 +80,9 @@ fn read_light_client_header() -> LightClientHeader {
         }
         2 => {
             // Deneb variant
-            println!("Reading Deneb beacon header");
             let beacon = read_beacon_block_header();
-            println!("Read Deneb beacon header, now reading execution payload header");
             let execution = read_execution_payload_header();
-            println!("Read Deneb execution payload header, now reading execution branch");
             let execution_branch: Vec<B256> = env::read();
-            println!("Read Deneb execution branch successfully");
             LightClientHeader::Deneb(consensus_core::types::LightClientHeaderDeneb {
                 beacon,
                 execution,
@@ -118,13 +91,9 @@ fn read_light_client_header() -> LightClientHeader {
         }
         3 => {
             // Electra variant
-            println!("Reading Electra beacon header");
             let beacon = read_beacon_block_header();
-            println!("Read Electra beacon header, now reading execution payload header");
             let execution = read_execution_payload_header();
-            println!("Read Electra execution payload header, now reading execution branch");
             let execution_branch: Vec<B256> = env::read();
-            println!("Read Electra execution branch successfully");
             LightClientHeader::Electra(consensus_core::types::LightClientHeaderElectra {
                 beacon,
                 execution,
@@ -138,69 +107,24 @@ fn read_light_client_header() -> LightClientHeader {
 /// Helper function to read ExecutionPayloadHeader by deconstructing its fields
 fn read_execution_payload_header() -> consensus_core::types::ExecutionPayloadHeader {
     let variant: u8 = env::read(); // 0 = Bellatrix, 1 = Capella, 2 = Deneb, 3 = Electra
-    println!("Reading ExecutionPayloadHeader variant: {}", variant);
     
     match variant {
         0 => {
             // Bellatrix variant - read all fields
-            println!("Reading Bellatrix fields...");
-            println!("Reading parent_hash...");
             let parent_hash: B256 = env::read();
-            println!("Read parent_hash: {:?}", parent_hash);
-            
-            println!("Reading fee_recipient...");
             let fee_recipient: Address = env::read();
-            println!("Read fee_recipient: {:?}", fee_recipient);
-            
-            println!("Reading state_root...");
             let state_root: B256 = env::read();
-            println!("Read state_root: {:?}", state_root);
-            
-            println!("Reading receipts_root...");
             let receipts_root: B256 = env::read();
-            println!("Read receipts_root: {:?}", receipts_root);
-            
-            println!("Reading logs_bloom...");
             let logs_bloom: consensus_core::types::LogsBloom = env::read();
-            println!("Read logs_bloom");
-            
-            println!("Reading prev_randao...");
             let prev_randao: B256 = env::read();
-            println!("Read prev_randao: {:?}", prev_randao);
-            
-            println!("Reading block_number...");
             let block_number: u64 = env::read();
-            println!("Read block_number: {}", block_number);
-            
-            println!("Reading gas_limit...");
             let gas_limit: u64 = env::read();
-            println!("Read gas_limit: {}", gas_limit);
-            
-            println!("Reading gas_used...");
             let gas_used: u64 = env::read();
-            println!("Read gas_used: {}", gas_used);
-            
-            println!("Reading timestamp...");
             let timestamp: u64 = env::read();
-            println!("Read timestamp: {}", timestamp);
-            
-            println!("Reading extra_data...");
             let extra_data: consensus_core::types::ByteList<typenum::U32> = env::read();
-            println!("Read extra_data: {} bytes", extra_data.inner.len());
-            
-            println!("Reading base_fee_per_gas...");
             let base_fee_per_gas: alloy_primitives::U256 = env::read();
-            println!("Read base_fee_per_gas: {:?}", base_fee_per_gas);
-            
-            println!("Reading block_hash...");
             let block_hash: B256 = env::read();
-            println!("Read block_hash: {:?}", block_hash);
-            
-            println!("Reading transactions_root...");
             let transactions_root: B256 = env::read();
-            println!("Read transactions_root: {:?}", transactions_root);
-            
-            println!("Finished reading Bellatrix fields");
             
             consensus_core::types::ExecutionPayloadHeader::Bellatrix(
                 consensus_core::types::ExecutionPayloadHeaderBellatrix {
@@ -223,68 +147,21 @@ fn read_execution_payload_header() -> consensus_core::types::ExecutionPayloadHea
         }
         1 => {
             // Capella variant - read all fields
-            println!("Reading Capella fields...");
-            println!("Reading parent_hash...");
             let parent_hash: B256 = env::read();
-            println!("Read parent_hash: {:?}", parent_hash);
-            
-            println!("Reading fee_recipient...");
             let fee_recipient: Address = env::read();
-            println!("Read fee_recipient: {:?}", fee_recipient);
-            
-            println!("Reading state_root...");
             let state_root: B256 = env::read();
-            println!("Read state_root: {:?}", state_root);
-            
-            println!("Reading receipts_root...");
             let receipts_root: B256 = env::read();
-            println!("Read receipts_root: {:?}", receipts_root);
-            
-            println!("Reading logs_bloom...");
             let logs_bloom: consensus_core::types::LogsBloom = env::read();
-            println!("Read logs_bloom");
-            
-            println!("Reading prev_randao...");
             let prev_randao: B256 = env::read();
-            println!("Read prev_randao: {:?}", prev_randao);
-            
-            println!("Reading block_number...");
             let block_number: u64 = env::read();
-            println!("Read block_number: {}", block_number);
-            
-            println!("Reading gas_limit...");
             let gas_limit: u64 = env::read();
-            println!("Read gas_limit: {}", gas_limit);
-            
-            println!("Reading gas_used...");
             let gas_used: u64 = env::read();
-            println!("Read gas_used: {}", gas_used);
-            
-            println!("Reading timestamp...");
             let timestamp: u64 = env::read();
-            println!("Read timestamp: {}", timestamp);
-            
-            println!("Reading extra_data...");
             let extra_data: consensus_core::types::ByteList<typenum::U32> = env::read();
-            println!("Read extra_data: {} bytes", extra_data.inner.len());
-            
-            println!("Reading base_fee_per_gas...");
             let base_fee_per_gas: alloy_primitives::U256 = env::read();
-            println!("Read base_fee_per_gas: {:?}", base_fee_per_gas);
-            
-            println!("Reading block_hash...");
             let block_hash: B256 = env::read();
-            println!("Read block_hash: {:?}", block_hash);
-            
-            println!("Reading transactions_root...");
             let transactions_root: B256 = env::read();
-            println!("Read transactions_root: {:?}", transactions_root);
-            
-            println!("Reading withdrawals_root...");
             let withdrawals_root: B256 = env::read();
-            println!("Read withdrawals_root: {:?}", withdrawals_root);
-            
-            println!("Finished reading Capella fields");
             
             consensus_core::types::ExecutionPayloadHeader::Capella(
                 consensus_core::types::ExecutionPayloadHeaderCapella {
@@ -308,76 +185,23 @@ fn read_execution_payload_header() -> consensus_core::types::ExecutionPayloadHea
         }
         2 => {
             // Deneb variant - read all fields
-            println!("Reading Deneb fields...");
-            println!("Reading parent_hash...");
             let parent_hash: B256 = env::read();
-            println!("Read parent_hash: {:?}", parent_hash);
-            
-            println!("Reading fee_recipient...");
             let fee_recipient: Address = env::read();
-            println!("Read fee_recipient: {:?}", fee_recipient);
-            
-            println!("Reading state_root...");
             let state_root: B256 = env::read();
-            println!("Read state_root: {:?}", state_root);
-            
-            println!("Reading receipts_root...");
             let receipts_root: B256 = env::read();
-            println!("Read receipts_root: {:?}", receipts_root);
-            
-            println!("Reading logs_bloom...");
             let logs_bloom: consensus_core::types::LogsBloom = env::read();
-            println!("Read logs_bloom");
-            
-            println!("Reading prev_randao...");
             let prev_randao: B256 = env::read();
-            println!("Read prev_randao: {:?}", prev_randao);
-            
-            println!("Reading block_number...");
             let block_number: u64 = env::read();
-            println!("Read block_number: {}", block_number);
-            
-            println!("Reading gas_limit...");
             let gas_limit: u64 = env::read();
-            println!("Read gas_limit: {}", gas_limit);
-            
-            println!("Reading gas_used...");
             let gas_used: u64 = env::read();
-            println!("Read gas_used: {}", gas_used);
-            
-            println!("Reading timestamp...");
             let timestamp: u64 = env::read();
-            println!("Read timestamp: {}", timestamp);
-            
-            println!("Reading extra_data...");
             let extra_data: consensus_core::types::ByteList<typenum::U32> = env::read();
-            println!("Read extra_data: {} bytes", extra_data.inner.len());
-            
-            println!("Reading base_fee_per_gas...");
             let base_fee_per_gas: alloy_primitives::U256 = env::read();
-            println!("Read base_fee_per_gas: {:?}", base_fee_per_gas);
-            
-            println!("Reading block_hash...");
             let block_hash: B256 = env::read();
-            println!("Read block_hash: {:?}", block_hash);
-            
-            println!("Reading transactions_root...");
             let transactions_root: B256 = env::read();
-            println!("Read transactions_root: {:?}", transactions_root);
-            
-            println!("Reading withdrawals_root...");
             let withdrawals_root: B256 = env::read();
-            println!("Read withdrawals_root: {:?}", withdrawals_root);
-            
-            println!("Reading blob_gas_used...");
             let blob_gas_used: u64 = env::read();
-            println!("Read blob_gas_used: {}", blob_gas_used);
-            
-            println!("Reading excess_blob_gas...");
             let excess_blob_gas: u64 = env::read();
-            println!("Read excess_blob_gas: {}", excess_blob_gas);
-            
-            println!("Finished reading Deneb fields");
             
             consensus_core::types::ExecutionPayloadHeader::Deneb(
                 consensus_core::types::ExecutionPayloadHeaderDeneb {
@@ -403,76 +227,23 @@ fn read_execution_payload_header() -> consensus_core::types::ExecutionPayloadHea
         }
         3 => {
             // Electra variant - read all fields
-            println!("Reading Electra fields...");
-            println!("Reading parent_hash...");
             let parent_hash: B256 = env::read();
-            println!("Read parent_hash: {:?}", parent_hash);
-            
-            println!("Reading fee_recipient...");
             let fee_recipient: Address = env::read();
-            println!("Read fee_recipient: {:?}", fee_recipient);
-            
-            println!("Reading state_root...");
             let state_root: B256 = env::read();
-            println!("Read state_root: {:?}", state_root);
-            
-            println!("Reading receipts_root...");
             let receipts_root: B256 = env::read();
-            println!("Read receipts_root: {:?}", receipts_root);
-            
-            println!("Reading logs_bloom...");
             let logs_bloom: consensus_core::types::LogsBloom = env::read();
-            println!("Read logs_bloom");
-            
-            println!("Reading prev_randao...");
             let prev_randao: B256 = env::read();
-            println!("Read prev_randao: {:?}", prev_randao);
-            
-            println!("Reading block_number...");
             let block_number: u64 = env::read();
-            println!("Read block_number: {}", block_number);
-            
-            println!("Reading gas_limit...");
             let gas_limit: u64 = env::read();
-            println!("Read gas_limit: {}", gas_limit);
-            
-            println!("Reading gas_used...");
             let gas_used: u64 = env::read();
-            println!("Read gas_used: {}", gas_used);
-            
-            println!("Reading timestamp...");
             let timestamp: u64 = env::read();
-            println!("Read timestamp: {}", timestamp);
-            
-            println!("Reading extra_data...");
             let extra_data: consensus_core::types::ByteList<typenum::U32> = env::read();
-            println!("Read extra_data: {} bytes", extra_data.inner.len());
-            
-            println!("Reading base_fee_per_gas...");
             let base_fee_per_gas: alloy_primitives::U256 = env::read();
-            println!("Read base_fee_per_gas: {:?}", base_fee_per_gas);
-            
-            println!("Reading block_hash...");
             let block_hash: B256 = env::read();
-            println!("Read block_hash: {:?}", block_hash);
-            
-            println!("Reading transactions_root...");
             let transactions_root: B256 = env::read();
-            println!("Read transactions_root: {:?}", transactions_root);
-            
-            println!("Reading withdrawals_root...");
             let withdrawals_root: B256 = env::read();
-            println!("Read withdrawals_root: {:?}", withdrawals_root);
-            
-            println!("Reading blob_gas_used...");
             let blob_gas_used: u64 = env::read();
-            println!("Read blob_gas_used: {}", blob_gas_used);
-            
-            println!("Reading excess_blob_gas...");
             let excess_blob_gas: u64 = env::read();
-            println!("Read excess_blob_gas: {}", excess_blob_gas);
-            
-            println!("Finished reading Electra fields");
             
             consensus_core::types::ExecutionPayloadHeader::Electra(
                 consensus_core::types::ExecutionPayloadHeaderElectra {
@@ -670,18 +441,18 @@ pub fn read_l1_chain_builder_input() -> (
     OptimisticUpdate<MainnetConsensusSpec>,
     EthEvmInput,
 ) {
-    println!("1");
+
     let bootstrap_header = read_light_client_header();
-    println!("a");
+
     let bootstrap_current_sync_committee: SyncCommittee<MainnetConsensusSpec> = env::read();
     let bootstrap_current_sync_committee_branch: Vec<B256> = env::read();
-    println!("2");
+
     let checkpoint: B256 = env::read();
 
     let finality_update_attested_header = read_light_client_header();
     let finality_update_sync_aggregate: SyncAggregate<MainnetConsensusSpec> = env::read();
     let finality_update_signature_slot: u64 = env::read();
-    println!("3");
+
     let update_len: usize = env::read();
     let mut updates: Vec<Update<MainnetConsensusSpec>> = Vec::new();
     for _ in 0..update_len {
@@ -704,7 +475,9 @@ pub fn read_l1_chain_builder_input() -> (
         });
         updates.push(update);
     }
-    println!("4");
+
+    println!("READ Updates");
+    println!("Updates: {:?}", updates);
 
 
     // Create the Bootstrap::Electra variant
@@ -713,15 +486,16 @@ pub fn read_l1_chain_builder_input() -> (
         current_sync_committee: bootstrap_current_sync_committee,
         current_sync_committee_branch: FixedVector::from(bootstrap_current_sync_committee_branch),
     });
-    println!("5");
+
+
     let finality_update = OptimisticUpdate::<MainnetConsensusSpec> {
         attested_header: finality_update_attested_header,
         sync_aggregate: finality_update_sync_aggregate,
         signature_slot: finality_update_signature_slot,
     };
-    println!("6");
+
     let beacon_input: EthEvmInput = env::read();
-    println!("7");
+
     (
         bootstrap,
         checkpoint,

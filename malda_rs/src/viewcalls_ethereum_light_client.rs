@@ -48,26 +48,26 @@ fn write_beacon_block_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, header: &
 fn write_light_client_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, header: &LightClientHeader) {
     match header {
         LightClientHeader::Bellatrix(bellatrix) => {
-            println!("Writing LightClientHeader variant: 0 (Bellatrix)");
+
             env.write(&0u8).unwrap(); // Variant discriminant
             write_beacon_block_header(env, &bellatrix.beacon);
         }
         LightClientHeader::Capella(capella) => {
-            println!("Writing LightClientHeader variant: 1 (Capella)");
+
             env.write(&1u8).unwrap(); // Variant discriminant
             write_beacon_block_header(env, &capella.beacon);
             write_execution_payload_header(env, &capella.execution);
             env.write(&capella.execution_branch).unwrap();
         }
         LightClientHeader::Deneb(deneb) => {
-            println!("Writing LightClientHeader variant: 2 (Deneb)");
+
             env.write(&2u8).unwrap(); // Variant discriminant
             write_beacon_block_header(env, &deneb.beacon);
             write_execution_payload_header(env, &deneb.execution);
             env.write(&deneb.execution_branch).unwrap();
         }
         LightClientHeader::Electra(electra) => {
-            println!("Writing LightClientHeader variant: 3 (Electra)");
+
             env.write(&3u8).unwrap(); // Variant discriminant
             write_beacon_block_header(env, &electra.beacon);
             write_execution_payload_header(env, &electra.execution);
@@ -80,7 +80,7 @@ fn write_light_client_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, header: &
 fn write_execution_payload_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, header: &consensus_core::types::ExecutionPayloadHeader) {
     match header {
         consensus_core::types::ExecutionPayloadHeader::Bellatrix(bellatrix) => {
-            println!("Writing ExecutionPayloadHeader variant: 0 (Bellatrix)");
+
             env.write(&0u8).unwrap(); // Variant discriminant
             env.write(&bellatrix.parent_hash).unwrap();
             env.write(&bellatrix.fee_recipient).unwrap();
@@ -98,7 +98,7 @@ fn write_execution_payload_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, head
             env.write(&bellatrix.transactions_root).unwrap();
         }
         consensus_core::types::ExecutionPayloadHeader::Capella(capella) => {
-            println!("Writing ExecutionPayloadHeader variant: 1 (Capella)");
+
             env.write(&1u8).unwrap(); // Variant discriminant
             env.write(&capella.parent_hash).unwrap();
             env.write(&capella.fee_recipient).unwrap();
@@ -117,7 +117,7 @@ fn write_execution_payload_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, head
             env.write(&capella.withdrawals_root).unwrap();
         }
         consensus_core::types::ExecutionPayloadHeader::Deneb(deneb) => {
-            println!("Writing ExecutionPayloadHeader variant: 2 (Deneb)");
+
             env.write(&2u8).unwrap(); // Variant discriminant
             env.write(&deneb.parent_hash).unwrap();
             env.write(&deneb.fee_recipient).unwrap();
@@ -138,7 +138,7 @@ fn write_execution_payload_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, head
             env.write(&deneb.excess_blob_gas).unwrap();
         }
         consensus_core::types::ExecutionPayloadHeader::Electra(electra) => {
-            println!("Writing ExecutionPayloadHeader variant: 3 (Electra)");
+
             env.write(&3u8).unwrap(); // Variant discriminant
             env.write(&electra.parent_hash).unwrap();
             env.write(&electra.fee_recipient).unwrap();
@@ -308,6 +308,30 @@ pub async fn get_proof_data_zkvm_env(
     )
 }
 
+
+pub async fn get_light_client_input(
+    user: Address,
+    market: Address,
+    chain_id: u64,
+    trusted_hash: B256,
+) -> (Bootstrap<MainnetConsensusSpec>, B256, Vec<Update<MainnetConsensusSpec>>, OptimisticUpdate<MainnetConsensusSpec>) {
+    let (rpc_url, rpc_url_beacon) = match chain_id {
+        ETHEREUM_CHAIN_ID => (rpc_url_ethereum(), rpc_url_beacon()),
+        _ => panic!("Invalid chain ID"),
+    };
+
+    let beacon_rpc = <HttpRpc as ConsensusRpc<MainnetConsensusSpec>>::new(rpc_url_beacon);
+    let beacon_root = trusted_hash;
+    let bootstrap: Bootstrap<MainnetConsensusSpec> = beacon_rpc.get_bootstrap(beacon_root).await.unwrap();
+    let current_period = calc_sync_period::<MainnetConsensusSpec>(bootstrap.header().beacon().slot);
+
+    let updates: Vec<Update<MainnetConsensusSpec>> = beacon_rpc.get_updates(current_period, 10).await.unwrap();
+    let finality_update = beacon_rpc.get_optimistic_update().await.unwrap();
+
+    (bootstrap, trusted_hash, updates, finality_update)
+
+}
+
 /// Constructs an EVM input for a proof data query.
 ///
 /// Prepares the encoded EVM call data for querying an ERC20 token's getProofData function,
@@ -468,7 +492,7 @@ pub fn build_l1_chain_builder_environment(
         .unwrap()
         .write(&checkpoint)
         .unwrap();
-    
+
     write_light_client_header(&mut env, &finality_update.attested_header);
     env.write(&finality_update.sync_aggregate)
         .unwrap()
@@ -476,7 +500,8 @@ pub fn build_l1_chain_builder_environment(
         .unwrap()
         .write(&updates.len())
         .unwrap();
-
+    println!("WRITE Updates");
+    println!("Updates: {:?}", updates);
     for update in updates {
         write_light_client_header(&mut env, &update.attested_header());
         env.write(&update.next_sync_committee()).unwrap();
