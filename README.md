@@ -87,6 +87,52 @@ Each supported chain has specialized verification mechanisms:
    - Sequencer commitment verification
    - L1 block inclusion proofs
 
+### Ethereum Light Client Implementation
+
+This repository includes an experimental implementation of an Ethereum light client that demonstrates how light client verification can be integrated with Steel view calls for cross-chain proofs. **Note: This is not fully integrated into the main Malda protocol flow but serves as an example of how light client verification should work and how it can be connected with Steel for view calls on Ethereum to any chain proof.**
+
+#### How the Light Client Works
+
+The Ethereum light client implementation builds the Ethereum chain from sync committee verification:
+
+1. **Trusted Hash Starting Point**: The light client starts from a trusted beacon chain block hash (checkpoint) that serves as the root of trust
+2. **Sync Committee Verification**: Uses Ethereum's sync committee mechanism to verify subsequent beacon chain blocks
+3. **Chain Building**: Constructs a verified chain of beacon blocks leading to the target execution block
+4. **Execution Block Verification**: Verifies the execution payload within the beacon block to access Ethereum state
+5. **View Call Execution**: Performs the actual view call to the Malda market contract using the verified state
+
+#### Key Differences from Other Proofs
+
+Unlike the other chain verification mechanisms in this protocol, the light client proof:
+- **Does not use batching**: Each proof verifies a single user's state rather than multiple users
+- **Requires trusted checkpoints**: Depends on a trusted beacon chain hash that must be updated regularly
+- **Uses BLS signature verification**: Leverages the RISC Zero BLS318 accelerator for sync aggregation signature verification
+
+#### Dependencies and Compatibility
+
+The implementation is based on the Helios light client but has been modified for compatibility with the Steel framework:
+- **Helios-Steel-Compatible**: Uses a modified version of Helios dependencies located in the `helios-steel-compatible` repository under the Malda organization
+- **Data Type Adaptations**: Some data types and structures have been adapted for compatibility with the RISC Zero zkVM environment
+- **BLS Acceleration**: Utilizes RISC Zero's BLS318 accelerator for efficient sync committee signature verification
+
+#### Testing the Light Client
+
+You can test the light client implementation using:
+
+```bash
+cargo test prove_get_proof_data_on_ethereum_via_light_client
+```
+
+**Important**: The trusted hash in the test needs to be updated to a recent beacon checkpoint to prevent the verification chain from becoming too long, which would impact proof generation performance.
+
+#### Integration Requirements
+
+To fully integrate this light client into the Malda protocol, the following modifications would be needed:
+- **Anchor State Registry**: Malda contracts would need to be modified to include an anchor state registry for managing trusted beacon chain checkpoints
+- **Checkpoint Management**: A mechanism for updating trusted checkpoints as the beacon chain progresses
+- **Proof Verification**: Integration of the light client proof verification into the main protocol flow
+
+This implementation demonstrates the feasibility of using Ethereum light clients for cross-chain verification while maintaining the security guarantees of the beacon chain consensus mechanism.
 
 ### Self-Sequencing
 
