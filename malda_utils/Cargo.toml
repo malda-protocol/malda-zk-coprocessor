@@ -28,6 +28,6 @@ revm = { workspace = true }
 tree_hash = { workspace = true }
 derive_more = { workspace = true }
 
-consensus-core = { path = "../../helios/ethereum/consensus-core", package = "helios-consensus-core" }
+consensus-core = { git = "https://github.com/malda-protocol/helios-steel-compatible", package = "helios-consensus-core" }
 typenum = "1.17.0"
 

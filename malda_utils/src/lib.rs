@@ -31,5 +31,8 @@ pub mod validators;
 /// Ethereum light client validators
 pub mod validators_ethereum_light_client;
 
+/// Ethereum light client input helper
+pub mod zkvm_input_helper_ethereum_light_client;
+
 /// Cryptographic operations and primitives
 pub mod cryptography;

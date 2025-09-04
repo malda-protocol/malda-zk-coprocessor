@@ -18,7 +18,7 @@ use risc0_op_steel::optimism::OpEvmInput;
 use risc0_zkvm::guest::env;
 use alloy_consensus::Header;
 use alloy_sol_types::SolValue;
-use malda_utils::constants::{LINEA_CHAIN_ID, BASE_CHAIN_ID, ETHEREUM_CHAIN_ID, LINEA_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, ETHEREUM_SEPOLIA_CHAIN_ID, OPTIMISM_CHAIN_ID, OPTIMISM_SEPOLIA_CHAIN_ID};
+// use malda_utils::constants::{LINEA_CHAIN_ID, BASE_CHAIN_ID, ETHEREUM_CHAIN_ID, LINEA_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, ETHEREUM_SEPOLIA_CHAIN_ID, OPTIMISM_CHAIN_ID, OPTIMISM_SEPOLIA_CHAIN_ID};
 
 fn main() {
     let mut output: Vec<Bytes> = Vec::new();
@@ -44,9 +44,9 @@ fn main() {
         // }
 
         // This makes the guest program only compatible with testnet chains, remove for mainnet and enable the above mainnet code
-        if chain_id != LINEA_SEPOLIA_CHAIN_ID && chain_id != BASE_SEPOLIA_CHAIN_ID && chain_id != ETHEREUM_SEPOLIA_CHAIN_ID && chain_id != OPTIMISM_SEPOLIA_CHAIN_ID {
-            panic!("Chain ID is not Linea Sepolia, Base Sepolia, Ethereum Sepolia or Optimism Sepolia");
-        }
+        // if chain_id != LINEA_SEPOLIA_CHAIN_ID && chain_id != BASE_SEPOLIA_CHAIN_ID && chain_id != ETHEREUM_SEPOLIA_CHAIN_ID && chain_id != OPTIMISM_SEPOLIA_CHAIN_ID {
+        //     panic!("Chain ID is not Linea Sepolia, Base Sepolia, Ethereum Sepolia or Optimism Sepolia");
+        // }
         
         validate_get_proof_data_call(chain_id, account, asset, target_chain_ids, env_input, sequencer_commitment, env_op_input, &linking_blocks, &mut output, &env_eth_input, op_evm_input, sequencer_commitment_opstack_2, env_op_input_2);
     }

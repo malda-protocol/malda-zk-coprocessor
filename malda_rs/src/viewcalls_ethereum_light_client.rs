@@ -17,7 +17,6 @@ use consensus_core::{
     consensus_spec::MainnetConsensusSpec,
     types::{Bootstrap, Update, OptimisticUpdate, BeaconBlock, LightClientHeader},
 };
-use ssz_types::FixedVector;
 
 use risc0_steel::{
     ethereum::{EthEvmEnv, EthEvmInput, EthEvmFactory, ETH_MAINNET_CHAIN_SPEC},
@@ -46,6 +45,7 @@ fn write_beacon_block_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, header: &
 
 /// Helper function to write LightClientHeader by deconstructing its fields
 fn write_light_client_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, header: &LightClientHeader) {
+    
     match header {
         LightClientHeader::Bellatrix(bellatrix) => {
 
@@ -78,6 +78,7 @@ fn write_light_client_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, header: &
 
 /// Helper function to write ExecutionPayloadHeader by deconstructing its fields
 fn write_execution_payload_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, header: &consensus_core::types::ExecutionPayloadHeader) {
+
     match header {
         consensus_core::types::ExecutionPayloadHeader::Bellatrix(bellatrix) => {
 
@@ -161,14 +162,6 @@ fn write_execution_payload_header(env: &mut risc0_zkvm::ExecutorEnvBuilder, head
     }
 }
 
-// Add RPC URL functions
-fn rpc_url_ethereum() -> &'static str {
-    get_rpc_url("ETHEREUM", false, false)
-}
-
-fn rpc_url_beacon() -> &'static str {
-    get_env_var("RPC_URL_BEACON")
-}
 
 /// Generates a zero-knowledge proof for a user's proof data query.
 ///
@@ -262,7 +255,7 @@ pub async fn get_proof_data_zkvm_env(
     trusted_hash: B256,
 ) -> ExecutorEnv<'static> {
     let (rpc_url, rpc_url_beacon) = match chain_id {
-        ETHEREUM_CHAIN_ID => (rpc_url_ethereum(), rpc_url_beacon()),
+        ETHEREUM_CHAIN_ID => (get_rpc_url("ETHEREUM", false, false), get_env_var("RPC_URL_BEACON")),
         _ => panic!("Invalid chain ID"),
     };
 
@@ -310,13 +303,13 @@ pub async fn get_proof_data_zkvm_env(
 
 
 pub async fn get_light_client_input(
-    user: Address,
-    market: Address,
+    _user: Address,
+    _market: Address,
     chain_id: u64,
     trusted_hash: B256,
 ) -> (Bootstrap<MainnetConsensusSpec>, B256, Vec<Update<MainnetConsensusSpec>>, OptimisticUpdate<MainnetConsensusSpec>) {
-    let (rpc_url, rpc_url_beacon) = match chain_id {
-        ETHEREUM_CHAIN_ID => (rpc_url_ethereum(), rpc_url_beacon()),
+    let (_rpc_url, rpc_url_beacon) = match chain_id {
+        ETHEREUM_CHAIN_ID => (get_rpc_url("ETHEREUM", false, false), get_env_var("RPC_URL_BEACON")),
         _ => panic!("Invalid chain ID"),
     };
 
@@ -372,7 +365,7 @@ pub async fn get_proof_data_call_input(
     let mut env = EthEvmEnv::builder()
         .rpc(Url::parse(chain_url).unwrap())
         .block_number_or_tag(BlockNumberOrTag::Number(block_reorg_protected))
-        .beacon_api(Url::parse(rpc_url_beacon()).unwrap())
+        .beacon_api(Url::parse(get_env_var("RPC_URL_BEACON")).unwrap())
         .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
         .build()
         .await
@@ -500,8 +493,7 @@ pub fn build_l1_chain_builder_environment(
         .unwrap()
         .write(&updates.len())
         .unwrap();
-    println!("WRITE Updates");
-    println!("Updates: {:?}", updates);
+
     for update in updates {
         write_light_client_header(&mut env, &update.attested_header());
         env.write(&update.next_sync_committee()).unwrap();

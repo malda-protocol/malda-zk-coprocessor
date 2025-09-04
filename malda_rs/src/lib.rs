@@ -32,4 +32,7 @@ pub mod validators;
 #[path = "../../malda_utils/src/validators_ethereum_light_client.rs"]
 pub mod validators_ethereum_light_client;
 
+#[path = "../../malda_utils/src/zkvm_input_helper_ethereum_light_client.rs"]
+pub mod zkvm_input_helper_ethereum_light_client;
+
 pub mod elfs_ids;
