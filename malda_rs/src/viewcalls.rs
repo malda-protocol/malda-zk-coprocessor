@@ -468,13 +468,19 @@ pub async fn get_proof_data_prove_boundless(
 
     // Wait for the request to be fulfilled. The market will return the journal and seal.
     tracing::info!("Waiting for request {:x} to be fulfilled", request_id);
-    let (journal, seal) = client
+    let fulfillment = client
         .wait_for_request_fulfillment(
             request_id,
             Duration::from_secs(5), // check every 5 seconds
             expires_at,
         )
         .await?;
+    let journal = fulfillment
+        .data()?
+        .journal()
+        .ok_or_else(|| anyhow::anyhow!("Journal not found in fulfillment data"))?
+        .clone();
+    let seal = fulfillment.seal;
     tracing::info!("Request {:x} fulfilled", request_id);
 
     Ok((journal, seal))
