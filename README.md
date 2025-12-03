@@ -196,9 +196,38 @@ Note: For self-sequencing, `l1_inclusion` must be set to `true` to ensure additi
 
 ### Building
 
+#### Native Build
+
 ```bash
 cargo build
 ```
+
+#### Building Guest ELF with Docker
+
+The Risc0 guest program (get-proof-data) can be built using Docker:
+
+```bash
+docker build -t malda-guest-builder .
+docker run malda-guest-builder
+```
+
+Running the container will display a banner with the guest ELF path and Image ID:
+
+```
+================ RISC0 Guest ELF ================
+Path:      /app/malda_rs/bin/get-proof-data.bin
+SHA256:    <hash>
+Image ID:  [<image_id>]
+=================================================
+```
+
+The guest ELF binary can be copied from the container for use in proof generation:
+
+```bash
+docker cp <container_id>:/app/malda_rs/bin/get-proof-data.bin ./get-proof-data.bin
+```
+
+**Note:** Reproducibility of the guest ELF can only be guaranteed by publishing the particular Docker image used for the build. This ensures that the exact build environment, toolchain versions, and dependencies are preserved.
 
 ### Environment Setup for Testing
 

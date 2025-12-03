@@ -1,0 +1,17 @@
+*
+!/malda_rs/src
+!/malda_rs/Cargo.toml
+!/malda_utils/src
+!/malda_utils/Cargo.toml
+!/patch/ethereum_hashing/src
+!/patch/ethereum_hashing/Cargo.toml
+!/methods/guest/src
+!/methods/guest/Cargo.lock
+!/methods/guest/Cargo.toml
+!/methods/src
+!/methods/build.rs
+!/methods/Cargo.toml
+!/Cargo.lock
+!/Cargo.toml
+!/entrypoint.sh
+!/rust-toolchain.toml
