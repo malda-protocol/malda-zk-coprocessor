@@ -39,8 +39,7 @@ pub type EthChainSpec = ChainSpec<SpecId>;
 pub static LINEA_MAINNET_CHAIN_SPEC: LazyLock<EthChainSpec> = LazyLock::new(|| ChainSpec {
     chain_id: 59144,
     forks: BTreeMap::from([
-        (SpecId::LONDON, ForkCondition::Block(1)),
-        (SpecId::LONDON, ForkCondition::Timestamp(1)),
+        (SpecId::LONDON, ForkCondition::Block(0)),
     ]),
 });
 
