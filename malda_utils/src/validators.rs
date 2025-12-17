@@ -59,6 +59,7 @@ use risc0_steel::{
 /// * `env_input_opstack_for_viewcall_with_l1_inclusion` - Optional OpStack environment input for L1 inclusion.
 /// * `sequencer_commitment_opstack_2` - Optional second sequencer commitment for L2 chains.
 /// * `env_input_opstack_for_l1_block_call_2` - Optional second Optimism environment input for L1 validation.
+/// * `linea_beacon_data` - Optional beacon data for Linea validation.
 ///
 /// # Panics
 /// Panics if:
@@ -82,6 +83,7 @@ pub fn validate_get_proof_data_call(
     env_input_opstack_for_viewcall_with_l1_inclusion: Option<OpEvmInput>,
     sequencer_commitment_opstack_2: Option<SequencerCommitment>,
     env_input_opstack_for_l1_block_call_2: Option<EthEvmInput>,
+    linea_beacon_data: Option<linea_block_verifier::core::types::BeaconData>,
 ) {
     // Sort and verify all relevant parameters for the proof data call, including environment and block headers.
     let (
@@ -113,6 +115,7 @@ pub fn validate_get_proof_data_call(
         op_env_commitment.as_ref(),
         sequencer_commitment_opstack_2,
         env_input_opstack_for_l1_block_call_2,
+        linea_beacon_data,
     );
 
     // Ensure the chain length and hash linking are valid for reorg protection.
@@ -390,6 +393,7 @@ pub fn validate_opstack_dispute_game_commitment(
 /// * `op_env_commitment` - Optional storage hash for L1 inclusion validation.
 /// * `sequencer_commitment_opstack_2` - Optional second sequencer commitment for L2 chains.
 /// * `env_input_opstack_for_l1_block_call_2` - Optional second Optimism environment input for L1 validation.
+/// * `linea_beacon_data` - Optional beacon data for Linea validation.
 ///
 /// # Returns
 /// * `B256` - The validated block hash.
@@ -409,6 +413,7 @@ pub fn get_validated_block_hash(
     op_env_commitment: Option<&Commitment>,
     sequencer_commitment_opstack_2: Option<SequencerCommitment>,
     env_input_opstack_for_l1_block_call_2: Option<EthEvmInput>,
+    linea_beacon_data: Option<linea_block_verifier::core::types::BeaconData>,
 ) -> B256 {
     // Dispatch to the correct validation logic based on chain type.
     if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
@@ -422,6 +427,7 @@ pub fn get_validated_block_hash(
             validate_l1_inclusion,
             sequencer_commitment_opstack_2,
             env_input_opstack_for_l1_block_call_2,
+            linea_beacon_data,
         )
     } else if chain_id == OPTIMISM_CHAIN_ID
         || chain_id == BASE_CHAIN_ID
@@ -537,6 +543,7 @@ pub fn get_validated_block_hash_opstack(
 /// * `validate_l1_inclusion` - Whether to validate L1 inclusion.
 /// * `sequencer_commitment_opstack_2` - Optional second sequencer commitment.
 /// * `env_input_opstack_for_l1_block_call_2` - Optional second Optimism environment input.
+/// * `linea_beacon_data` - Optional beacon data for Linea validation.
 ///
 /// # Returns
 /// * `B256` - The validated block hash.
@@ -555,6 +562,7 @@ pub fn get_validated_block_hash_linea(
     validate_l1_inclusion: bool,
     sequencer_commitment_opstack_2: Option<SequencerCommitment>,
     env_input_opstack_for_l1_block_call_2: Option<EthEvmInput>,
+    linea_beacon_data: Option<linea_block_verifier::core::types::BeaconData>,
 ) -> B256 {
     if validate_l1_inclusion {
         // For L1 inclusion, determine the correct Ethereum chain ID.
@@ -579,9 +587,13 @@ pub fn get_validated_block_hash_linea(
             ethereum_hash,
         );
     }
-    // Always validate the Linea environment (signature check).
-    validate_linea_env(chain_id, &block_header_to_validate);
-    block_header_to_validate.hash_slow()
+    // Always validate the Linea header (consensus signature check).
+    let untrusted_header = block_header_to_validate.inner();
+    let linea_beacon_data = linea_beacon_data.unwrap();
+    let network = linea_block_verifier::core::constants::LineaNetwork::try_from(chain_id).unwrap();
+    let trusted_block_hash = linea_block_verifier::core::verify_header(untrusted_header, &linea_beacon_data, network).unwrap();
+
+    trusted_block_hash
 }
 
 /// Executes batch multicall for proof data queries.

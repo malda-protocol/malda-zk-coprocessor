@@ -37,6 +37,7 @@ fn main() {
         let op_evm_input: Option<OpEvmInput> = env::read();
         let sequencer_commitment_opstack_2: Option<SequencerCommitment> = env::read();
         let env_op_input_2: Option<EthEvmInput> = env::read();
+        let linea_beacon_data: Option<linea_block_verifier::core::types::BeaconData> = env::read();
 
         // This makes the guest program only compatible with mainnet chains, remove for testnet and enable the below testnet code
         // if chain_id != LINEA_CHAIN_ID && chain_id != BASE_CHAIN_ID && chain_id != ETHEREUM_CHAIN_ID && chain_id != OPTIMISM_CHAIN_ID {
@@ -48,7 +49,7 @@ fn main() {
             panic!("Chain ID is not Linea Sepolia, Base Sepolia, Ethereum Sepolia or Optimism Sepolia");
         }
         
-        validate_get_proof_data_call(chain_id, account, asset, target_chain_ids, env_input, sequencer_commitment, env_op_input, &linking_blocks, &mut output, &env_eth_input, op_evm_input, sequencer_commitment_opstack_2, env_op_input_2);
+        validate_get_proof_data_call(chain_id, account, asset, target_chain_ids, env_input, sequencer_commitment, env_op_input, &linking_blocks, &mut output, &env_eth_input, op_evm_input, sequencer_commitment_opstack_2, env_op_input_2, linea_beacon_data);
     }
     env::commit_slice(&output.abi_encode());
 } 
