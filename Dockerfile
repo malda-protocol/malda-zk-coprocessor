@@ -19,8 +19,7 @@ RUN rzup install && rzup install r0vm 3.0.4
 COPY . /app
 
 # Compile Risc0 guest.
-RUN mkdir ./malda_rs/bin && \
-  cargo build -p methods --release --locked
+RUN cargo build -p methods --release --locked
 
 # Copy the entrypoint script (prints guest info).
 RUN chmod +x /app/entrypoint.sh
