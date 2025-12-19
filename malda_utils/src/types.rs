@@ -36,11 +36,16 @@ use std::{collections::BTreeMap, sync::LazyLock};
 
 pub type EthChainSpec = ChainSpec<SpecId>;
 
+// NOTE: Forks are configured according to the official Linea protocol release:
+// https://github.com/Consensys/protocols-release-sandbox/blob/b2562432e9ff7b2a1bcd29f48d22d07c1da62630/config/src/main/resources/linea-mainnet.json#L15-L18
 pub static LINEA_MAINNET_CHAIN_SPEC: LazyLock<EthChainSpec> = LazyLock::new(|| ChainSpec {
     chain_id: 59144,
     forks: BTreeMap::from([
-        (SpecId::LONDON, ForkCondition::Block(1)),
-        (SpecId::LONDON, ForkCondition::Timestamp(1)),
+        (SpecId::LONDON, ForkCondition::Block(0)),
+        (SpecId::SHANGHAI, ForkCondition::Timestamp(1761213600)),
+        (SpecId::CANCUN, ForkCondition::Timestamp(1761645600)),
+        (SpecId::PRAGUE, ForkCondition::Timestamp(1761646200)),
+        (SpecId::OSAKA, ForkCondition::Timestamp(1764798551)),
     ]),
 });
 
