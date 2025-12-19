@@ -202,6 +202,14 @@ Note: For self-sequencing, `l1_inclusion` must be set to `true` to ensure additi
 cargo build
 ```
 
+By default, this compiles the Risc0 guest program. To skip the guest build:
+
+```bash
+RISC0_SKIP_BUILD=1 cargo build
+```
+
+Note: Skipping the Risc0 build results in an empty ELF with Image ID `[0, 0, 0, 0, 0, 0, 0, 0]`, which is unusable for proof generation. If you only need utilities without Risc0, better use `malda_utils` directly - it provides `cryptography`, `types`, and `validators` modules without requiring the Risc0 toolchain.
+
 #### Building Guest ELF with Docker
 
 The Risc0 guest program (get-proof-data) can be built using Docker:
