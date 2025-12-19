@@ -49,6 +49,19 @@ pub static LINEA_MAINNET_CHAIN_SPEC: LazyLock<EthChainSpec> = LazyLock::new(|| C
     ]),
 });
 
+// NOTE: Forks are configured according to the official Linea protocol release:
+// https://github.com/Consensys/protocols-release-sandbox/blob/b2562432e9ff7b2a1bcd29f48d22d07c1da62630/config/src/main/resources/sepolia.json#L16-L19
+pub static LINEA_SEPOLIA_CHAIN_SPEC: LazyLock<EthChainSpec> = LazyLock::new(|| ChainSpec {
+    chain_id: 59141,
+    forks: BTreeMap::from([
+        (SpecId::LONDON, ForkCondition::Block(0)),
+        (SpecId::SHANGHAI, ForkCondition::Timestamp(1677557088)),
+        (SpecId::CANCUN, ForkCondition::Timestamp(1706655072)),
+        (SpecId::PRAGUE, ForkCondition::Timestamp(1741159776)),
+        (SpecId::OSAKA, ForkCondition::Timestamp(1760427360)),
+    ]),
+});
+
 pub struct TakeLastXBytes(pub usize);
 
 pub enum SolidityDataType<'a> {

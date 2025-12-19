@@ -232,7 +232,7 @@ pub fn sort_and_verify_relevant_params(
         // For L1 or Linea chains, use the provided environment input.
         let chain_spec = match chain_id {
             LINEA_CHAIN_ID => &LINEA_MAINNET_CHAIN_SPEC,
-            LINEA_SEPOLIA_CHAIN_ID => &LINEA_MAINNET_CHAIN_SPEC,
+            LINEA_SEPOLIA_CHAIN_ID => &LINEA_SEPOLIA_CHAIN_SPEC,
             _ => &ETH_MAINNET_CHAIN_SPEC,
         };
 

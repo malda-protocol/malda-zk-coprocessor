@@ -1448,13 +1448,18 @@ pub async fn get_proof_data_call_input(
         } else {
             chain_url
         };
+        let chain_spec = match chain_id {
+            LINEA_CHAIN_ID => &LINEA_MAINNET_CHAIN_SPEC,
+            LINEA_SEPOLIA_CHAIN_ID => &LINEA_SEPOLIA_CHAIN_SPEC,
+            _ => &ETH_MAINNET_CHAIN_SPEC,
+        };
         let mut env = EthEvmEnv::builder()
         .rpc(Url::parse(chain_url_final).map_err(|e| {
             eprintln!("ERROR parsing RPC URL in get_proof_data_call_input (op_env): {:?} - URL: {}", e, chain_url_final);
             e
         }).expect("Failed to parse RPC URL"))
             .block_number_or_tag(BlockNumberOrTag::Number(block_reorg_protected))
-            .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
+            .chain_spec(chain_spec)
             .build()
             .await
             .expect("Failed to build EVM environment");
