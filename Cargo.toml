@@ -53,4 +53,5 @@ malda_rs = { path = "./malda_rs" }
 socket2 = "0.5.10"
 mio = "0.9" 
 
-
+# Linea block validation.
+linea-block-verifier = { git = "https://github.com/malda-protocol/linea-block-verifier.git", tag = "v0.1.0", default-features = false }

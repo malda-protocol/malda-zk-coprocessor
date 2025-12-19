@@ -46,3 +46,6 @@ boundless-market = "1.1.0"
 clap = { version = "4.5", features = ["derive", "env"] }
 
 malda_utils = { path = "../malda_utils" }
+
+# Linea block validation.
+linea-block-verifier = { workspace = true, features = ["host"] }

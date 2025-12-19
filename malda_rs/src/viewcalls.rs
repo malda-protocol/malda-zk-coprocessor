@@ -965,6 +965,9 @@ pub async fn get_proof_data_zkvm_input(
         )
     );
 
+    // For Linea chains we have to fetch additional beacon data; for others it will be `None`.
+    let linea_beacon_data = get_linea_beacon_data(chain_id, block, fallback, is_testnet).await;
+
     // Serialize all inputs into the format expected by the ZKVM guest
     let input: Vec<u8> = bytemuck::pod_collect_to_vec(
         &risc0_zkvm::serde::to_vec(&(
@@ -980,6 +983,7 @@ pub async fn get_proof_data_zkvm_input(
             &proof_data_call_input_op,
             &commitment_2,
             &l1_block_call_input_2,
+            linea_beacon_data,
         ))
         .unwrap(),
     );
@@ -1917,6 +1921,43 @@ fn is_opstack_chain(chain_id: u64) -> bool {
 /// - Linea mainnet and Sepolia
 fn is_linea_chain(chain_id: u64) -> bool {
     matches!(chain_id, LINEA_CHAIN_ID | LINEA_SEPOLIA_CHAIN_ID)
+}
+
+/// Fetches beacon data for Linea chains.
+///
+/// For Linea chains, additional beacon data (header and block) is required for proof generation.
+/// This function fetches the beacon header and block for the given L2 block number.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to check and fetch data for.
+/// * `block` - The L2 block number to get beacon data for.
+/// * `fallback` - Whether to use fallback beacon API URLs.
+/// * `is_testnet` - Whether the chain is a testnet variant.
+///
+/// # Returns
+/// * `Option<linea_block_verifier::core::types::BeaconData>` -
+///   The beacon header and block if the chain is a Linea chain, None otherwise.
+///
+/// # Panics
+/// Panics if:
+/// - Beacon API requests fail.
+async fn get_linea_beacon_data(
+    chain_id: u64,
+    block_number: u64,
+    fallback: bool,
+    is_testnet: bool,
+) -> Option<linea_block_verifier::core::types::BeaconData> {
+    if !is_linea_chain(chain_id) {
+        return None;
+    }
+
+    let (chain_name, _) = get_chain_params(chain_id);
+    let beacon_url = get_beacon_api_url(chain_name, fallback, is_testnet);
+    let network = linea_block_verifier::core::constants::LineaNetwork::try_from(chain_id).ok()?;
+    let beacon_client = linea_block_verifier::host::BeaconClient::new(beacon_url, network);
+    let beacon_data = beacon_client.fetch_beacon_data(block_number).await.unwrap();
+
+    Some(beacon_data)
 }
 
 /// Helper function to check if a chain is an Ethereum chain.

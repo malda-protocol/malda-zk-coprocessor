@@ -2257,6 +2257,7 @@ dependencies = [
  "bls12_381",
  "c-kzg",
  "k256",
+ "linea-block-verifier",
  "malda_utils",
  "revm",
  "risc0-op-steel",
@@ -2705,6 +2706,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "linea-block-verifier"
+version = "0.1.0"
+source = "git+https://github.com/malda-protocol/linea-block-verifier.git?tag=v0.1.0#9ab2fdfa2ce356e154d0240bc0c1cb2b87e95252"
+dependencies = [
+ "linea-proof-core",
+]
+
+[[package]]
+name = "linea-proof-core"
+version = "0.1.0"
+source = "git+https://github.com/malda-protocol/linea-block-verifier.git?tag=v0.1.0#9ab2fdfa2ce356e154d0240bc0c1cb2b87e95252"
+dependencies = [
+ "alloy-consensus",
+ "alloy-primitives 1.4.1",
+ "alloy-rlp",
+ "alloy-trie 0.8.1",
+ "bincode",
+ "hex",
+ "hex-literal",
+ "serde",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2765,6 +2789,7 @@ dependencies = [
  "eyre",
  "hex",
  "k256",
+ "linea-block-verifier",
  "revm",
  "risc0-op-steel",
  "risc0-steel",
