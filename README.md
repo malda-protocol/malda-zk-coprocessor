@@ -202,6 +202,14 @@ Note: For self-sequencing, `l1_inclusion` must be set to `true` to ensure additi
 cargo build
 ```
 
+By default, this compiles the Risc0 guest program. To skip the guest build:
+
+```bash
+RISC0_SKIP_BUILD=1 cargo build
+```
+
+Note: Skipping the Risc0 build results in an empty ELF with Image ID `[0, 0, 0, 0, 0, 0, 0, 0]`, which is unusable for proof generation. If you only need utilities without Risc0, better use `malda_utils` directly - it provides `cryptography`, `types`, and `validators` modules without requiring the Risc0 toolchain.
+
 #### Building Guest ELF with Docker
 
 The Risc0 guest program (get-proof-data) can be built using Docker:
@@ -215,16 +223,17 @@ Running the container will display a banner with the guest ELF path and Image ID
 
 ```
 ================ RISC0 Guest ELF ================
-Path:      /app/malda_rs/bin/get-proof-data.bin
+Path:      /app/target/riscv-guest/methods/guests/riscv32im-risc0-zkvm-elf/release/get-proof-data.bin
 SHA256:    <hash>
 Image ID:  [<image_id>]
 =================================================
 ```
 
-The guest ELF binary can be copied from the container for use in proof generation:
+The guest ELF binary can be copied from the container for use in proof generation.
+Use the path shown in the banner output:
 
 ```bash
-docker cp <container_id>:/app/malda_rs/bin/get-proof-data.bin ./get-proof-data.bin
+docker cp <container_id>:<path_from_banner> ./get-proof-data.bin
 ```
 
 **Note:** Reproducibility of the guest ELF can only be guaranteed by publishing the particular Docker image used for the build. This ensures that the exact build environment, toolchain versions, and dependencies are preserved.

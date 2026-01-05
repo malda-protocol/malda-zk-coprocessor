@@ -27,4 +27,4 @@ pub mod types;
 #[path = "../../malda_utils/src/validators.rs"]
 pub mod validators;
 
-pub mod elfs_ids;
+pub use methods;

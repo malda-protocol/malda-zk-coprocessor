@@ -42,7 +42,7 @@
 //! - **Game Type Validation**: Verifies dispute games use the correct game type
 
 use crate::constants::*;
-use crate::elfs_ids::*;
+use methods::GET_PROOF_DATA_ELF;
 use crate::types::*;
 use crate::types::{
     Call3, ExecutionPayload, IDisputeGame, IDisputeGameFactory, IL1Block, IL1MessageService,

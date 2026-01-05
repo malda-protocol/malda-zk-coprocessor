@@ -5385,6 +5385,7 @@ dependencies = [
  "linea-block-verifier",
  "log",
  "malda_utils",
+ "methods",
  "reqwest 0.12.24",
  "revm",
  "risc0-ethereum-contracts 3.0.1 (git+https://github.com/risc0/risc0-ethereum?tag=v3.0.1)",
