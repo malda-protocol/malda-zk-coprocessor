@@ -7,6 +7,10 @@ edition = "2021"
 name = "get-proof-data"
 path = "src/bin/get_proof_data.rs"
 
+[features]
+mainnet = []
+testnet = []
+
 [workspace]
 
 [dependencies]
