@@ -312,7 +312,7 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
     })
 }
 
-/// Submits a proof data request to the Boundless market for decentralized proving.
+/// Submits a proof data request to the Boundless market for decentralized proving with a custom ELF.
 ///
 /// This function creates a proof request and submits it to the Boundless market, which will
 /// handle the ZK proof generation in a decentralized manner. The function waits for the
@@ -331,6 +331,7 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
 /// * `fallback` - Whether to use fallback RPC URLs (default: false).
 /// * `onchain` - Whether to submit onchain (true) or offchain (false).
 /// * `boundless_params` - Configuration parameters for the Boundless market client and request offers.
+/// * `elf` - Custom ELF binary for the guest program.
 ///
 /// # Returns
 /// * `Result<(Bytes, Bytes), Error>` - Tuple of (journal, seal) if successful, or an error.
@@ -349,7 +350,7 @@ fn run_bonsai(input_data: Vec<u8>) -> Result<MaldaProveInfo, anyhow::Error> {
 ///
 /// Optional environment variables:
 /// - `PROGRAM_URL`: URL of a pre-uploaded program to avoid re-upload latency
-pub async fn get_proof_data_prove_boundless(
+pub async fn get_proof_data_prove_boundless_with_elf(
     users: Vec<Vec<Address>>,
     markets: Vec<Vec<Address>>,
     target_chain_id: Vec<Vec<u64>>,
@@ -358,6 +359,7 @@ pub async fn get_proof_data_prove_boundless(
     fallback: bool,
     onchain: bool,
     boundless_params: BoundlessParams,
+    elf: &[u8],
 ) -> Result<(Bytes, Bytes), Error> {
     // Only initialize tracing if it hasn't been set up already
     if tracing_subscriber::util::SubscriberInitExt::try_init(
@@ -423,7 +425,7 @@ pub async fn get_proof_data_prove_boundless(
         Url::parse(&program_url).context("Failed to parse PROGRAM_URL")?
     } else {
         tracing::info!("No PROGRAM_URL found, uploading program directly");
-        let program_url = client.upload_program(GET_PROOF_DATA_ELF).await?;
+        let program_url = client.upload_program(elf).await?;
         tracing::info!("program uploaded to {}", program_url);
         program_url
     };
@@ -484,6 +486,35 @@ pub async fn get_proof_data_prove_boundless(
     tracing::info!("Request {:x} fulfilled", request_id);
 
     Ok((journal, seal))
+}
+
+/// Submits a proof data request to the Boundless market using the default guest ELF.
+///
+/// This is a convenience wrapper around [`get_proof_data_prove_boundless_with_elf`].
+/// See that function for full documentation.
+#[cfg(feature = "guest")]
+pub async fn get_proof_data_prove_boundless(
+    users: Vec<Vec<Address>>,
+    markets: Vec<Vec<Address>>,
+    target_chain_id: Vec<Vec<u64>>,
+    chain_ids: Vec<u64>,
+    l1_inclusion: bool,
+    fallback: bool,
+    onchain: bool,
+    boundless_params: BoundlessParams,
+) -> Result<(Bytes, Bytes), Error> {
+    get_proof_data_prove_boundless_with_elf(
+        users,
+        markets,
+        target_chain_id,
+        chain_ids,
+        l1_inclusion,
+        fallback,
+        onchain,
+        boundless_params,
+        GET_PROOF_DATA_ELF,
+    )
+    .await
 }
 
 /// Executes proof data queries across multiple chains in parallel.
