@@ -21,10 +21,7 @@
 //! This module contains a comprehensive set of constant definitions that are used across different chains
 //! and components of the Malda Protocol.
 
-#[path = "../../malda_utils/src/constants.rs"]
-mod constants;
-
-pub use constants::*;
+pub use malda_utils::constants::*;
 
 /// Generic function to retrieve environment variables as static strings
 fn get_env_var(env_var: &str) -> &'static str {

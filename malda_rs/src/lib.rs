@@ -18,14 +18,9 @@ pub mod constants;
 
 pub mod viewcalls;
 
-#[path = "../../malda_utils/src/cryptography.rs"]
-pub mod cryptography;
-
-#[path = "../../malda_utils/src/types.rs"]
-pub mod types;
-
-#[path = "../../malda_utils/src/validators.rs"]
-pub mod validators;
+pub use malda_utils::cryptography;
+pub use malda_utils::types;
+pub use malda_utils::validators;
 
 #[cfg(feature = "guest")]
 pub use methods;
