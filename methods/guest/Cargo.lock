@@ -2197,7 +2197,6 @@ dependencies = [
  "k256",
  "linea-block-verifier",
  "malda_utils",
- "revm",
  "risc0-op-steel",
  "risc0-steel",
  "risc0-zkvm",
