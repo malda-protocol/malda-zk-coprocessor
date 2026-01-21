@@ -3091,7 +3091,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.111",
- "unicode-xid",
 ]
 
 [[package]]
@@ -5410,7 +5409,6 @@ dependencies = [
  "alloy-primitives 1.4.1",
  "alloy-rlp",
  "alloy-sol-types",
- "derive_more 1.0.0",
  "ethereum_ssz",
  "ethereum_ssz_derive",
  "eyre",
@@ -5420,12 +5418,9 @@ dependencies = [
  "revm",
  "risc0-op-steel",
  "risc0-steel",
- "risc0-zkvm",
  "serde",
  "snap",
  "ssz_types",
- "tree_hash 0.7.0",
- "url",
 ]
 
 [[package]]
