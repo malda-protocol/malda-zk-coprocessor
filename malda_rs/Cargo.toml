@@ -40,7 +40,7 @@ tracing = "0.1.39"
 dotenvy = "0.15"
 boundless-market = "1.1.0"
 
-malda_utils = { path = "../malda_utils" }
+malda_utils = { workspace = true }
 
 # Linea block validation.
 linea-block-verifier = { workspace = true, features = ["host"] }
