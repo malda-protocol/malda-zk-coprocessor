@@ -27,4 +27,5 @@ pub mod types;
 #[path = "../../malda_utils/src/validators.rs"]
 pub mod validators;
 
+#[cfg(feature = "guest")]
 pub use methods;

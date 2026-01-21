@@ -42,6 +42,7 @@
 //! - **Game Type Validation**: Verifies dispute games use the correct game type
 
 use crate::constants::*;
+#[cfg(feature = "guest")]
 use methods::GET_PROOF_DATA_ELF;
 use crate::types::*;
 use crate::types::{
@@ -61,6 +62,7 @@ use risc0_steel::{
     serde::RlpHeader,
     Contract, EvmInput,
 };
+#[cfg(feature = "guest")]
 use risc0_zkvm::{
     default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
 };
@@ -540,6 +542,7 @@ pub async fn get_proof_data_prove_boundless(
 /// - RPC calls fail.
 /// - ZKVM execution fails.
 /// - Parallel task execution fails.
+#[cfg(feature = "guest")]
 pub async fn get_proof_data_exec(
     users: Vec<Vec<Address>>,
     markets: Vec<Vec<Address>>,
@@ -628,6 +631,7 @@ pub async fn get_proof_data_exec(
 /// - Array lengths don't match.
 /// - Parallel task execution fails.
 /// - Environment building fails.
+#[cfg(feature = "guest")]
 async fn get_proof_data_env(
     users: Vec<Vec<Address>>,
     markets: Vec<Vec<Address>>,
@@ -778,6 +782,7 @@ async fn get_proof_data_input(
 /// - RPC calls fail.
 /// - Proof generation fails.
 /// - ZKVM execution fails.
+#[cfg(feature = "guest")]
 pub async fn get_proof_data_prove(
     users: Vec<Vec<Address>>,
     markets: Vec<Vec<Address>>,

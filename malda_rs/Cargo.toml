@@ -3,6 +3,10 @@ name = "malda_rs"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+guest = ["dep:methods"]
+
 [dependencies]
 alloy = { workspace = true }
 alloy-primitives = { workspace = true }
@@ -31,7 +35,7 @@ tree_hash = { workspace = true }
 revm = { workspace = true }
 bytemuck = { workspace = true }
 hex = { workspace = true }
-methods = { workspace = true }
+methods = { workspace = true, optional = true }
 
 
 # alloy-primitives-old = { workspace = true }
