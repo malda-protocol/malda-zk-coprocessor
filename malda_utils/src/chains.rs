@@ -100,3 +100,21 @@ pub fn is_linea_chain(chain_id: u64) -> bool {
 pub fn is_ethereum_chain(chain_id: u64) -> bool {
     matches!(chain_id, ETHEREUM_CHAIN_ID | ETHEREUM_SEPOLIA_CHAIN_ID)
 }
+
+/// Returns the L1 message service contract address for a given Linea chain ID.
+///
+/// # Arguments
+/// * `chain_id` - The Linea chain ID (mainnet or Sepolia).
+///
+/// # Returns
+/// * `Address` - The L1 message service contract address.
+///
+/// # Panics
+/// Panics if an invalid or non-Linea chain ID is provided.
+pub fn get_linea_message_service_address(chain_id: u64) -> Address {
+    match chain_id {
+        LINEA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA,
+        LINEA_SEPOLIA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA_SEPOLIA,
+        _ => panic!("invalid chain id for linea message service: {}", chain_id),
+    }
+}

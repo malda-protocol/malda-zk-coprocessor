@@ -28,8 +28,8 @@
 //! - Linea - Mainnet and Sepolia
 
 use crate::chains::{
-    get_portal_address, get_reorg_protection_depth, is_ethereum_chain, is_linea_chain,
-    is_opstack_chain,
+    get_linea_message_service_address, get_portal_address, get_reorg_protection_depth,
+    is_ethereum_chain, is_linea_chain, is_opstack_chain,
 };
 use crate::constants::*;
 use crate::types::*;
@@ -697,11 +697,7 @@ pub fn validate_linea_env_with_l1_inclusion(
     ethereum_hash: B256,
 ) {
     // Select the correct message service address for the given chain.
-    let msg_service_address = match chain_id {
-        LINEA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA,
-        LINEA_SEPOLIA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA_SEPOLIA,
-        _ => panic!("invalid chain id"),
-    };
+    let msg_service_address = get_linea_message_service_address(chain_id);
 
     let env_eth = env_eth_input.clone().into_env(&ETH_MAINNET_CHAIN_SPEC);
 

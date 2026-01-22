@@ -43,8 +43,8 @@
 
 use crate::constants::*;
 use malda_utils::chains::{
-    get_portal_address, get_reorg_protection_depth, is_ethereum_chain, is_linea_chain,
-    is_opstack_chain,
+    get_linea_message_service_address, get_portal_address, get_reorg_protection_depth,
+    is_ethereum_chain, is_linea_chain, is_opstack_chain,
 };
 #[cfg(feature = "guest")]
 use methods::GET_PROOF_DATA_ELF;
@@ -1796,11 +1796,7 @@ pub async fn get_env_input_for_linea_l1_call(
     l1_block: u64,
 ) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
     // Select the correct message service address for the chain
-    let message_service_address = match chain_id {
-        LINEA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA,
-        LINEA_SEPOLIA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA_SEPOLIA,
-        _ => panic!("Invalid chain ID"),
-    };
+    let message_service_address = get_linea_message_service_address(chain_id);
 
     // Build the Ethereum environment for the L1 block
     let mut env = EthEvmEnv::builder()
