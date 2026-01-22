@@ -14,6 +14,8 @@
 //! This module provides utility functions for working with different blockchain networks,
 //! including reorg protection depth lookups and chain type identification.
 
+use alloy_primitives::Address;
+
 use crate::constants::*;
 
 /// Returns the reorg protection depth for a given chain ID.
@@ -40,5 +42,25 @@ pub fn get_reorg_protection_depth(chain_id: u64) -> u64 {
         LINEA_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA_SEPOLIA,
         ETHEREUM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA,
         _ => panic!("invalid chain id: {}", chain_id),
+    }
+}
+
+/// Returns the OptimismPortal contract address for a given OpStack chain ID.
+///
+/// # Arguments
+/// * `chain_id` - The OpStack chain ID (Optimism or Base, mainnet or Sepolia).
+///
+/// # Returns
+/// * `Address` - The portal contract address.
+///
+/// # Panics
+/// Panics if an invalid or non-OpStack chain ID is provided.
+pub fn get_portal_address(chain_id: u64) -> Address {
+    match chain_id {
+        OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
+        OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
+        BASE_CHAIN_ID => BASE_PORTAL,
+        BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
+        _ => panic!("invalid chain id for portal: {}", chain_id),
     }
 }

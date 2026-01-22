@@ -42,7 +42,7 @@
 //! - **Game Type Validation**: Verifies dispute games use the correct game type
 
 use crate::constants::*;
-use malda_utils::chains::get_reorg_protection_depth;
+use malda_utils::chains::{get_portal_address, get_reorg_protection_depth};
 #[cfg(feature = "guest")]
 use methods::GET_PROOF_DATA_ELF;
 use crate::types::*;
@@ -1887,42 +1887,11 @@ fn get_opstack_config(
     let l1_rpc_url = get_rpc_url("ETHEREUM", fallback, is_testnet);
     let l2_rpc_url = get_rpc_url(chain_name, fallback, is_testnet);
 
-    let portal = match chain_id {
-        OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
-        OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
-        BASE_CHAIN_ID => BASE_PORTAL,
-        BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
-        _ => panic!("Invalid OpStack chain ID: {}", chain_id),
-    };
+    let portal = get_portal_address(chain_id);
 
     (l1_rpc_url, portal, l2_rpc_url, chain_name)
 }
 
-/// Helper function to get portal address for a chain.
-///
-/// Returns the portal contract address for OpStack chains.
-///
-/// # Arguments
-/// * `chain_id` - The chain ID to look up.
-///
-/// # Returns
-/// * `Address` - The portal contract address.
-///
-/// # Panics
-/// Panics if an invalid chain ID is provided.
-///
-/// # Supported Chains
-/// - Optimism mainnet and Sepolia
-/// - Base mainnet and Sepolia
-fn get_portal_address(chain_id: u64) -> Address {
-    match chain_id {
-        OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
-        BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
-        OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
-        BASE_CHAIN_ID => BASE_PORTAL,
-        _ => panic!("Invalid chain ID for portal: {}", chain_id),
-    }
-}
 
 /// Helper function to check if a chain is an OpStack chain.
 ///

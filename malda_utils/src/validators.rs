@@ -27,7 +27,7 @@
 //! - Base - Mainnet and Sepolia
 //! - Linea - Mainnet and Sepolia
 
-use crate::chains::get_reorg_protection_depth;
+use crate::chains::{get_portal_address, get_reorg_protection_depth};
 use crate::constants::*;
 use crate::types::*;
 use alloy_consensus::Header;
@@ -301,13 +301,7 @@ pub fn validate_opstack_dispute_game_commitment(
     let root_claim = op_env_commitment.digest;
 
     // Select the correct portal address for the given chain.
-    let portal_adress = match chain_id {
-        OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
-        BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
-        OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
-        BASE_CHAIN_ID => BASE_PORTAL,
-        _ => panic!("invalid chain id"),
-    };
+    let portal_adress = get_portal_address(chain_id);
 
     // Get the portal contract for additional checks.
     let portal_contract = Contract::new(portal_adress, &eth_env);
