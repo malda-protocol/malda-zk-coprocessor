@@ -64,3 +64,17 @@ pub fn get_portal_address(chain_id: u64) -> Address {
         _ => panic!("invalid chain id for portal: {}", chain_id),
     }
 }
+
+/// Checks if a chain ID corresponds to an OpStack L2 chain.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to check.
+///
+/// # Returns
+/// * `bool` - True if the chain is an OpStack chain (Optimism or Base, mainnet or Sepolia).
+pub fn is_opstack_chain(chain_id: u64) -> bool {
+    matches!(
+        chain_id,
+        OPTIMISM_CHAIN_ID | BASE_CHAIN_ID | OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID
+    )
+}

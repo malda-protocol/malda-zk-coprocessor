@@ -42,7 +42,7 @@
 //! - **Game Type Validation**: Verifies dispute games use the correct game type
 
 use crate::constants::*;
-use malda_utils::chains::{get_portal_address, get_reorg_protection_depth};
+use malda_utils::chains::{get_portal_address, get_reorg_protection_depth, is_opstack_chain};
 #[cfg(feature = "guest")]
 use methods::GET_PROOF_DATA_ELF;
 use crate::types::*;
@@ -1893,25 +1893,6 @@ fn get_opstack_config(
 }
 
 
-/// Helper function to check if a chain is an OpStack chain.
-///
-/// Determines whether a given chain ID corresponds to an OpStack L2 chain.
-///
-/// # Arguments
-/// * `chain_id` - The chain ID to check.
-///
-/// # Returns
-/// * `bool` - True if the chain is an OpStack chain, false otherwise.
-///
-/// # Supported OpStack Chains
-/// - Optimism mainnet and Sepolia
-/// - Base mainnet and Sepolia
-fn is_opstack_chain(chain_id: u64) -> bool {
-    matches!(
-        chain_id,
-        OPTIMISM_CHAIN_ID | BASE_CHAIN_ID | OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID
-    )
-}
 
 /// Helper function to check if a chain is a Linea chain.
 ///

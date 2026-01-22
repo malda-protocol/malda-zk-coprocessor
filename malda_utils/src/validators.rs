@@ -27,7 +27,7 @@
 //! - Base - Mainnet and Sepolia
 //! - Linea - Mainnet and Sepolia
 
-use crate::chains::{get_portal_address, get_reorg_protection_depth};
+use crate::chains::{get_portal_address, get_reorg_protection_depth, is_opstack_chain};
 use crate::constants::*;
 use crate::types::*;
 use alloy_consensus::Header;
@@ -203,12 +203,7 @@ pub fn sort_and_verify_relevant_params(
         op_env_for_viewcall_with_l1_inclusion,
         op_env_commitment,
         chain_id_for_length_validation,
-    ) = if (chain_id == OPTIMISM_CHAIN_ID
-        || chain_id == BASE_CHAIN_ID
-        || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-        || chain_id == BASE_SEPOLIA_CHAIN_ID)
-        && validate_l1_inclusion
-    {
+    ) = if is_opstack_chain(chain_id) && validate_l1_inclusion {
         // For OpStack L2s with L1 inclusion, use the L1 environment and OpStack environment for inclusion.
         let env_for_viewcall = env_input_eth_for_l1_inclusion
             .as_ref()
@@ -423,11 +418,7 @@ pub fn get_validated_block_hash(
             env_input_opstack_for_l1_block_call_2,
             linea_beacon_data,
         )
-    } else if chain_id == OPTIMISM_CHAIN_ID
-        || chain_id == BASE_CHAIN_ID
-        || chain_id == BASE_SEPOLIA_CHAIN_ID
-        || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-    {
+    } else if is_opstack_chain(chain_id) {
         get_validated_block_hash_opstack(
             chain_id,
             sequencer_commitment_opstack,
