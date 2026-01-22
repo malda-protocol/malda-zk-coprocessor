@@ -1425,15 +1425,13 @@ pub async fn get_proof_data_call_input(
         .zip(markets.iter())
         .zip(target_chain_ids.iter())
     {
-        // Selector for getProofData(address,uint32)
-        let selector = [0x07, 0xd9, 0x23, 0xe9];
         let user_bytes: [u8; 32] = user.into_word().into();
         // Convert chain_id to 4 bytes
         let chain_id_bytes = (*target_chain_id as u32).to_be_bytes();
 
         // Create calldata by concatenating selector, encoded address, and chain ID
         let mut call_data = Vec::with_capacity(68); // 4 bytes selector + 32 bytes address + 4 bytes chain ID
-        call_data.extend_from_slice(&selector);
+        call_data.extend_from_slice(&SELECTOR_MALDA_GET_PROOF_DATA);
         call_data.extend_from_slice(&user_bytes);
         call_data.extend_from_slice(&[0u8; 28]); // pad chain id to 32 bytes
         call_data.extend_from_slice(&chain_id_bytes);
