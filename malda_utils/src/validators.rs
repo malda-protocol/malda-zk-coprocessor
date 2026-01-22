@@ -27,7 +27,7 @@
 //! - Base - Mainnet and Sepolia
 //! - Linea - Mainnet and Sepolia
 
-use crate::chains::{get_portal_address, get_reorg_protection_depth, is_opstack_chain};
+use crate::chains::{get_portal_address, get_reorg_protection_depth, is_linea_chain, is_opstack_chain};
 use crate::constants::*;
 use crate::types::*;
 use alloy_consensus::Header;
@@ -405,7 +405,7 @@ pub fn get_validated_block_hash(
     linea_beacon_data: Option<linea_block_verifier::core::types::BeaconData>,
 ) -> B256 {
     // Dispatch to the correct validation logic based on chain type.
-    if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
+    if is_linea_chain(chain_id) {
         get_validated_block_hash_linea(
             chain_id,
             env_header_to_validate,

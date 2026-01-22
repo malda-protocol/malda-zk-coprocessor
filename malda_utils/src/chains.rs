@@ -78,3 +78,14 @@ pub fn is_opstack_chain(chain_id: u64) -> bool {
         OPTIMISM_CHAIN_ID | BASE_CHAIN_ID | OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID
     )
 }
+
+/// Checks if a chain ID corresponds to a Linea L2 chain.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to check.
+///
+/// # Returns
+/// * `bool` - True if the chain is a Linea chain (mainnet or Sepolia).
+pub fn is_linea_chain(chain_id: u64) -> bool {
+    matches!(chain_id, LINEA_CHAIN_ID | LINEA_SEPOLIA_CHAIN_ID)
+}
