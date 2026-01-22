@@ -27,7 +27,10 @@
 //! - Base - Mainnet and Sepolia
 //! - Linea - Mainnet and Sepolia
 
-use crate::chains::{get_portal_address, get_reorg_protection_depth, is_linea_chain, is_opstack_chain};
+use crate::chains::{
+    get_portal_address, get_reorg_protection_depth, is_ethereum_chain, is_linea_chain,
+    is_opstack_chain,
+};
 use crate::constants::*;
 use crate::types::*;
 use alloy_consensus::Header;
@@ -430,7 +433,7 @@ pub fn get_validated_block_hash(
             sequencer_commitment_opstack_2,
             env_input_opstack_for_l1_block_call_2,
         )
-    } else if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
+    } else if is_ethereum_chain(chain_id) {
         get_validated_ethereum_block_hash_via_opstack(
             sequencer_commitment_opstack.as_ref(),
             env_input_opstack_for_l1_block_call,

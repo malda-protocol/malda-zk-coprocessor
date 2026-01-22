@@ -43,7 +43,8 @@
 
 use crate::constants::*;
 use malda_utils::chains::{
-    get_portal_address, get_reorg_protection_depth, is_linea_chain, is_opstack_chain,
+    get_portal_address, get_reorg_protection_depth, is_ethereum_chain, is_linea_chain,
+    is_opstack_chain,
 };
 #[cfg(feature = "guest")]
 use methods::GET_PROOF_DATA_ELF;
@@ -1934,21 +1935,6 @@ async fn get_linea_beacon_data(
     Some(beacon_data)
 }
 
-/// Helper function to check if a chain is an Ethereum chain.
-///
-/// Determines whether a given chain ID corresponds to an Ethereum L1 chain.
-///
-/// # Arguments
-/// * `chain_id` - The chain ID to check.
-///
-/// # Returns
-/// * `bool` - True if the chain is an Ethereum chain, false otherwise.
-///
-/// # Supported Ethereum Chains
-/// - Ethereum mainnet and Sepolia
-fn is_ethereum_chain(chain_id: u64) -> bool {
-    matches!(chain_id, ETHEREUM_CHAIN_ID | ETHEREUM_SEPOLIA_CHAIN_ID)
-}
 
 /// Helper function to get the default sequencer commitment chain for a given chain.
 ///

@@ -89,3 +89,14 @@ pub fn is_opstack_chain(chain_id: u64) -> bool {
 pub fn is_linea_chain(chain_id: u64) -> bool {
     matches!(chain_id, LINEA_CHAIN_ID | LINEA_SEPOLIA_CHAIN_ID)
 }
+
+/// Checks if a chain ID corresponds to an Ethereum L1 chain.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to check.
+///
+/// # Returns
+/// * `bool` - True if the chain is an Ethereum chain (mainnet or Sepolia).
+pub fn is_ethereum_chain(chain_id: u64) -> bool {
+    matches!(chain_id, ETHEREUM_CHAIN_ID | ETHEREUM_SEPOLIA_CHAIN_ID)
+}
