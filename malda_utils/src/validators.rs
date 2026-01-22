@@ -28,7 +28,6 @@
 //! - Linea - Mainnet and Sepolia
 
 use crate::constants::*;
-use crate::cryptography::{recover_signer, signature_from_bytes};
 use crate::types::*;
 use alloy_consensus::Header;
 use alloy_primitives::{Address, Bytes, B256, U256};
@@ -734,63 +733,6 @@ pub fn validate_linea_env_with_l1_inclusion(
         l2_block_number >= U256::from(env_block_number),
         "Block number must be lower than or equal to the last one posted to L1"
     );
-}
-
-/// Validates a Linea block header by verifying the sequencer signature.
-///
-/// This function checks that the block is signed by the official Linea sequencer by extracting the signature from the extra data,
-/// recovering the signer, and comparing it to the expected sequencer address for the given chain.
-///
-/// # Arguments
-/// * `chain_id` - The chain ID (Linea mainnet or Sepolia).
-/// * `block_header_to_validate` - The Linea block header to validate.
-///
-/// # Panics
-/// Panics if:
-/// * Chain ID is not a Linea chain.
-/// * Block is not signed by the official Linea sequencer.
-/// * Signature recovery fails.
-/// * Extra data format is invalid.
-pub fn validate_linea_env(chain_id: u64, block_header_to_validate: &RlpHeader<Header>) {
-    // Extract the extra data and split into prefix and signature.
-    let extra_data = block_header_to_validate.inner().extra_data.clone();
-
-    let length = extra_data.len();
-    let prefix = extra_data.slice(0..length - 65);
-    let signature_bytes = extra_data.slice(length - 65..length);
-
-    let sig = signature_from_bytes(
-        &signature_bytes
-            .try_into()
-            .expect("Failed to convert signature bytes to fixed array"),
-    );
-
-    // Remove the signature from the header for sighash calculation.
-    let mut header = block_header_to_validate.inner().clone();
-    header.extra_data = prefix;
-
-    let sighash: [u8; 32] = header
-        .hash_slow()
-        .to_vec()
-        .try_into()
-        .expect("Failed to convert header hash to fixed array");
-    let sighash = B256::new(sighash);
-
-    // Recover the sequencer address from the signature and sighash.
-    let sequencer =
-        recover_signer(sig, sighash).expect("Failed to recover sequencer address from signature");
-
-    // Determine the expected sequencer address for the given chain.
-    let expected_sequencer = match chain_id {
-        LINEA_CHAIN_ID => LINEA_SEQUENCER,
-        LINEA_SEPOLIA_CHAIN_ID => LINEA_SEPOLIA_SEQUENCER,
-        _ => panic!("invalid chain id"),
-    };
-
-    // Ensure the recovered sequencer matches the expected address.
-    if sequencer != expected_sequencer {
-        panic!("Block not signed by linea sequencer");
-    }
 }
 
 /// Validates an OpStack (Optimism/Base) environment through sequencer commitments.

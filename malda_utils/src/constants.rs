@@ -17,7 +17,7 @@
 //! This module contains various constant definitions that are used across different chains
 //! and components of the Malda Protocol.
 
-use alloy_primitives::{address, Address, B256, U256};
+use alloy_primitives::{address, Address, B256};
 
 pub const MULTICALL: Address = address!("cA11bde05977b3631167028862bE2a173976CA11");
 /// Selector for getProofData(address,uint32)
@@ -45,16 +45,12 @@ pub const BASE_SEPOLIA_CHAIN_ID: u64 = 84532;
 pub const OPTIMISM_SEQUENCER: Address = address!("AAAA45d9549EDA09E70937013520214382Ffc4A2");
 /// The address of the Base sequencer contract.
 pub const BASE_SEQUENCER: Address = address!("Af6E19BE0F9cE7f8afd49a1824851023A8249e8a");
-/// The address of the Linea sequencer contract.
-pub const LINEA_SEQUENCER: Address = address!("8f81e2e3f8b46467523463835f965ffe476e1c9e");
 
 /// The address of the Optimism sequencer contract on the sepolia network.
 pub const OPTIMISM_SEPOLIA_SEQUENCER: Address =
     address!("57CACBB0d30b01eb2462e5dC940c161aff3230D3");
 /// The address of the Base sequencer contract on the sepolia network.
 pub const BASE_SEPOLIA_SEQUENCER: Address = address!("b830b99c95Ea32300039624Cb567d324D4b1D83C");
-/// The address of the Linea sequencer contract on the sepolia network.
-pub const LINEA_SEPOLIA_SEQUENCER: Address = address!("a27342f1b74c0cfb2cda74bac1628d0c1a9752f2");
 
 /// The address of the L1Block contract on Optimism.
 /// This contract provides L1 block information to L2.
@@ -76,15 +72,6 @@ pub const DISPUTE_GAME_FACTORY_BASE_SEPOLIA: Address =
 pub const L1_MESSAGE_SERVICE_LINEA: Address = address!("d19d4B5d358258f05D7B411E21A1460D11B0876F");
 pub const L1_MESSAGE_SERVICE_LINEA_SEPOLIA: Address =
     address!("B218f8A4Bc926cF1cA7b3423c154a0D627Bdb7E5");
-
-/// Half of the secp256k1 curve order (n/2).
-///
-/// This value is used in signature normalization to ensure s values are in the lower half
-/// of the curve order, which is required by some networks (like Ethereum) as a transaction validity rule.
-pub const SECP256K1N_HALF: U256 = U256::from_be_bytes([
-    0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-    0x5D, 0x57, 0x6E, 0x73, 0x57, 0xA4, 0x50, 0x1D, 0xDF, 0xE9, 0x2F, 0x46, 0x68, 0x1B, 0x20, 0xA0,
-]);
 
 /// The number of blocks to wait before considering a chain reorganization unlikely.
 ///
