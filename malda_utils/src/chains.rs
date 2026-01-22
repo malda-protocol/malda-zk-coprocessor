@@ -15,8 +15,10 @@
 //! including reorg protection depth lookups and chain type identification.
 
 use alloy_primitives::Address;
+use risc0_steel::ethereum::ETH_MAINNET_CHAIN_SPEC;
 
 use crate::constants::*;
+use crate::types::{EthChainSpec, LINEA_MAINNET_CHAIN_SPEC, LINEA_SEPOLIA_CHAIN_SPEC};
 
 /// Returns the reorg protection depth for a given chain ID.
 ///
@@ -116,5 +118,24 @@ pub fn get_linea_message_service_address(chain_id: u64) -> Address {
         LINEA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA,
         LINEA_SEPOLIA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA_SEPOLIA,
         _ => panic!("invalid chain id for linea message service: {}", chain_id),
+    }
+}
+
+/// Returns the risc0-steel chain spec for a given chain ID.
+///
+/// Used by the risc0-steel coprocessor to configure EVM environments.
+/// Returns Linea-specific chain specs for Linea chains, otherwise defaults
+/// to the Ethereum mainnet chain spec.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to get the spec for.
+///
+/// # Returns
+/// * `&'static EthChainSpec` - Reference to the risc0-steel chain specification.
+pub fn get_steel_chain_spec(chain_id: u64) -> &'static EthChainSpec {
+    match chain_id {
+        LINEA_CHAIN_ID => &LINEA_MAINNET_CHAIN_SPEC,
+        LINEA_SEPOLIA_CHAIN_ID => &LINEA_SEPOLIA_CHAIN_SPEC,
+        _ => &ETH_MAINNET_CHAIN_SPEC,
     }
 }

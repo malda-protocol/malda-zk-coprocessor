@@ -44,7 +44,7 @@
 use crate::constants::*;
 use malda_utils::chains::{
     get_linea_message_service_address, get_portal_address, get_reorg_protection_depth,
-    is_ethereum_chain, is_linea_chain, is_opstack_chain,
+    get_steel_chain_spec, is_ethereum_chain, is_linea_chain, is_opstack_chain,
 };
 #[cfg(feature = "guest")]
 use methods::GET_PROOF_DATA_ELF;
@@ -1492,11 +1492,7 @@ pub async fn get_proof_data_call_input(
         } else {
             chain_url
         };
-        let chain_spec = match chain_id {
-            LINEA_CHAIN_ID => &LINEA_MAINNET_CHAIN_SPEC,
-            LINEA_SEPOLIA_CHAIN_ID => &LINEA_SEPOLIA_CHAIN_SPEC,
-            _ => &ETH_MAINNET_CHAIN_SPEC,
-        };
+        let chain_spec = get_steel_chain_spec(chain_id);
         let mut env = EthEvmEnv::builder()
         .rpc(Url::parse(chain_url_final).map_err(|e| {
             eprintln!("ERROR parsing RPC URL in get_proof_data_call_input (op_env): {:?} - URL: {}", e, chain_url_final);

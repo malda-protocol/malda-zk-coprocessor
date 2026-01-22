@@ -29,7 +29,7 @@
 
 use crate::chains::{
     get_linea_message_service_address, get_portal_address, get_reorg_protection_depth,
-    is_ethereum_chain, is_linea_chain, is_opstack_chain,
+    get_steel_chain_spec, is_ethereum_chain, is_linea_chain, is_opstack_chain,
 };
 use crate::constants::*;
 use crate::types::*;
@@ -231,16 +231,11 @@ pub fn sort_and_verify_relevant_params(
         )
     } else {
         // For L1 or Linea chains, use the provided environment input.
-        let chain_spec = match chain_id {
-            LINEA_CHAIN_ID => &LINEA_MAINNET_CHAIN_SPEC,
-            LINEA_SEPOLIA_CHAIN_ID => &LINEA_SEPOLIA_CHAIN_SPEC,
-            _ => &ETH_MAINNET_CHAIN_SPEC,
-        };
-
+        let chain_spec = get_steel_chain_spec(chain_id);
         (
             env_input_for_viewcall
                 .expect("env_input is None")
-                .into_env(&chain_spec),
+                .into_env(chain_spec),
             None,
             None,
             chain_id,
