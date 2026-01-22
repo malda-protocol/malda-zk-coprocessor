@@ -13,3 +13,32 @@
 //!
 //! This module provides utility functions for working with different blockchain networks,
 //! including reorg protection depth lookups and chain type identification.
+
+use crate::constants::*;
+
+/// Returns the reorg protection depth for a given chain ID.
+///
+/// This value represents the number of blocks to wait before considering
+/// a transaction final and safe from chain reorganizations.
+///
+/// # Arguments
+/// * `chain_id` - The chain ID to get the protection depth for.
+///
+/// # Returns
+/// * `u64` - The reorg protection depth in blocks.
+///
+/// # Panics
+/// Panics if an invalid chain ID is provided.
+pub fn get_reorg_protection_depth(chain_id: u64) -> u64 {
+    match chain_id {
+        OPTIMISM_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM,
+        BASE_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE,
+        LINEA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA,
+        ETHEREUM_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM,
+        OPTIMISM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM_SEPOLIA,
+        BASE_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE_SEPOLIA,
+        LINEA_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA_SEPOLIA,
+        ETHEREUM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA,
+        _ => panic!("invalid chain id: {}", chain_id),
+    }
+}

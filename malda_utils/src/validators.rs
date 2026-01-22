@@ -27,6 +27,7 @@
 //! - Base - Mainnet and Sepolia
 //! - Linea - Mainnet and Sepolia
 
+use crate::chains::get_reorg_protection_depth;
 use crate::constants::*;
 use crate::types::*;
 use alloy_consensus::Header;
@@ -861,17 +862,7 @@ pub fn validate_chain_length(
     current_hash: B256,
 ) {
     // Determine the required reorg protection depth for the given chain.
-    let reorg_protection_depth = match chain_id {
-        OPTIMISM_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM,
-        BASE_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE,
-        LINEA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA,
-        ETHEREUM_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM,
-        OPTIMISM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM_SEPOLIA,
-        BASE_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE_SEPOLIA,
-        LINEA_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA_SEPOLIA,
-        ETHEREUM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA,
-        _ => panic!("invalid chain id"),
-    };
+    let reorg_protection_depth = get_reorg_protection_depth(chain_id);
     let chain_length = linking_blocks.len() as u64;
     // Ensure the chain is long enough for reorg protection.
     assert!(

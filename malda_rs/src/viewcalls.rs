@@ -42,6 +42,7 @@
 //! - **Game Type Validation**: Verifies dispute games use the correct game type
 
 use crate::constants::*;
+use malda_utils::chains::get_reorg_protection_depth;
 #[cfg(feature = "guest")]
 use methods::GET_PROOF_DATA_ELF;
 use crate::types::*;
@@ -2035,35 +2036,3 @@ fn get_default_sequencer_chain(_chain_id: u64, is_sepolia: bool) -> u64 {
     }
 }
 
-/// Helper function to get reorg protection depth for a chain.
-///
-/// Returns the number of blocks to look back for reorg protection based on the chain type.
-/// This ensures that blocks used in proofs are sufficiently confirmed to avoid chain reorganizations.
-///
-/// # Arguments
-/// * `chain_id` - The chain ID to get the protection depth for.
-///
-/// # Returns
-/// * `u64` - The reorg protection depth in blocks.
-///
-/// # Panics
-/// Panics if an invalid chain ID is provided.
-///
-/// # Protection Depths
-/// Different chains have different protection depths based on their finality characteristics:
-/// - Ethereum: Higher depth due to longer finality
-/// - L2 chains: Lower depth due to faster finality
-/// - Testnets: Lower depth for faster testing
-fn get_reorg_protection_depth(chain_id: u64) -> u64 {
-    match chain_id {
-        OPTIMISM_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM,
-        BASE_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE,
-        LINEA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA,
-        ETHEREUM_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM,
-        OPTIMISM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM_SEPOLIA,
-        BASE_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE_SEPOLIA,
-        LINEA_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA_SEPOLIA,
-        ETHEREUM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA,
-        _ => panic!("invalid chain id"),
-    }
-}
