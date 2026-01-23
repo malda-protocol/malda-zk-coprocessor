@@ -14,155 +14,130 @@ mod tests {
         providers::{Provider, ProviderBuilder},
         transports::http::reqwest::Url,
     };
-    use alloy_primitives::{address, Address};
     use malda_rs::{constants::*, types::*, validators::*, viewcalls::*};
-    use risc0_steel::{
-        ethereum::EthEvmEnv, host::BlockNumberOrTag as BlockRisc0, serde::RlpHeader,
-    };
+    use risc0_steel::{ethereum::EthEvmEnv, host::BlockNumberOrTag as BlockRisc0};
 
-    // Arbitrary values for testing
-    const USER: Address = address!("Ad7f33984bed10518012013D4aB0458D37FEE6F3");
-
-    pub const WETH_MARKET_SEPOLIA: Address = address!("B84644c24B4D0823A0770ED698f7C20B88Bcf824");
-
-    /// Tests Linea environment validation with correct input parameters
+    /// Tests Linea header verification with correct input parameters
     ///
     /// # Test Steps
     /// 1. Fetches latest block from Linea
-    /// 2. Prepares balance call input
-    /// 3. Validates Linea environment
+    /// 2. Fetches beacon data for the block
+    /// 3. Verifies the header using linea_block_verifier
     ///
     /// # Expected Outcome
     /// - No panic occurs with valid input
     #[tokio::test]
     async fn test_validate_linea_env_correct_input() {
-        let latest_block = EthEvmEnv::builder()
+        let env = EthEvmEnv::builder()
             .rpc(Url::parse(get_rpc_url("LINEA", false, false)).unwrap())
             .block_number_or_tag(BlockRisc0::Latest)
             .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
             .build()
             .await
-            .unwrap()
-            .header()
-            .inner()
-            .inner()
-            .number;
+            .unwrap();
 
-        let proof_data_call_input = get_proof_data_call_input(
-            LINEA_CHAIN_ID,
-            get_rpc_url("LINEA", false, false),
-            latest_block,
-            vec![USER],
-            vec![WETH_MARKET_SEPOLIA],
-            vec![OPTIMISM_CHAIN_ID],
-            false,
-            false,
-        )
-        .await;
+        let block_number = env.header().inner().inner().number;
+        let untrusted_header = env.header().inner().inner();
 
-        let env = proof_data_call_input
-            .0
-            .as_ref()
-            .unwrap()
-            .clone()
-            .into_env(&LINEA_MAINNET_CHAIN_SPEC);
-        validate_linea_env(LINEA_CHAIN_ID, &env.header().inner().clone());
+        // Fetch beacon data for verification
+        let beacon_url = get_beacon_api_url("LINEA", false, false);
+        let network =
+            linea_block_verifier::core::constants::LineaNetwork::try_from(LINEA_CHAIN_ID).unwrap();
+        let beacon_client = linea_block_verifier::host::BeaconClient::new(beacon_url, network);
+        let beacon_data = beacon_client.fetch_beacon_data(block_number).await.unwrap();
+
+        // Verify the header
+        let result =
+            linea_block_verifier::core::verify_header(untrusted_header, &beacon_data, network);
+        assert!(result.is_ok());
     }
 
-    /// Tests Linea environment validation with wrong chain input
+    /// Tests Linea header verification with wrong chain input
     ///
     /// # Test Steps
     /// 1. Fetches latest block from Optimism (wrong chain)
-    /// 2. Prepares balance call input
-    /// 3. Attempts to validate as Linea environment
+    /// 2. Fetches Linea beacon data
+    /// 3. Attempts to verify Optimism header as Linea
     ///
     /// # Expected Outcome
-    /// - Panics due to chain ID mismatch
+    /// - Verification fails due to chain mismatch
     #[tokio::test]
     async fn test_validate_linea_env_input_of_wrong_chain_panics() {
-        let latest_block = EthEvmEnv::builder()
+        // Fetch a block from Optimism (wrong chain)
+        let env = EthEvmEnv::builder()
             .rpc(Url::parse(get_rpc_url("OPTIMISM", false, false)).unwrap())
             .block_number_or_tag(BlockRisc0::Latest)
             .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
             .build()
             .await
-            .unwrap()
-            .header()
-            .inner()
-            .inner()
-            .number;
+            .unwrap();
 
-        let proof_data_call_input = get_proof_data_call_input(
-            OPTIMISM_CHAIN_ID,
-            get_rpc_url("OPTIMISM", false, false),
-            latest_block,
-            vec![USER],
-            vec![WETH_MARKET_SEPOLIA],
-            vec![LINEA_CHAIN_ID],
-            false,
-            false,
-        )
-        .await;
+        let untrusted_header = env.header().inner().inner();
 
-        let env = proof_data_call_input
-            .0
-            .as_ref()
-            .unwrap()
-            .clone()
-            .into_env(&LINEA_MAINNET_CHAIN_SPEC);
-        assert!(std::panic::catch_unwind(|| {
-            validate_linea_env(LINEA_CHAIN_ID, &env.header().inner().clone());
-        })
-        .is_err());
-    }
-
-    /// Tests Linea environment validation with manipulated block data
-    ///
-    /// # Test Steps
-    /// 1. Fetches latest block from Linea
-    /// 2. Manipulates block number
-    /// 3. Attempts validation
-    ///
-    /// # Expected Outcome
-    /// - Panics due to block manipulation
-    #[tokio::test]
-    async fn test_validate_linea_env_input_manipulated_panics() {
-        let latest_block = EthEvmEnv::builder()
+        // Fetch Linea beacon data (using a recent Linea block)
+        let linea_env = EthEvmEnv::builder()
             .rpc(Url::parse(get_rpc_url("LINEA", false, false)).unwrap())
             .block_number_or_tag(BlockRisc0::Latest)
             .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
             .build()
             .await
-            .unwrap()
-            .header()
-            .inner()
-            .inner()
-            .number;
+            .unwrap();
+        let linea_block_number = linea_env.header().inner().inner().number;
 
-        let proof_data_call_input = get_proof_data_call_input(
-            LINEA_CHAIN_ID,
-            get_rpc_url("LINEA", false, false),
-            latest_block,
-            vec![USER],
-            vec![WETH_MARKET_SEPOLIA],
-            vec![OPTIMISM_CHAIN_ID],
-            false,
-            false,
-        )
-        .await;
+        let beacon_url = get_beacon_api_url("LINEA", false, false);
+        let network =
+            linea_block_verifier::core::constants::LineaNetwork::try_from(LINEA_CHAIN_ID).unwrap();
+        let beacon_client = linea_block_verifier::host::BeaconClient::new(beacon_url, network);
+        let beacon_data = beacon_client
+            .fetch_beacon_data(linea_block_number)
+            .await
+            .unwrap();
 
-        let env = proof_data_call_input
-            .0
-            .as_ref()
-            .unwrap()
-            .clone()
-            .into_env(&LINEA_MAINNET_CHAIN_SPEC);
-        let mut header = env.header().inner().inner().clone();
-        header.number = 1;
-        assert!(std::panic::catch_unwind(|| {
-            validate_linea_env(LINEA_CHAIN_ID, &RlpHeader::new(header));
-        })
-        .is_err());
+        // Verify should fail - Optimism header doesn't match Linea beacon data
+        let result =
+            linea_block_verifier::core::verify_header(untrusted_header, &beacon_data, network);
+        assert!(result.is_err());
+    }
+
+    /// Tests Linea header verification with manipulated block data
+    ///
+    /// # Test Steps
+    /// 1. Fetches latest block from Linea
+    /// 2. Manipulates block number
+    /// 3. Attempts verification
+    ///
+    /// # Expected Outcome
+    /// - Verification fails due to block manipulation
+    #[tokio::test]
+    async fn test_validate_linea_env_input_manipulated_panics() {
+        let env = EthEvmEnv::builder()
+            .rpc(Url::parse(get_rpc_url("LINEA", false, false)).unwrap())
+            .block_number_or_tag(BlockRisc0::Latest)
+            .chain_spec(&LINEA_MAINNET_CHAIN_SPEC)
+            .build()
+            .await
+            .unwrap();
+
+        let block_number = env.header().inner().inner().number;
+
+        // Fetch beacon data for the original block
+        let beacon_url = get_beacon_api_url("LINEA", false, false);
+        let network =
+            linea_block_verifier::core::constants::LineaNetwork::try_from(LINEA_CHAIN_ID).unwrap();
+        let beacon_client = linea_block_verifier::host::BeaconClient::new(beacon_url, network);
+        let beacon_data = beacon_client.fetch_beacon_data(block_number).await.unwrap();
+
+        // Manipulate the header
+        let mut manipulated_header = env.header().inner().inner().clone();
+        manipulated_header.number = 1;
+
+        // Verify should fail - manipulated header doesn't match beacon data
+        let result = linea_block_verifier::core::verify_header(
+            &manipulated_header,
+            &beacon_data,
+            network,
+        );
+        assert!(result.is_err());
     }
 
     /// Tests OpStack environment validation with correct input
