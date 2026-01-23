@@ -10,7 +10,6 @@ guest = ["dep:methods"]
 [dependencies]
 alloy = { workspace = true }
 alloy-primitives = { workspace = true }
-alloy-sol-types = { workspace = true }
 anyhow = { workspace = true }
 risc0-steel = { workspace = true, features = ["host"] }
 risc0-op-steel = { workspace = true , features = ["host"]}
@@ -18,19 +17,9 @@ risc0-zkvm = { workspace = true, features = ["client", "unstable", "bonsai"] }
 tracing-subscriber = { workspace = true }
 url = { workspace = true }
 alloy-consensus = { workspace = true }
-serde = { workspace = true }
-k256 = { workspace = true }
-eyre = { workspace = true }
-snap = { workspace = true }
-ssz_types = { workspace = true }
-ethereum_ssz_derive = { workspace = true }
-ethereum_ssz = { workspace = true }
-alloy-rlp = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }
-revm = { workspace = true }
 bytemuck = { workspace = true }
-hex = { workspace = true }
 methods = { workspace = true, optional = true }
 
 reqwest = { version = "0.12.4", features = ["json"] }
@@ -40,7 +29,7 @@ tracing = "0.1.39"
 dotenvy = "0.15"
 boundless-market = "1.1.0"
 
-malda_utils = { path = "../malda_utils" }
+malda_utils = { workspace = true }
 
 # Linea block validation.
 linea-block-verifier = { workspace = true, features = ["host"] }
