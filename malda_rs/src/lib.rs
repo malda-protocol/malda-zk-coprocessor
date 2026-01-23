@@ -15,7 +15,7 @@
 //! view calls, cryptographic operations, type definitions, and validation logic.
 
 pub mod constants;
-
+pub mod prover;
 pub mod viewcalls;
 
 pub use malda_utils::cryptography;
