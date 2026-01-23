@@ -768,10 +768,13 @@ pub fn validate_opstack_env(chain_id: u64, commitment: &SequencerCommitment, env
             .expect("Failed to verify Base Sepolia sequencer commitment"),
         _ => panic!("invalid chain id"),
     }
-    // Convert the commitment to an execution payload and check the block hash.
-    let payload = ExecutionPayload::try_from(commitment)
-        .expect("Failed to convert sequencer commitment to execution payload");
-    assert_eq!(payload.block_hash, env_block_hash, "block hash mismatch");
+    // Extract the block hash using fast access (avoids full SSZ decoding).
+    // This is critical for RISC-V zkVM targets where the full SSZ decoding
+    // dependencies (ethereum_hashing) are not available.
+    let block_hash = commitment
+        .fast_block_hash()
+        .expect("Failed to extract block hash from sequencer commitment");
+    assert_eq!(block_hash, env_block_hash, "block hash mismatch");
 }
 
 /// Retrieves and validates Ethereum L1 block hash through OpStack L2.
