@@ -239,6 +239,24 @@ pub struct SequencerCommitment {
     pub signature: Signature,
 }
 
+/// Offset within the SSZ-encoded ExecutionPayload where block_hash field starts.
+///
+/// SSZ layout of ExecutionPayload fixed-size portion:
+/// - parent_hash: B256 (32 bytes)
+/// - fee_recipient: Address (20 bytes)
+/// - state_root: B256 (32 bytes)
+/// - receipts_root: B256 (32 bytes)
+/// - logs_bloom: FixedVector<u8, 256> (256 bytes)
+/// - prev_randao: B256 (32 bytes)
+/// - block_number: u64 (8 bytes)
+/// - gas_limit: u64 (8 bytes)
+/// - gas_used: u64 (8 bytes)
+/// - timestamp: u64 (8 bytes)
+/// - extra_data offset: u32 (4 bytes) - variable-length field stores offset
+/// - base_fee_per_gas: U256 (32 bytes)
+/// - block_hash: B256 (32 bytes) <- starts at byte 472
+const SSZ_BLOCK_HASH_OFFSET: usize = 472;
+
 impl SequencerCommitment {
     /// Creates a new SequencerCommitment from compressed data.
     ///
@@ -275,6 +293,36 @@ impl SequencerCommitment {
         }
 
         Ok(())
+    }
+
+    /// Extracts the block hash directly from the SSZ-encoded payload using fast access.
+    ///
+    /// This method reads the block_hash field directly from its known offset in the
+    /// SSZ-encoded data, avoiding full SSZ decoding. This is useful for environments
+    /// where the full SSZ decoding dependencies (e.g., `ethereum_hashing`) are not
+    /// available, such as RISC-V zkVM targets.
+    ///
+    /// The data layout is: `[32 bytes prefix][SSZ-encoded ExecutionPayload]`
+    /// Block hash is located at offset 472 within the SSZ-encoded portion.
+    ///
+    /// # Returns
+    /// * `Result<B256>` - The block hash or an error if data is too short
+    pub fn fast_block_hash(&self) -> Result<B256> {
+        // Skip the 32-byte prefix, then access block_hash at SSZ_BLOCK_HASH_OFFSET
+        const DATA_PREFIX: usize = 32;
+        const BLOCK_HASH_SIZE: usize = 32;
+        let start = DATA_PREFIX + SSZ_BLOCK_HASH_OFFSET;
+        let end = start + BLOCK_HASH_SIZE;
+
+        if self.data.len() < end {
+            eyre::bail!(
+                "data too short for fast block hash access: need {} bytes, have {}",
+                end,
+                self.data.len()
+            );
+        }
+
+        Ok(B256::from_slice(&self.data[start..end]))
     }
 }
 
@@ -357,4 +405,99 @@ pub struct Withdrawal {
     address: Address,
     /// Amount being withdrawn
     amount: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ssz::Encode;
+
+    #[test]
+    fn test_fast_block_hash_matches_decoded() {
+        // Create a minimal ExecutionPayload with a known block_hash
+        let expected_block_hash = B256::repeat_byte(0xAB);
+
+        let payload = ExecutionPayload {
+            parent_hash: B256::repeat_byte(0x01),
+            fee_recipient: Address::repeat_byte(0x02),
+            state_root: B256::repeat_byte(0x03),
+            receipts_root: B256::repeat_byte(0x04),
+            logs_bloom: FixedVector::from(vec![0u8; 256]),
+            prev_randao: B256::repeat_byte(0x05),
+            block_number: 12345,
+            gas_limit: 30_000_000,
+            gas_used: 21_000,
+            timestamp: 1700000000,
+            extra_data: VariableList::from(vec![]),
+            base_fee_per_gas: U256::from(1_000_000_000u64),
+            block_hash: expected_block_hash,
+            transactions: VariableList::from(vec![]),
+            withdrawals: VariableList::from(vec![]),
+            blob_gas_used: 0,
+            excess_blob_gas: 0,
+            withdrawals_root: B256::repeat_byte(0x06),
+        };
+
+        // Encode the payload using SSZ
+        let ssz_bytes = payload.as_ssz_bytes();
+
+        // Create a SequencerCommitment with 32-byte prefix + SSZ bytes
+        let mut data = vec![0u8; 32]; // 32-byte prefix
+        data.extend_from_slice(&ssz_bytes);
+
+        let commitment = SequencerCommitment {
+            data: Bytes::from(data),
+            signature: Signature::new(U256::ZERO, U256::ZERO, false),
+        };
+
+        // Test fast_block_hash
+        let fast_hash = commitment
+            .fast_block_hash()
+            .expect("fast_block_hash should succeed");
+        assert_eq!(
+            fast_hash, expected_block_hash,
+            "fast_block_hash should match the expected block hash"
+        );
+
+        // Verify that try_from also works and returns the same hash
+        let decoded_payload =
+            ExecutionPayload::try_from(&commitment).expect("try_from should succeed");
+        assert_eq!(
+            decoded_payload.block_hash, expected_block_hash,
+            "decoded block_hash should match"
+        );
+    }
+
+    #[test]
+    fn test_fast_block_hash_data_too_short() {
+        // Create a commitment with data that's too short
+        let commitment = SequencerCommitment {
+            data: Bytes::from(vec![0u8; 100]), // Way too short for block_hash access
+            signature: Signature::new(U256::ZERO, U256::ZERO, false),
+        };
+
+        let result = commitment.fast_block_hash();
+        assert!(
+            result.is_err(),
+            "fast_block_hash should fail with short data"
+        );
+    }
+
+    #[test]
+    fn test_ssz_block_hash_offset_is_correct() {
+        // This test verifies that our SSZ_BLOCK_HASH_OFFSET constant is correct
+        // by checking the SSZ encoding structure.
+
+        // Calculate expected offset based on ExecutionPayload field sizes:
+        // parent_hash: 32, fee_recipient: 20, state_root: 32, receipts_root: 32,
+        // logs_bloom: 256, prev_randao: 32, block_number: 8, gas_limit: 8,
+        // gas_used: 8, timestamp: 8, extra_data_offset: 4, base_fee_per_gas: 32
+        // Total: 32 + 20 + 32 + 32 + 256 + 32 + 8 + 8 + 8 + 8 + 4 + 32 = 472
+        let expected_offset: usize = 32 + 20 + 32 + 32 + 256 + 32 + 8 + 8 + 8 + 8 + 4 + 32;
+        assert_eq!(
+            SSZ_BLOCK_HASH_OFFSET, expected_offset,
+            "SSZ_BLOCK_HASH_OFFSET should be 472"
+        );
+        assert_eq!(SSZ_BLOCK_HASH_OFFSET, 472);
+    }
 }
