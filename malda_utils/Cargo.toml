@@ -8,10 +8,8 @@ edition = "2021"
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 risc0-steel = { workspace = true }
-risc0-zkvm = { workspace = true, default-features = false, features = ['std', 'unstable'] }
 risc0-op-steel = { workspace = true }
 serde = { workspace = true }
-url = { workspace = true }
 hex = { workspace = true }
 k256 = { workspace = true }
 eyre = { workspace = true }
@@ -22,11 +20,6 @@ ethereum_ssz = { workspace = true }
 alloy-rlp = { workspace = true }
 alloy-consensus = { workspace = true }
 revm = { workspace = true }
-
-# alloy-primitives-old = { workspace = true }
-# consensus-core = { workspace = true }
-tree_hash = { workspace = true }
-derive_more = { workspace = true }
 
 # Linea block validation.
 linea-block-verifier = { workspace = true }
