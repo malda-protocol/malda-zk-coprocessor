@@ -332,6 +332,10 @@ impl TryFrom<&SequencerCommitment> for ExecutionPayload {
 
     /// Attempts to convert a SequencerCommitment into an ExecutionPayload.
     ///
+    /// This performs full SSZ decoding and validates that the fast-access block hash
+    /// matches the decoded block hash. This validation ensures the fast-access offset
+    /// remains correct as the codebase evolves.
+    ///
     /// # Arguments
     /// * `value` - The SequencerCommitment to convert
     ///
@@ -339,7 +343,21 @@ impl TryFrom<&SequencerCommitment> for ExecutionPayload {
     /// * `Result<Self>` - The converted payload or an error
     fn try_from(value: &SequencerCommitment) -> Result<Self> {
         let payload_bytes = &value.data[32..];
-        ssz::Decode::from_ssz_bytes(payload_bytes).map_err(|_| eyre::eyre!("decode failed"))
+        let payload: ExecutionPayload =
+            ssz::Decode::from_ssz_bytes(payload_bytes).map_err(|_| eyre::eyre!("decode failed"))?;
+
+        // Validate that fast-access block hash matches decoded block hash.
+        // This ensures SSZ_BLOCK_HASH_OFFSET remains correct.
+        let fast_hash = value.fast_block_hash()?;
+        if fast_hash != payload.block_hash {
+            eyre::bail!(
+                "fast-access block hash mismatch: fast={}, decoded={}",
+                fast_hash,
+                payload.block_hash
+            );
+        }
+
+        Ok(payload)
     }
 }
 
