@@ -22,9 +22,10 @@ use alloy_sol_types::sol;
 use eyre::Result;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "ssz")]
 use alloy_rlp::RlpEncodable;
+#[cfg(feature = "ssz")]
 use ssz_derive::{Decode, Encode};
-use ssz_types::{typenum, FixedVector, VariableList};
 
 use crate::cryptography::signature_msg;
 use alloy_primitives::{Address, Bytes, Signature, B256, U256};
@@ -326,109 +327,123 @@ impl SequencerCommitment {
     }
 }
 
-/// Conversion implementation from SequencerCommitment to ExecutionPayload.
-impl TryFrom<&SequencerCommitment> for ExecutionPayload {
-    type Error = eyre::Report;
+// ============================================================================
+// SSZ-dependent types and implementations (requires "ssz" feature)
+// ============================================================================
 
-    /// Attempts to convert a SequencerCommitment into an ExecutionPayload.
-    ///
-    /// This performs full SSZ decoding and validates that the fast-access block hash
-    /// matches the decoded block hash. This validation ensures the fast-access offset
-    /// remains correct as the codebase evolves.
-    ///
-    /// # Arguments
-    /// * `value` - The SequencerCommitment to convert
-    ///
-    /// # Returns
-    /// * `Result<Self>` - The converted payload or an error
-    fn try_from(value: &SequencerCommitment) -> Result<Self> {
-        let payload_bytes = &value.data[32..];
-        let payload: ExecutionPayload =
-            ssz::Decode::from_ssz_bytes(payload_bytes).map_err(|_| eyre::eyre!("decode failed"))?;
+#[cfg(feature = "ssz")]
+mod ssz_types_impl {
+    use super::*;
+    use ssz_types::{typenum, FixedVector, VariableList};
 
-        // Validate that fast-access block hash matches decoded block hash.
-        // This ensures SSZ_BLOCK_HASH_OFFSET remains correct.
-        let fast_hash = value.fast_block_hash()?;
-        if fast_hash != payload.block_hash {
-            eyre::bail!(
-                "fast-access block hash mismatch: fast={}, decoded={}",
-                fast_hash,
-                payload.block_hash
-            );
+    /// Conversion implementation from SequencerCommitment to ExecutionPayload.
+    impl TryFrom<&SequencerCommitment> for ExecutionPayload {
+        type Error = eyre::Report;
+
+        /// Attempts to convert a SequencerCommitment into an ExecutionPayload.
+        ///
+        /// This performs full SSZ decoding and validates that the fast-access block hash
+        /// matches the decoded block hash. This validation ensures the fast-access offset
+        /// remains correct as the codebase evolves.
+        ///
+        /// # Arguments
+        /// * `value` - The SequencerCommitment to convert
+        ///
+        /// # Returns
+        /// * `Result<Self>` - The converted payload or an error
+        fn try_from(value: &SequencerCommitment) -> Result<Self> {
+            let payload_bytes = &value.data[32..];
+            let payload: ExecutionPayload = ssz::Decode::from_ssz_bytes(payload_bytes)
+                .map_err(|_| eyre::eyre!("decode failed"))?;
+
+            // Validate that fast-access block hash matches decoded block hash.
+            // This ensures SSZ_BLOCK_HASH_OFFSET remains correct.
+            let fast_hash = value.fast_block_hash()?;
+            if fast_hash != payload.block_hash {
+                eyre::bail!(
+                    "fast-access block hash mismatch: fast={}, decoded={}",
+                    fast_hash,
+                    payload.block_hash
+                );
+            }
+
+            Ok(payload)
         }
+    }
 
-        Ok(payload)
+    /// Represents a complete blockchain execution payload.
+    #[derive(Debug, Clone, Encode, Decode)]
+    pub struct ExecutionPayload {
+        /// Hash of the parent block
+        pub parent_hash: B256,
+        /// Address of the fee recipient
+        pub fee_recipient: Address,
+        /// Root hash of the state trie
+        pub state_root: B256,
+        /// Root hash of the receipt trie
+        pub receipts_root: B256,
+        /// Bloom filter for the logs
+        pub logs_bloom: LogsBloom,
+        /// Previous random value used in block production
+        pub prev_randao: B256,
+        /// Block number
+        pub block_number: u64,
+        /// Maximum gas allowed in the block
+        pub gas_limit: u64,
+        /// Total gas used in the block
+        pub gas_used: u64,
+        /// Block timestamp
+        pub timestamp: u64,
+        /// Additional data included in the block
+        pub extra_data: ExtraData,
+        /// Base fee per gas unit
+        pub base_fee_per_gas: U256,
+        /// Hash of the current block
+        pub block_hash: B256,
+        /// List of transactions included in the block
+        pub transactions: VariableList<Transaction, typenum::U1048576>,
+        /// List of withdrawals processed in the block
+        pub withdrawals: VariableList<Withdrawal, typenum::U16>,
+        /// Amount of blob gas used in the block
+        pub blob_gas_used: u64,
+        /// Excess blob gas in the block
+        pub excess_blob_gas: u64,
+        /// Root of withdrawals - optional to match Go implementation for Bedrock, Canyon, Delta, Ecotone, Fjord, Granite, Holocene
+        pub withdrawals_root: B256,
+    }
+
+    /// Type alias for a transaction, represented as a variable-length byte list
+    pub type Transaction = VariableList<u8, typenum::U1073741824>;
+    /// Type alias for a logs bloom filter, represented as a fixed-length byte vector
+    pub type LogsBloom = FixedVector<u8, typenum::U256>;
+    /// Type alias for extra data, represented as a variable-length byte list
+    pub type ExtraData = VariableList<u8, typenum::U32>;
+
+    /// Represents a withdrawal operation in the blockchain.
+    ///
+    /// Copied from https://docs.rs/alloy/latest/alloy/eips/eip4895/struct.Withdrawal.html
+    /// which doesn't work as direct input due to mismatch between crate versions between alloy and ssz
+    #[derive(Clone, Debug, Encode, Decode, RlpEncodable)]
+    pub struct Withdrawal {
+        /// Sequential index of the withdrawal
+        index: u64,
+        /// Index of the validator processing the withdrawal
+        validator_index: u64,
+        /// Recipient address of the withdrawal
+        address: Address,
+        /// Amount being withdrawn
+        amount: u64,
     }
 }
 
-/// Represents a complete blockchain execution payload.
-#[derive(Debug, Clone, Encode, Decode)]
-pub struct ExecutionPayload {
-    /// Hash of the parent block
-    pub parent_hash: B256,
-    /// Address of the fee recipient
-    pub fee_recipient: Address,
-    /// Root hash of the state trie
-    pub state_root: B256,
-    /// Root hash of the receipt trie
-    pub receipts_root: B256,
-    /// Bloom filter for the logs
-    pub logs_bloom: LogsBloom,
-    /// Previous random value used in block production
-    pub prev_randao: B256,
-    /// Block number
-    pub block_number: u64,
-    /// Maximum gas allowed in the block
-    pub gas_limit: u64,
-    /// Total gas used in the block
-    pub gas_used: u64,
-    /// Block timestamp
-    pub timestamp: u64,
-    /// Additional data included in the block
-    pub extra_data: ExtraData,
-    /// Base fee per gas unit
-    pub base_fee_per_gas: U256,
-    /// Hash of the current block
-    pub block_hash: B256,
-    /// List of transactions included in the block
-    pub transactions: VariableList<Transaction, typenum::U1048576>,
-    /// List of withdrawals processed in the block
-    pub withdrawals: VariableList<Withdrawal, typenum::U16>,
-    /// Amount of blob gas used in the block
-    pub blob_gas_used: u64,
-    /// Excess blob gas in the block
-    pub excess_blob_gas: u64,
-    /// Root of withdrawals - optional to match Go implementation for Bedrock, Canyon, Delta, Ecotone, Fjord, Granite, Holocene
-    pub withdrawals_root: B256,
-}
+#[cfg(feature = "ssz")]
+pub use ssz_types_impl::*;
 
-/// Type alias for a transaction, represented as a variable-length byte list
-pub type Transaction = VariableList<u8, typenum::U1073741824>;
-/// Type alias for a logs bloom filter, represented as a fixed-length byte vector
-pub type LogsBloom = FixedVector<u8, typenum::U256>;
-/// Type alias for extra data, represented as a variable-length byte list
-pub type ExtraData = VariableList<u8, typenum::U32>;
-
-/// Represents a withdrawal operation in the blockchain.
-///
-/// Copied from https://docs.rs/alloy/latest/alloy/eips/eip4895/struct.Withdrawal.html
-/// which doesn't work as direct input due to mismatch between crate versions between alloy and ssz
-#[derive(Clone, Debug, Encode, Decode, RlpEncodable)]
-pub struct Withdrawal {
-    /// Sequential index of the withdrawal
-    index: u64,
-    /// Index of the validator processing the withdrawal
-    validator_index: u64,
-    /// Recipient address of the withdrawal
-    address: Address,
-    /// Amount being withdrawn
-    amount: u64,
-}
-
-#[cfg(test)]
+#[cfg(all(test, feature = "ssz"))]
 mod tests {
     use super::*;
     use ssz::Encode;
+    use ssz_types::{FixedVector, VariableList};
 
     #[test]
     fn test_fast_block_hash_matches_decoded() {
