@@ -22,6 +22,9 @@
 /// Commonly used constants
 pub mod constants;
 
+/// Chain helper functions
+pub mod chains;
+
 /// Custom types and data structures
 pub mod types;
 

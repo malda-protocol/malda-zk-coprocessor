@@ -27,6 +27,10 @@
 //! - Base - Mainnet and Sepolia
 //! - Linea - Mainnet and Sepolia
 
+use crate::chains::{
+    get_linea_message_service_address, get_portal_address, get_reorg_protection_depth,
+    get_steel_chain_spec, is_ethereum_chain, is_linea_chain, is_opstack_chain,
+};
 use crate::constants::*;
 use crate::types::*;
 use alloy_consensus::Header;
@@ -202,12 +206,7 @@ pub fn sort_and_verify_relevant_params(
         op_env_for_viewcall_with_l1_inclusion,
         op_env_commitment,
         chain_id_for_length_validation,
-    ) = if (chain_id == OPTIMISM_CHAIN_ID
-        || chain_id == BASE_CHAIN_ID
-        || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-        || chain_id == BASE_SEPOLIA_CHAIN_ID)
-        && validate_l1_inclusion
-    {
+    ) = if is_opstack_chain(chain_id) && validate_l1_inclusion {
         // For OpStack L2s with L1 inclusion, use the L1 environment and OpStack environment for inclusion.
         let env_for_viewcall = env_input_eth_for_l1_inclusion
             .as_ref()
@@ -232,16 +231,11 @@ pub fn sort_and_verify_relevant_params(
         )
     } else {
         // For L1 or Linea chains, use the provided environment input.
-        let chain_spec = match chain_id {
-            LINEA_CHAIN_ID => &LINEA_MAINNET_CHAIN_SPEC,
-            LINEA_SEPOLIA_CHAIN_ID => &LINEA_SEPOLIA_CHAIN_SPEC,
-            _ => &ETH_MAINNET_CHAIN_SPEC,
-        };
-
+        let chain_spec = get_steel_chain_spec(chain_id);
         (
             env_input_for_viewcall
                 .expect("env_input is None")
-                .into_env(&chain_spec),
+                .into_env(chain_spec),
             None,
             None,
             chain_id,
@@ -300,13 +294,7 @@ pub fn validate_opstack_dispute_game_commitment(
     let root_claim = op_env_commitment.digest;
 
     // Select the correct portal address for the given chain.
-    let portal_adress = match chain_id {
-        OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
-        BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
-        OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
-        BASE_CHAIN_ID => BASE_PORTAL,
-        _ => panic!("invalid chain id"),
-    };
+    let portal_adress = get_portal_address(chain_id);
 
     // Get the portal contract for additional checks.
     let portal_contract = Contract::new(portal_adress, &eth_env);
@@ -415,7 +403,7 @@ pub fn get_validated_block_hash(
     linea_beacon_data: Option<linea_block_verifier::core::types::BeaconData>,
 ) -> B256 {
     // Dispatch to the correct validation logic based on chain type.
-    if chain_id == LINEA_CHAIN_ID || chain_id == LINEA_SEPOLIA_CHAIN_ID {
+    if is_linea_chain(chain_id) {
         get_validated_block_hash_linea(
             chain_id,
             env_header_to_validate,
@@ -428,11 +416,7 @@ pub fn get_validated_block_hash(
             env_input_opstack_for_l1_block_call_2,
             linea_beacon_data,
         )
-    } else if chain_id == OPTIMISM_CHAIN_ID
-        || chain_id == BASE_CHAIN_ID
-        || chain_id == BASE_SEPOLIA_CHAIN_ID
-        || chain_id == OPTIMISM_SEPOLIA_CHAIN_ID
-    {
+    } else if is_opstack_chain(chain_id) {
         get_validated_block_hash_opstack(
             chain_id,
             sequencer_commitment_opstack,
@@ -444,7 +428,7 @@ pub fn get_validated_block_hash(
             sequencer_commitment_opstack_2,
             env_input_opstack_for_l1_block_call_2,
         )
-    } else if chain_id == ETHEREUM_CHAIN_ID || chain_id == ETHEREUM_SEPOLIA_CHAIN_ID {
+    } else if is_ethereum_chain(chain_id) {
         get_validated_ethereum_block_hash_via_opstack(
             sequencer_commitment_opstack.as_ref(),
             env_input_opstack_for_l1_block_call,
@@ -708,11 +692,7 @@ pub fn validate_linea_env_with_l1_inclusion(
     ethereum_hash: B256,
 ) {
     // Select the correct message service address for the given chain.
-    let msg_service_address = match chain_id {
-        LINEA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA,
-        LINEA_SEPOLIA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA_SEPOLIA,
-        _ => panic!("invalid chain id"),
-    };
+    let msg_service_address = get_linea_message_service_address(chain_id);
 
     let env_eth = env_eth_input.clone().into_env(&ETH_MAINNET_CHAIN_SPEC);
 
@@ -861,17 +841,7 @@ pub fn validate_chain_length(
     current_hash: B256,
 ) {
     // Determine the required reorg protection depth for the given chain.
-    let reorg_protection_depth = match chain_id {
-        OPTIMISM_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM,
-        BASE_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE,
-        LINEA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA,
-        ETHEREUM_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM,
-        OPTIMISM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM_SEPOLIA,
-        BASE_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE_SEPOLIA,
-        LINEA_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA_SEPOLIA,
-        ETHEREUM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA,
-        _ => panic!("invalid chain id"),
-    };
+    let reorg_protection_depth = get_reorg_protection_depth(chain_id);
     let chain_length = linking_blocks.len() as u64;
     // Ensure the chain is long enough for reorg protection.
     assert!(

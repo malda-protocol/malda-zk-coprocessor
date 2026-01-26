@@ -42,6 +42,10 @@
 //! - **Game Type Validation**: Verifies dispute games use the correct game type
 
 use crate::constants::*;
+use malda_utils::chains::{
+    get_linea_message_service_address, get_portal_address, get_reorg_protection_depth,
+    get_steel_chain_spec, is_ethereum_chain, is_linea_chain, is_opstack_chain,
+};
 #[cfg(feature = "guest")]
 use methods::GET_PROOF_DATA_ELF;
 use crate::types::*;
@@ -1421,15 +1425,13 @@ pub async fn get_proof_data_call_input(
         .zip(markets.iter())
         .zip(target_chain_ids.iter())
     {
-        // Selector for getProofData(address,uint32)
-        let selector = [0x07, 0xd9, 0x23, 0xe9];
         let user_bytes: [u8; 32] = user.into_word().into();
         // Convert chain_id to 4 bytes
         let chain_id_bytes = (*target_chain_id as u32).to_be_bytes();
 
         // Create calldata by concatenating selector, encoded address, and chain ID
         let mut call_data = Vec::with_capacity(68); // 4 bytes selector + 32 bytes address + 4 bytes chain ID
-        call_data.extend_from_slice(&selector);
+        call_data.extend_from_slice(&SELECTOR_MALDA_GET_PROOF_DATA);
         call_data.extend_from_slice(&user_bytes);
         call_data.extend_from_slice(&[0u8; 28]); // pad chain id to 32 bytes
         call_data.extend_from_slice(&chain_id_bytes);
@@ -1488,11 +1490,7 @@ pub async fn get_proof_data_call_input(
         } else {
             chain_url
         };
-        let chain_spec = match chain_id {
-            LINEA_CHAIN_ID => &LINEA_MAINNET_CHAIN_SPEC,
-            LINEA_SEPOLIA_CHAIN_ID => &LINEA_SEPOLIA_CHAIN_SPEC,
-            _ => &ETH_MAINNET_CHAIN_SPEC,
-        };
+        let chain_spec = get_steel_chain_spec(chain_id);
         let mut env = EthEvmEnv::builder()
         .rpc(Url::parse(chain_url_final).map_err(|e| {
             eprintln!("ERROR parsing RPC URL in get_proof_data_call_input (op_env): {:?} - URL: {}", e, chain_url_final);
@@ -1792,11 +1790,7 @@ pub async fn get_env_input_for_linea_l1_call(
     l1_block: u64,
 ) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
     // Select the correct message service address for the chain
-    let message_service_address = match chain_id {
-        LINEA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA,
-        LINEA_SEPOLIA_CHAIN_ID => L1_MESSAGE_SERVICE_LINEA_SEPOLIA,
-        _ => panic!("Invalid chain ID"),
-    };
+    let message_service_address = get_linea_message_service_address(chain_id);
 
     // Build the Ethereum environment for the L1 block
     let mut env = EthEvmEnv::builder()
@@ -1886,78 +1880,13 @@ fn get_opstack_config(
     let l1_rpc_url = get_rpc_url("ETHEREUM", fallback, is_testnet);
     let l2_rpc_url = get_rpc_url(chain_name, fallback, is_testnet);
 
-    let portal = match chain_id {
-        OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
-        OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
-        BASE_CHAIN_ID => BASE_PORTAL,
-        BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
-        _ => panic!("Invalid OpStack chain ID: {}", chain_id),
-    };
+    let portal = get_portal_address(chain_id);
 
     (l1_rpc_url, portal, l2_rpc_url, chain_name)
 }
 
-/// Helper function to get portal address for a chain.
-///
-/// Returns the portal contract address for OpStack chains.
-///
-/// # Arguments
-/// * `chain_id` - The chain ID to look up.
-///
-/// # Returns
-/// * `Address` - The portal contract address.
-///
-/// # Panics
-/// Panics if an invalid chain ID is provided.
-///
-/// # Supported Chains
-/// - Optimism mainnet and Sepolia
-/// - Base mainnet and Sepolia
-fn get_portal_address(chain_id: u64) -> Address {
-    match chain_id {
-        OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
-        BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
-        OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
-        BASE_CHAIN_ID => BASE_PORTAL,
-        _ => panic!("Invalid chain ID for portal: {}", chain_id),
-    }
-}
 
-/// Helper function to check if a chain is an OpStack chain.
-///
-/// Determines whether a given chain ID corresponds to an OpStack L2 chain.
-///
-/// # Arguments
-/// * `chain_id` - The chain ID to check.
-///
-/// # Returns
-/// * `bool` - True if the chain is an OpStack chain, false otherwise.
-///
-/// # Supported OpStack Chains
-/// - Optimism mainnet and Sepolia
-/// - Base mainnet and Sepolia
-fn is_opstack_chain(chain_id: u64) -> bool {
-    matches!(
-        chain_id,
-        OPTIMISM_CHAIN_ID | BASE_CHAIN_ID | OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID
-    )
-}
 
-/// Helper function to check if a chain is a Linea chain.
-///
-/// Determines whether a given chain ID corresponds to a Linea L2 chain.
-///
-/// # Arguments
-/// * `chain_id` - The chain ID to check.
-///
-/// # Returns
-/// * `bool` - True if the chain is a Linea chain, false otherwise.
-///
-/// # Supported Linea Chains
-/// - Linea mainnet and Sepolia
-fn is_linea_chain(chain_id: u64) -> bool {
-    matches!(chain_id, LINEA_CHAIN_ID | LINEA_SEPOLIA_CHAIN_ID)
-}
 
 /// Fetches beacon data for Linea chains.
 ///
@@ -1996,21 +1925,6 @@ async fn get_linea_beacon_data(
     Some(beacon_data)
 }
 
-/// Helper function to check if a chain is an Ethereum chain.
-///
-/// Determines whether a given chain ID corresponds to an Ethereum L1 chain.
-///
-/// # Arguments
-/// * `chain_id` - The chain ID to check.
-///
-/// # Returns
-/// * `bool` - True if the chain is an Ethereum chain, false otherwise.
-///
-/// # Supported Ethereum Chains
-/// - Ethereum mainnet and Sepolia
-fn is_ethereum_chain(chain_id: u64) -> bool {
-    matches!(chain_id, ETHEREUM_CHAIN_ID | ETHEREUM_SEPOLIA_CHAIN_ID)
-}
 
 /// Helper function to get the default sequencer commitment chain for a given chain.
 ///
@@ -2035,35 +1949,3 @@ fn get_default_sequencer_chain(_chain_id: u64, is_sepolia: bool) -> u64 {
     }
 }
 
-/// Helper function to get reorg protection depth for a chain.
-///
-/// Returns the number of blocks to look back for reorg protection based on the chain type.
-/// This ensures that blocks used in proofs are sufficiently confirmed to avoid chain reorganizations.
-///
-/// # Arguments
-/// * `chain_id` - The chain ID to get the protection depth for.
-///
-/// # Returns
-/// * `u64` - The reorg protection depth in blocks.
-///
-/// # Panics
-/// Panics if an invalid chain ID is provided.
-///
-/// # Protection Depths
-/// Different chains have different protection depths based on their finality characteristics:
-/// - Ethereum: Higher depth due to longer finality
-/// - L2 chains: Lower depth due to faster finality
-/// - Testnets: Lower depth for faster testing
-fn get_reorg_protection_depth(chain_id: u64) -> u64 {
-    match chain_id {
-        OPTIMISM_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM,
-        BASE_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE,
-        LINEA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA,
-        ETHEREUM_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM,
-        OPTIMISM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_OPTIMISM_SEPOLIA,
-        BASE_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_BASE_SEPOLIA,
-        LINEA_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_LINEA_SEPOLIA,
-        ETHEREUM_SEPOLIA_CHAIN_ID => REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA,
-        _ => panic!("invalid chain id"),
-    }
-}
