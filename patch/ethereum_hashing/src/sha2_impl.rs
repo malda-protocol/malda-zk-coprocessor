@@ -17,27 +17,27 @@ use sha2::Digest;
 pub struct Sha2CrateImpl;
 
 impl Sha256Context for sha2::Sha256 {
-    fn new() -> Self {
-        sha2::Digest::new()
-    }
+  fn new() -> Self {
+    sha2::Digest::new()
+  }
 
-    fn update(&mut self, bytes: &[u8]) {
-        sha2::Digest::update(self, bytes)
-    }
+  fn update(&mut self, bytes: &[u8]) {
+    sha2::Digest::update(self, bytes)
+  }
 
-    fn finalize(self) -> [u8; HASH_LEN] {
-        sha2::Digest::finalize(self).into()
-    }
+  fn finalize(self) -> [u8; HASH_LEN] {
+    sha2::Digest::finalize(self).into()
+  }
 }
 
 impl Sha256 for Sha2CrateImpl {
-    type Context = sha2::Sha256;
+  type Context = sha2::Sha256;
 
-    fn hash(&self, input: &[u8]) -> Vec<u8> {
-        Self::Context::digest(input).into_iter().collect()
-    }
+  fn hash(&self, input: &[u8]) -> Vec<u8> {
+    Self::Context::digest(input).into_iter().collect()
+  }
 
-    fn hash_fixed(&self, input: &[u8]) -> [u8; HASH_LEN] {
-        Self::Context::digest(input).into()
-    }
+  fn hash_fixed(&self, input: &[u8]) -> [u8; HASH_LEN] {
+    Self::Context::digest(input).into()
+  }
 }
