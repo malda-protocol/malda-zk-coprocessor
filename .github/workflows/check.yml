@@ -1,0 +1,24 @@
+name: check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check formatting (workspace)
+        run: cargo fmt --all --check
+
+      - name: Check formatting (guest)
+        run: cargo fmt --all --check
+        working-directory: methods/guest
