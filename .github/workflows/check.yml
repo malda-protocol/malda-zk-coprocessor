@@ -7,18 +7,32 @@ on:
     branches: [main]
 
 jobs:
-  fmt:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
+      - name: System Info
+        run: |
+          uname -a
+          nix --version
 
-      - name: Check formatting (workspace)
-        run: cargo fmt --all --check
+      - name: formatting
+        run: nix build -L --no-link --show-trace .#checks.x86_64-linux.formatting
 
-      - name: Check formatting (guest)
-        run: cargo fmt --all --check
-        working-directory: methods/guest
+      - name: audit
+        run: nix build -L --no-link --show-trace .#checks.x86_64-linux.audit
+
+      # - name: clippy
+      #   run: nix build -L --no-link --show-trace .#checks.x86_64-linux.clippy
+
+      - name: guest
+        run: nix build -L --no-link --show-trace .#packages.x86_64-linux.guest
+
+      - name: methods
+        run: nix build -L --no-link --show-trace .#packages.x86_64-linux.default
+
+      - name: malda_rs
+        run: nix build -L --no-link --show-trace .#packages.x86_64-linux.malda_rs
