@@ -1,0 +1,4 @@
+hard_tabs = false
+tab_spaces = 2
+newline_style = "Unix"
+edition = "2024"

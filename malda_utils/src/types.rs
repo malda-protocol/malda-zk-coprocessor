@@ -39,88 +39,88 @@ pub type EthChainSpec = ChainSpec<SpecId>;
 // NOTE: Forks are configured according to the official Linea protocol release:
 // https://github.com/Consensys/protocols-release-sandbox/blob/b2562432e9ff7b2a1bcd29f48d22d07c1da62630/config/src/main/resources/linea-mainnet.json#L15-L18
 pub static LINEA_MAINNET_CHAIN_SPEC: LazyLock<EthChainSpec> = LazyLock::new(|| ChainSpec {
-    chain_id: 59144,
-    forks: BTreeMap::from([
-        (SpecId::LONDON, ForkCondition::Block(0)),
-        (SpecId::SHANGHAI, ForkCondition::Timestamp(1761213600)),
-        (SpecId::CANCUN, ForkCondition::Timestamp(1761645600)),
-        (SpecId::PRAGUE, ForkCondition::Timestamp(1761646200)),
-        (SpecId::OSAKA, ForkCondition::Timestamp(1764798551)),
-    ]),
+  chain_id: 59144,
+  forks: BTreeMap::from([
+    (SpecId::LONDON, ForkCondition::Block(0)),
+    (SpecId::SHANGHAI, ForkCondition::Timestamp(1761213600)),
+    (SpecId::CANCUN, ForkCondition::Timestamp(1761645600)),
+    (SpecId::PRAGUE, ForkCondition::Timestamp(1761646200)),
+    (SpecId::OSAKA, ForkCondition::Timestamp(1764798551)),
+  ]),
 });
 
 // NOTE: Forks are configured according to the official Linea protocol release:
 // https://github.com/Consensys/protocols-release-sandbox/blob/b2562432e9ff7b2a1bcd29f48d22d07c1da62630/config/src/main/resources/sepolia.json#L16-L19
 pub static LINEA_SEPOLIA_CHAIN_SPEC: LazyLock<EthChainSpec> = LazyLock::new(|| ChainSpec {
-    chain_id: 59141,
-    forks: BTreeMap::from([
-        (SpecId::LONDON, ForkCondition::Block(0)),
-        (SpecId::SHANGHAI, ForkCondition::Timestamp(1677557088)),
-        (SpecId::CANCUN, ForkCondition::Timestamp(1706655072)),
-        (SpecId::PRAGUE, ForkCondition::Timestamp(1741159776)),
-        (SpecId::OSAKA, ForkCondition::Timestamp(1760427360)),
-    ]),
+  chain_id: 59141,
+  forks: BTreeMap::from([
+    (SpecId::LONDON, ForkCondition::Block(0)),
+    (SpecId::SHANGHAI, ForkCondition::Timestamp(1677557088)),
+    (SpecId::CANCUN, ForkCondition::Timestamp(1706655072)),
+    (SpecId::PRAGUE, ForkCondition::Timestamp(1741159776)),
+    (SpecId::OSAKA, ForkCondition::Timestamp(1760427360)),
+  ]),
 });
 
 pub struct TakeLastXBytes(pub usize);
 
 pub enum SolidityDataType<'a> {
-    String(&'a str),
-    Address(Address),
-    Bytes(&'a [u8]),
-    Bool(bool),
-    Number(U256),
-    NumberWithShift(U256, TakeLastXBytes),
+  String(&'a str),
+  Address(Address),
+  Bytes(&'a [u8]),
+  Bool(bool),
+  Number(U256),
+  NumberWithShift(U256, TakeLastXBytes),
 }
 
 pub mod abi {
-    use super::SolidityDataType;
+  use super::SolidityDataType;
 
-    /// Pack a single `SolidityDataType` into bytes
-    fn pack<'a>(data_type: &'a SolidityDataType) -> Vec<u8> {
-        let mut res = Vec::new();
-        match data_type {
-            SolidityDataType::String(s) => {
-                res.extend(s.as_bytes());
-            }
-            SolidityDataType::Address(a) => {
-                res.extend(a.0);
-            }
-            SolidityDataType::Number(n) => {
-                res.extend(n.to_be_bytes::<32>());
-            }
-            SolidityDataType::Bytes(b) => {
-                res.extend(*b);
-            }
-            SolidityDataType::Bool(b) => {
-                if *b {
-                    res.push(1);
-                } else {
-                    res.push(0);
-                }
-            }
-            SolidityDataType::NumberWithShift(n, to_take) => {
-                let local_res = n.to_be_bytes::<32>().to_vec();
+  /// Pack a single `SolidityDataType` into bytes
+  fn pack<'a>(data_type: &'a SolidityDataType) -> Vec<u8> {
+    let mut res = Vec::new();
+    match data_type {
+      SolidityDataType::String(s) => {
+        res.extend(s.as_bytes());
+      }
+      SolidityDataType::Address(a) => {
+        res.extend(a.0);
+      }
+      SolidityDataType::Number(n) => {
+        res.extend(n.to_be_bytes::<32>());
+      }
+      SolidityDataType::Bytes(b) => {
+        res.extend(*b);
+      }
+      SolidityDataType::Bool(b) => {
+        if *b {
+          res.push(1);
+        } else {
+          res.push(0);
+        }
+      }
+      SolidityDataType::NumberWithShift(n, to_take) => {
+        let local_res = n.to_be_bytes::<32>().to_vec();
 
-                let to_skip = local_res.len() - (to_take.0 / 8);
+        let to_skip = local_res.len() - (to_take.0 / 8);
 
-                let local_res = local_res.into_iter().skip(to_skip).collect::<Vec<u8>>();
-                res.extend(local_res);
-            }
-        };
-        return res;
-    }
+        let local_res = local_res.into_iter().skip(to_skip).collect::<Vec<u8>>();
+        res.extend(local_res);
+      }
+    };
+    return res;
+  }
 
-    pub fn encode_packed(items: &[SolidityDataType]) -> (Vec<u8>, String) {
-        let res = items.iter().fold(Vec::new(), |mut acc, i| {
-            let pack = pack(i);
-            acc.push(pack);
-            acc
-        });
-        let res = res.join(&[][..]);
-        let hexed = hex::encode(&res);
-        (res, hexed)
-    }
+  pub fn encode_packed(items: &[SolidityDataType]) -> (Vec<u8>, String) {
+    let res = items.iter().fold(Vec::new(), |mut acc, i| {
+      let pack = pack(i);
+      acc.push(pack);
+      acc
+    });
+    let res = res.join(&[][..]);
+    let hexed = hex::encode(&res);
+    (res, hexed)
+  }
 }
 
 sol! {
@@ -233,107 +233,107 @@ sol! {
 /// Represents a commitment made by a sequencer, containing signed payload data.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SequencerCommitment {
-    /// The compressed payload data
-    pub data: Bytes,
-    /// The cryptographic signature of the commitment
-    pub signature: Signature,
+  /// The compressed payload data
+  pub data: Bytes,
+  /// The cryptographic signature of the commitment
+  pub signature: Signature,
 }
 
 impl SequencerCommitment {
-    /// Creates a new SequencerCommitment from compressed data.
-    ///
-    /// # Arguments
-    /// * `data` - The compressed data bytes
-    ///
-    /// # Returns
-    /// * `Result<Self>` - The created commitment or an error
-    pub fn new(data: &[u8]) -> Result<Self> {
-        let mut decoder = snap::raw::Decoder::new();
-        let decompressed = decoder.decompress_vec(&data)?;
+  /// Creates a new SequencerCommitment from compressed data.
+  ///
+  /// # Arguments
+  /// * `data` - The compressed data bytes
+  ///
+  /// # Returns
+  /// * `Result<Self>` - The created commitment or an error
+  pub fn new(data: &[u8]) -> Result<Self> {
+    let mut decoder = snap::raw::Decoder::new();
+    let decompressed = decoder.decompress_vec(&data)?;
 
-        let signature = Signature::try_from(&decompressed[..65])?;
-        let data = Bytes::from(decompressed[65..].to_vec());
+    let signature = Signature::try_from(&decompressed[..65])?;
+    let data = Bytes::from(decompressed[65..].to_vec());
 
-        Ok(SequencerCommitment { data, signature })
+    Ok(SequencerCommitment { data, signature })
+  }
+
+  /// Verifies the commitment signature against a given signer and chain ID.
+  ///
+  /// # Arguments
+  /// * `signer` - The expected signer's address
+  /// * `chain_id` - The blockchain network ID
+  ///
+  /// # Returns
+  /// * `Result<()>` - Ok if verification succeeds, Error otherwise
+  pub fn verify(&self, signer: Address, chain_id: u64) -> Result<()> {
+    let msg = signature_msg(&self.data, chain_id);
+    let pk = self.signature.recover_from_prehash(&msg)?;
+    let recovered_signer = Address::from_public_key(&pk);
+
+    if signer != recovered_signer {
+      eyre::bail!("invalid signer");
     }
 
-    /// Verifies the commitment signature against a given signer and chain ID.
-    ///
-    /// # Arguments
-    /// * `signer` - The expected signer's address
-    /// * `chain_id` - The blockchain network ID
-    ///
-    /// # Returns
-    /// * `Result<()>` - Ok if verification succeeds, Error otherwise
-    pub fn verify(&self, signer: Address, chain_id: u64) -> Result<()> {
-        let msg = signature_msg(&self.data, chain_id);
-        let pk = self.signature.recover_from_prehash(&msg)?;
-        let recovered_signer = Address::from_public_key(&pk);
-
-        if signer != recovered_signer {
-            eyre::bail!("invalid signer");
-        }
-
-        Ok(())
-    }
+    Ok(())
+  }
 }
 
 /// Conversion implementation from SequencerCommitment to ExecutionPayload.
 impl TryFrom<&SequencerCommitment> for ExecutionPayload {
-    type Error = eyre::Report;
+  type Error = eyre::Report;
 
-    /// Attempts to convert a SequencerCommitment into an ExecutionPayload.
-    ///
-    /// # Arguments
-    /// * `value` - The SequencerCommitment to convert
-    ///
-    /// # Returns
-    /// * `Result<Self>` - The converted payload or an error
-    fn try_from(value: &SequencerCommitment) -> Result<Self> {
-        let payload_bytes = &value.data[32..];
-        ssz::Decode::from_ssz_bytes(payload_bytes).map_err(|_| eyre::eyre!("decode failed"))
-    }
+  /// Attempts to convert a SequencerCommitment into an ExecutionPayload.
+  ///
+  /// # Arguments
+  /// * `value` - The SequencerCommitment to convert
+  ///
+  /// # Returns
+  /// * `Result<Self>` - The converted payload or an error
+  fn try_from(value: &SequencerCommitment) -> Result<Self> {
+    let payload_bytes = &value.data[32..];
+    ssz::Decode::from_ssz_bytes(payload_bytes).map_err(|_| eyre::eyre!("decode failed"))
+  }
 }
 
 /// Represents a complete blockchain execution payload.
 #[derive(Debug, Clone, Encode, Decode)]
 pub struct ExecutionPayload {
-    /// Hash of the parent block
-    pub parent_hash: B256,
-    /// Address of the fee recipient
-    pub fee_recipient: Address,
-    /// Root hash of the state trie
-    pub state_root: B256,
-    /// Root hash of the receipt trie
-    pub receipts_root: B256,
-    /// Bloom filter for the logs
-    pub logs_bloom: LogsBloom,
-    /// Previous random value used in block production
-    pub prev_randao: B256,
-    /// Block number
-    pub block_number: u64,
-    /// Maximum gas allowed in the block
-    pub gas_limit: u64,
-    /// Total gas used in the block
-    pub gas_used: u64,
-    /// Block timestamp
-    pub timestamp: u64,
-    /// Additional data included in the block
-    pub extra_data: ExtraData,
-    /// Base fee per gas unit
-    pub base_fee_per_gas: U256,
-    /// Hash of the current block
-    pub block_hash: B256,
-    /// List of transactions included in the block
-    pub transactions: VariableList<Transaction, typenum::U1048576>,
-    /// List of withdrawals processed in the block
-    pub withdrawals: VariableList<Withdrawal, typenum::U16>,
-    /// Amount of blob gas used in the block
-    pub blob_gas_used: u64,
-    /// Excess blob gas in the block
-    pub excess_blob_gas: u64,
-    /// Root of withdrawals - optional to match Go implementation for Bedrock, Canyon, Delta, Ecotone, Fjord, Granite, Holocene
-    pub withdrawals_root: B256,
+  /// Hash of the parent block
+  pub parent_hash: B256,
+  /// Address of the fee recipient
+  pub fee_recipient: Address,
+  /// Root hash of the state trie
+  pub state_root: B256,
+  /// Root hash of the receipt trie
+  pub receipts_root: B256,
+  /// Bloom filter for the logs
+  pub logs_bloom: LogsBloom,
+  /// Previous random value used in block production
+  pub prev_randao: B256,
+  /// Block number
+  pub block_number: u64,
+  /// Maximum gas allowed in the block
+  pub gas_limit: u64,
+  /// Total gas used in the block
+  pub gas_used: u64,
+  /// Block timestamp
+  pub timestamp: u64,
+  /// Additional data included in the block
+  pub extra_data: ExtraData,
+  /// Base fee per gas unit
+  pub base_fee_per_gas: U256,
+  /// Hash of the current block
+  pub block_hash: B256,
+  /// List of transactions included in the block
+  pub transactions: VariableList<Transaction, typenum::U1048576>,
+  /// List of withdrawals processed in the block
+  pub withdrawals: VariableList<Withdrawal, typenum::U16>,
+  /// Amount of blob gas used in the block
+  pub blob_gas_used: u64,
+  /// Excess blob gas in the block
+  pub excess_blob_gas: u64,
+  /// Root of withdrawals - optional to match Go implementation for Bedrock, Canyon, Delta, Ecotone, Fjord, Granite, Holocene
+  pub withdrawals_root: B256,
 }
 
 /// Type alias for a transaction, represented as a variable-length byte list
@@ -349,12 +349,12 @@ pub type ExtraData = VariableList<u8, typenum::U32>;
 /// which doesn't work as direct input due to mismatch between crate versions between alloy and ssz
 #[derive(Clone, Debug, Encode, Decode, RlpEncodable)]
 pub struct Withdrawal {
-    /// Sequential index of the withdrawal
-    index: u64,
-    /// Index of the validator processing the withdrawal
-    validator_index: u64,
-    /// Recipient address of the withdrawal
-    address: Address,
-    /// Amount being withdrawn
-    amount: u64,
+  /// Sequential index of the withdrawal
+  index: u64,
+  /// Index of the validator processing the withdrawal
+  validator_index: u64,
+  /// Recipient address of the withdrawal
+  address: Address,
+  /// Amount being withdrawn
+  amount: u64,
 }

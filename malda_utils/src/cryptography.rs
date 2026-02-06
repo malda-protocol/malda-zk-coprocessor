@@ -38,39 +38,39 @@ use alloy_primitives::{keccak256, B256};
 /// - The chain ID in padded format
 /// - The keccak256 hash of the input data
 pub fn signature_msg(data: &[u8], chain_id: u64) -> B256 {
-    let domain = B256::ZERO;
-    let chain_id = B256::left_padding_from(&chain_id.to_be_bytes());
-    let payload_hash = keccak256(data);
+  let domain = B256::ZERO;
+  let chain_id = B256::left_padding_from(&chain_id.to_be_bytes());
+  let payload_hash = keccak256(data);
 
-    let signing_data = [
-        domain.as_slice(),
-        chain_id.as_slice(),
-        payload_hash.as_slice(),
-    ];
+  let signing_data = [
+    domain.as_slice(),
+    chain_id.as_slice(),
+    payload_hash.as_slice(),
+  ];
 
-    keccak256(signing_data.concat()).into()
+  keccak256(signing_data.concat()).into()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+  use super::*;
 
-    #[test]
-    fn test_signature_msg() {
-        let data = b"Hello, World!";
-        let chain_id = 1;
-        let msg = signature_msg(data, chain_id);
+  #[test]
+  fn test_signature_msg() {
+    let data = b"Hello, World!";
+    let chain_id = 1;
+    let msg = signature_msg(data, chain_id);
 
-        // Verify the result is deterministic and non-zero
-        assert_ne!(msg, B256::ZERO);
+    // Verify the result is deterministic and non-zero
+    assert_ne!(msg, B256::ZERO);
 
-        // Test with empty data
-        let empty_msg = signature_msg(&[], 1);
-        assert_ne!(empty_msg, B256::ZERO);
+    // Test with empty data
+    let empty_msg = signature_msg(&[], 1);
+    assert_ne!(empty_msg, B256::ZERO);
 
-        // Test with different chain IDs
-        let msg1 = signature_msg(data, 1);
-        let msg2 = signature_msg(data, 2);
-        assert_ne!(msg1, msg2);
-    }
+    // Test with different chain IDs
+    let msg1 = signature_msg(data, 1);
+    let msg2 = signature_msg(data, 2);
+    assert_ne!(msg1, msg2);
+  }
 }

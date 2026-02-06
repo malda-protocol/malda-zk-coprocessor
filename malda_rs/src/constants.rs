@@ -25,11 +25,11 @@ pub use malda_utils::constants::*;
 
 /// Generic function to retrieve environment variables as static strings
 fn get_env_var(env_var: &str) -> &'static str {
-    Box::leak(
-        dotenvy::var(env_var)
-            .unwrap_or_else(|_| panic!("{env_var} must be set in environment"))
-            .into_boxed_str(),
-    )
+  Box::leak(
+    dotenvy::var(env_var)
+      .unwrap_or_else(|_| panic!("{env_var} must be set in environment"))
+      .into_boxed_str(),
+  )
 }
 
 /// Unified function to get RPC URL for any chain
@@ -39,15 +39,15 @@ fn get_env_var(env_var: &str) -> &'static str {
 /// * `fallback` - Whether to use fallback URL (default: false)
 /// * `testnet` - Whether to use testnet (Sepolia) URL (default: false)
 pub fn get_rpc_url(chain_name: &str, fallback: bool, testnet: bool) -> &'static str {
-    let chain_upper = chain_name.to_uppercase();
-    let fallback_suffix = if fallback { "_FALLBACK" } else { "" };
-    let testnet_suffix = if testnet { "_SEPOLIA" } else { "" };
+  let chain_upper = chain_name.to_uppercase();
+  let fallback_suffix = if fallback { "_FALLBACK" } else { "" };
+  let testnet_suffix = if testnet { "_SEPOLIA" } else { "" };
 
-    let env_var = format!(
-        "RPC_URL_{}{}{}",
-        chain_upper, testnet_suffix, fallback_suffix
-    );
-    get_env_var(&env_var)
+  let env_var = format!(
+    "RPC_URL_{}{}{}",
+    chain_upper, testnet_suffix, fallback_suffix
+  );
+  get_env_var(&env_var)
 }
 
 /// Unified function to get Beacon API URL for any chain
@@ -57,15 +57,15 @@ pub fn get_rpc_url(chain_name: &str, fallback: bool, testnet: bool) -> &'static 
 /// * `fallback` - Whether to use fallback URL (default: false)
 /// * `testnet` - Whether to use testnet (Sepolia) URL (default: false)
 pub fn get_beacon_api_url(chain_name: &str, fallback: bool, testnet: bool) -> &'static str {
-    let chain_upper = chain_name.to_uppercase();
-    let fallback_suffix = if fallback { "_FALLBACK" } else { "" };
-    let testnet_suffix = if testnet { "_SEPOLIA" } else { "" };
+  let chain_upper = chain_name.to_uppercase();
+  let fallback_suffix = if fallback { "_FALLBACK" } else { "" };
+  let testnet_suffix = if testnet { "_SEPOLIA" } else { "" };
 
-    let env_var = format!(
-        "BEACON_API_URL_{}{}{}",
-        chain_upper, testnet_suffix, fallback_suffix
-    );
-    get_env_var(&env_var)
+  let env_var = format!(
+    "BEACON_API_URL_{}{}{}",
+    chain_upper, testnet_suffix, fallback_suffix
+  );
+  get_env_var(&env_var)
 }
 
 /// Unified function to get sequencer request URL for L2 chains
@@ -75,13 +75,13 @@ pub fn get_beacon_api_url(chain_name: &str, fallback: bool, testnet: bool) -> &'
 /// * `fallback` - Whether to use fallback URL (default: false)
 /// * `testnet` - Whether to use testnet (Sepolia) URL (default: false)
 pub fn get_sequencer_request_url(chain_name: &str, fallback: bool, testnet: bool) -> &'static str {
-    let chain_upper = chain_name.to_uppercase();
-    let fallback_suffix = if fallback { "_FALLBACK" } else { "" };
-    let testnet_suffix = if testnet { "_SEPOLIA" } else { "" };
+  let chain_upper = chain_name.to_uppercase();
+  let fallback_suffix = if fallback { "_FALLBACK" } else { "" };
+  let testnet_suffix = if testnet { "_SEPOLIA" } else { "" };
 
-    let env_var = format!(
-        "SEQUENCER_REQUEST_{}{}{}",
-        chain_upper, testnet_suffix, fallback_suffix
-    );
-    get_env_var(&env_var)
+  let env_var = format!(
+    "SEQUENCER_REQUEST_{}{}{}",
+    chain_upper, testnet_suffix, fallback_suffix
+  );
+  get_env_var(&env_var)
 }

@@ -48,7 +48,7 @@ pub const BASE_SEQUENCER: Address = address!("Af6E19BE0F9cE7f8afd49a1824851023A8
 
 /// The address of the Optimism sequencer contract on the sepolia network.
 pub const OPTIMISM_SEPOLIA_SEQUENCER: Address =
-    address!("57CACBB0d30b01eb2462e5dC940c161aff3230D3");
+  address!("57CACBB0d30b01eb2462e5dC940c161aff3230D3");
 /// The address of the Base sequencer contract on the sepolia network.
 pub const BASE_SEPOLIA_SEQUENCER: Address = address!("b830b99c95Ea32300039624Cb567d324D4b1D83C");
 
@@ -57,21 +57,21 @@ pub const BASE_SEPOLIA_SEQUENCER: Address = address!("b830b99c95Ea32300039624Cb5
 pub const L1_BLOCK_ADDRESS_OPSTACK: Address = address!("4200000000000000000000000000000000000015");
 /// The address of the MessagePasser contract on Optimism.
 pub const MESSAGE_PASSER_ADDRESS_OPSTACK: Address =
-    address!("4200000000000000000000000000000000000016");
+  address!("4200000000000000000000000000000000000016");
 pub const ROOT_VERSION_OPSTACK: B256 = B256::ZERO;
 pub const TIME_DELAY_OP_CHALLENGE: u64 = 300;
 
 pub const DISPUTE_GAME_FACTORY_OPTIMISM: Address =
-    address!("e5965Ab5962eDc7477C8520243A95517CD252fA9");
+  address!("e5965Ab5962eDc7477C8520243A95517CD252fA9");
 pub const DISPUTE_GAME_FACTORY_OPTIMISM_SEPOLIA: Address =
-    address!("05F9613aDB30026FFd634f38e5C4dFd30a197Fa1");
+  address!("05F9613aDB30026FFd634f38e5C4dFd30a197Fa1");
 pub const DISPUTE_GAME_FACTORY_BASE: Address = address!("43edB88C4B80fDD2AdFF2412A7BebF9dF42cB40e");
 pub const DISPUTE_GAME_FACTORY_BASE_SEPOLIA: Address =
-    address!("d6E6dBf4F7EA0ac412fD8b65ED297e64BB7a06E1");
+  address!("d6E6dBf4F7EA0ac412fD8b65ED297e64BB7a06E1");
 
 pub const L1_MESSAGE_SERVICE_LINEA: Address = address!("d19d4B5d358258f05D7B411E21A1460D11B0876F");
 pub const L1_MESSAGE_SERVICE_LINEA_SEPOLIA: Address =
-    address!("B218f8A4Bc926cF1cA7b3423c154a0D627Bdb7E5");
+  address!("B218f8A4Bc926cF1cA7b3423c154a0D627Bdb7E5");
 
 /// The number of blocks to wait before considering a chain reorganization unlikely.
 ///
