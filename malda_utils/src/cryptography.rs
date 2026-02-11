@@ -48,7 +48,7 @@ pub fn signature_msg(data: &[u8], chain_id: u64) -> B256 {
     payload_hash.as_slice(),
   ];
 
-  keccak256(signing_data.concat()).into()
+  keccak256(signing_data.concat())
 }
 
 #[cfg(test)]
