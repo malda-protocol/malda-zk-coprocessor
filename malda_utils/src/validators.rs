@@ -80,7 +80,7 @@ pub fn validate_get_proof_data_call(
   env_input_for_viewcall: Option<EthEvmInput>,
   sequencer_commitment_opstack: Option<SequencerCommitment>,
   env_input_opstack_for_l1_block_call: Option<EthEvmInput>,
-  linking_blocks: &Vec<RlpHeader<Header>>,
+  linking_blocks: &[RlpHeader<Header>],
   output: &mut Vec<Bytes>,
   env_input_eth_for_l1_inclusion: &Option<EthEvmInput>,
   env_input_opstack_for_viewcall_with_l1_inclusion: Option<OpEvmInput>,
@@ -185,7 +185,7 @@ pub fn validate_get_proof_data_call(
 pub fn sort_and_verify_relevant_params(
   chain_id: u64,
   env_input_for_viewcall: Option<EthEvmInput>,
-  linking_blocks: &Vec<RlpHeader<Header>>,
+  linking_blocks: &[RlpHeader<Header>],
   env_input_eth_for_l1_inclusion: &Option<EthEvmInput>,
   env_input_opstack_for_viewcall_with_l1_inclusion: Option<OpEvmInput>,
 ) -> (
@@ -838,7 +838,7 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
 pub fn validate_chain_length(
   chain_id: u64,
   historical_hash: B256,
-  linking_blocks: &Vec<RlpHeader<Header>>,
+  linking_blocks: &[RlpHeader<Header>],
   current_hash: B256,
 ) {
   // Determine the required reorg protection depth for the given chain.
