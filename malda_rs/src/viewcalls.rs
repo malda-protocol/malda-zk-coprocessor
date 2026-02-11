@@ -1447,25 +1447,17 @@ pub async fn get_proof_data_call_input(
   // Use separate code paths for each environment type
   if is_opstack_chain(chain_id) && validate_l1_inclusion {
     // Build an environment based on the state of the latest finalized fault dispute game
-    let (l1_rpc_url, optimism_portal, chain_url_final, _chain_name) =
+    let (l1_rpc_url, optimism_portal, rpc_url, _chain_name) =
       get_opstack_config(chain_id, !fallback);
+    let rpc_url = Url::parse(rpc_url)
+      .unwrap_or_else(|e| panic!("Failed to parse RPC URL '{}': {}", rpc_url, e));
     let mut env = OpEvmEnv::builder()
       .dispute_game_from_rpc(
         optimism_portal,
         Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"),
       )
       .game_index(DisputeGameIndex::Finalized)
-      .rpc(
-        Url::parse(chain_url_final)
-          .map_err(|e| {
-            eprintln!(
-              "ERROR parsing RPC URL in get_proof_data_call_input (op_env): {:?} - URL: {}",
-              e, chain_url_final
-            );
-            e
-          })
-          .expect("Failed to parse RPC URL"),
-      )
+      .rpc(rpc_url)
       .chain_spec(&OP_MAINNET_CHAIN_SPEC)
       .build()
       .await
@@ -1490,25 +1482,17 @@ pub async fn get_proof_data_call_input(
       ),
     )
   } else {
-    let chain_url_final = if fallback {
+    let rpc_url = if fallback {
       let (chain_name, is_testnet) = get_chain_params(chain_id);
       get_rpc_url(chain_name, true, is_testnet)
     } else {
       chain_url
     };
+    let rpc_url = Url::parse(rpc_url)
+      .unwrap_or_else(|e| panic!("Failed to parse RPC URL '{}': {}", rpc_url, e));
     let chain_spec = get_steel_chain_spec(chain_id);
     let mut env = EthEvmEnv::builder()
-      .rpc(
-        Url::parse(chain_url_final)
-          .map_err(|e| {
-            eprintln!(
-              "ERROR parsing RPC URL in get_proof_data_call_input (op_env): {:?} - URL: {}",
-              e, chain_url_final
-            );
-            e
-          })
-          .expect("Failed to parse RPC URL"),
-      )
+      .rpc(rpc_url)
       .block_number_or_tag(BlockNumberOrTag::Number(block_reorg_protected))
       .chain_spec(chain_spec)
       .build()
