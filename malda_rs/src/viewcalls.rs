@@ -576,7 +576,6 @@ pub async fn get_proof_data_exec(
       let markets = markets[i].clone();
       let target_chain_id = target_chain_id[i].clone();
       let chain_id = chain_ids[i];
-      let fallback = fallback;
       tokio::spawn(async move {
         get_proof_data_zkvm_input(
           users,
@@ -659,7 +658,6 @@ async fn get_proof_data_env(
       let markets = markets[i].clone();
       let chain_id = chain_ids[i];
       let target_chain_id = target_chain_ids[i].clone();
-      let fallback = fallback;
       tokio::spawn(async move {
         get_proof_data_zkvm_input(
           users,
@@ -735,7 +733,6 @@ async fn get_proof_data_input(
       let markets = markets[i].clone();
       let chain_id = chain_ids[i];
       let target_chain_id = target_chain_ids[i].clone();
-      let fallback = fallback;
       tokio::spawn(async move {
         get_proof_data_zkvm_input(
           users,
