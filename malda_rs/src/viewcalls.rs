@@ -677,7 +677,7 @@ async fn get_proof_data_env(
   let all_inputs = results
     .into_iter()
     .filter_map(|r| r.ok())
-    .flat_map(|input| input)
+    .flatten()
     .collect::<Vec<_>>();
 
   // Build the ZKVM executor environment with all chain inputs
@@ -752,7 +752,7 @@ async fn get_proof_data_input(
   let all_inputs = results
     .into_iter()
     .filter_map(|r| r.ok())
-    .flat_map(|input| input)
+    .flatten()
     .collect::<Vec<_>>();
 
   // Serialize the number of chains as the first field (required by the ZKVM input format)
