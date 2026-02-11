@@ -130,13 +130,13 @@ pub fn validate_get_proof_data_call(
   );
 
   // Execute the batch multicall to retrieve proof data, using the appropriate environment.
-  if op_env_for_viewcall_with_l1_inclusion.is_some() {
+  if let Some(env) = op_env_for_viewcall_with_l1_inclusion {
     batch_call_get_proof_data(
       chain_id,
       account,
       asset,
       target_chain_ids,
-      op_env_for_viewcall_with_l1_inclusion.unwrap(),
+      env,
       validate_l1_inclusion,
       output,
     )
