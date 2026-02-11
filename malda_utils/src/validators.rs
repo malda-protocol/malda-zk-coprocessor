@@ -573,6 +573,7 @@ pub fn get_validated_block_hash_linea(
   let untrusted_header = block_header_to_validate.inner();
   let linea_beacon_data = linea_beacon_data.unwrap();
   let network = linea_block_verifier::core::constants::LineaNetwork::try_from(chain_id).unwrap();
+  #[allow(clippy::let_and_return)]
   let trusted_block_hash =
     linea_block_verifier::core::verify_header(untrusted_header, &linea_beacon_data, network)
       .unwrap();
