@@ -1065,16 +1065,13 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
     // Prepare the L1 RPC URL
     let l1_rpc_url = get_rpc_url("ETHEREUM", fallback, is_sepolia);
     // Determine the L1 block to use for inclusion
+    let ethereum_block = ethereum_block.unwrap();
     let l1_block = if is_linea_chain(chain_id) {
-      ethereum_block.unwrap()
+      ethereum_block
+    } else if is_sepolia {
+      ethereum_block - REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA
     } else {
-      if is_sepolia {
-        ethereum_block.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA
-      } else if !is_sepolia {
-        ethereum_block.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM
-      } else {
-        panic!("Invalid chain ID");
-      }
+      ethereum_block - REORG_PROTECTION_DEPTH_ETHEREUM
     };
 
     // Delegate to the appropriate helper based on chain type
