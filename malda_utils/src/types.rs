@@ -77,38 +77,19 @@ pub mod abi {
   use super::SolidityDataType;
 
   /// Pack a single `SolidityDataType` into bytes
-  fn pack<'a>(data_type: &'a SolidityDataType) -> Vec<u8> {
-    let mut res = Vec::new();
+  fn pack(data_type: &SolidityDataType) -> Vec<u8> {
     match data_type {
-      SolidityDataType::String(s) => {
-        res.extend(s.as_bytes());
-      }
-      SolidityDataType::Address(a) => {
-        res.extend(a.0);
-      }
-      SolidityDataType::Number(n) => {
-        res.extend(n.to_be_bytes::<32>());
-      }
-      SolidityDataType::Bytes(b) => {
-        res.extend(*b);
-      }
-      SolidityDataType::Bool(b) => {
-        if *b {
-          res.push(1);
-        } else {
-          res.push(0);
-        }
-      }
+      SolidityDataType::String(s) => s.as_bytes().to_vec(),
+      SolidityDataType::Address(a) => a.0.to_vec(),
+      SolidityDataType::Number(n) => n.to_be_bytes::<32>().to_vec(),
+      SolidityDataType::Bytes(b) => b.to_vec(),
+      SolidityDataType::Bool(b) => vec![*b as u8],
       SolidityDataType::NumberWithShift(n, to_take) => {
-        let local_res = n.to_be_bytes::<32>().to_vec();
-
-        let to_skip = local_res.len() - (to_take.0 / 8);
-
-        let local_res = local_res.into_iter().skip(to_skip).collect::<Vec<u8>>();
-        res.extend(local_res);
+        let bytes = n.to_be_bytes::<32>();
+        let to_skip = bytes.len().saturating_sub(to_take.0 / 8);
+        bytes.into_iter().skip(to_skip).collect()
       }
-    };
-    return res;
+    }
   }
 
   pub fn encode_packed(items: &[SolidityDataType]) -> (Vec<u8>, String) {
