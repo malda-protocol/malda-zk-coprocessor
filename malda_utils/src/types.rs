@@ -230,7 +230,7 @@ impl SequencerCommitment {
   /// * `Result<Self>` - The created commitment or an error
   pub fn new(data: &[u8]) -> Result<Self> {
     let mut decoder = snap::raw::Decoder::new();
-    let decompressed = decoder.decompress_vec(&data)?;
+    let decompressed = decoder.decompress_vec(data)?;
 
     let signature = Signature::try_from(&decompressed[..65])?;
     let data = Bytes::from(decompressed[65..].to_vec());
