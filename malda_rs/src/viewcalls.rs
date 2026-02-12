@@ -52,6 +52,8 @@ use malda_utils::chains::{
   get_linea_message_service_address, get_portal_address, get_reorg_protection_depth,
   get_steel_chain_spec, is_ethereum_chain, is_linea_chain, is_opstack_chain,
 };
+use malda_utils::chains_v2::Chain;
+use malda_utils::chains_v2::*;
 #[cfg(feature = "guest")]
 use methods::GET_PROOF_DATA_ELF;
 
@@ -1547,7 +1549,7 @@ pub async fn get_proof_data_call_input(
 pub async fn get_sequencer_commitments_and_blocks(
   chain_id: u64,
   rpc_url: &str,
-  is_sepolia: bool,
+  _is_sepolia: bool,
   l1_inclusion: bool,
   fallback: bool,
 ) -> (
@@ -1562,7 +1564,8 @@ pub async fn get_sequencer_commitments_and_blocks(
   {
     if !l1_inclusion && is_opstack_chain(chain_id) {
       // For OpStack chains without L1 inclusion, get the current sequencer commitment
-      let (commitment, block) = get_current_sequencer_commitment(chain_id, fallback).await;
+      let chain = Chain::try_from(chain_id).unwrap();
+      let (commitment, block) = get_current_sequencer_commitment(&chain, fallback).await;
       (
         Some(block),
         Some(commitment),
@@ -1571,8 +1574,9 @@ pub async fn get_sequencer_commitments_and_blocks(
       )
     } else {
       // For L1 inclusion or Ethereum chains, use the default sequencer chain
-      let default_chain = get_default_sequencer_chain(chain_id, is_sepolia);
-      let (commitment, block) = get_current_sequencer_commitment(default_chain, fallback).await;
+      let chain = Chain::try_from(chain_id).unwrap();
+      let default_chain = get_default_sequencer_chain(&chain);
+      let (commitment, block) = get_current_sequencer_commitment(&default_chain, fallback).await;
       (Some(block), Some(commitment), None, None)
     }
   } else if is_linea_chain(chain_id) {
@@ -1600,7 +1604,7 @@ pub async fn get_sequencer_commitments_and_blocks(
 /// data that can be used to verify L2 state.
 ///
 /// # Arguments
-/// * `chain_id` - Chain ID (Optimism, Base, or their Sepolia variants).
+/// * `chain` - Chain.
 /// * `fallback` - Whether to use fallback RPC URLs.
 ///
 /// # Returns
@@ -1613,11 +1617,14 @@ pub async fn get_sequencer_commitments_and_blocks(
 /// - JSON parsing fails.
 /// - Execution payload conversion fails.
 pub async fn get_current_sequencer_commitment(
-  chain_id: u64,
+  chain: &Chain,
   fallback: bool,
 ) -> (SequencerCommitment, u64) {
-  let (chain_name, is_testnet) = get_chain_params(chain_id);
-  let req = get_sequencer_request_url(chain_name, fallback, is_testnet);
+  let req = match chain {
+    Chain::Base(base_chain) => base_chain.sequencer_request_url(fallback),
+    Chain::Optimism(optimism_chain) => optimism_chain.sequencer_request_url(fallback),
+    _ => panic!("Unsupported chain for sequencer commitment"),
+  };
 
   let commitment = reqwest::get(req)
     .await
@@ -1921,23 +1928,26 @@ async fn get_linea_beacon_data(
 
 /// Helper function to get the default sequencer commitment chain for a given chain.
 ///
-/// Returns the default chain ID to use for sequencer commitment queries based on whether
-/// the target chain is a testnet or mainnet.
+/// Returns the default chain to use for sequencer commitment queries based on the target chain type.
 ///
 /// # Arguments
-/// * `_chain_id` - The chain ID (unused, kept for interface consistency).
-/// * `is_sepolia` - Whether the chain is a Sepolia testnet variant.
+/// * `chain` - The chain.
 ///
 /// # Returns
-/// * `u64` - The default sequencer commitment chain ID.
+/// * `Chain` - The default sequencer commitment chain.
 ///
 /// # Default Chains
 /// - Sepolia: Optimism Sepolia
 /// - Mainnet: Optimism mainnet
-fn get_default_sequencer_chain(_chain_id: u64, is_sepolia: bool) -> u64 {
-  if is_sepolia {
-    OPTIMISM_SEPOLIA_CHAIN_ID
-  } else {
-    OPTIMISM_CHAIN_ID
+fn get_default_sequencer_chain(chain: &Chain) -> Chain {
+  match chain {
+    Chain::Base(BaseNetwork::Mainnet) => Chain::Optimism(OptimismNetwork::Mainnet),
+    Chain::Base(BaseNetwork::Sepolia) => Chain::Optimism(OptimismNetwork::Sepolia),
+    Chain::Ethereum(EthereumNetwork::Mainnet) => Chain::Optimism(OptimismNetwork::Mainnet),
+    Chain::Ethereum(EthereumNetwork::Sepolia) => Chain::Optimism(OptimismNetwork::Sepolia),
+    Chain::Linea(LineaNetwork::Mainnet) => Chain::Optimism(OptimismNetwork::Mainnet),
+    Chain::Linea(LineaNetwork::Sepolia) => Chain::Optimism(OptimismNetwork::Sepolia),
+    Chain::Optimism(OptimismNetwork::Mainnet) => Chain::Optimism(OptimismNetwork::Mainnet),
+    Chain::Optimism(OptimismNetwork::Sepolia) => Chain::Optimism(OptimismNetwork::Sepolia),
   }
 }

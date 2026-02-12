@@ -15,6 +15,7 @@ mod tests {
     transports::http::reqwest::Url,
   };
   use malda_rs::{constants::*, types::*, validators::*, viewcalls::*};
+  use malda_utils::chains_v2::{BaseNetwork, Chain, OptimismNetwork};
   use risc0_steel::{ethereum::EthEvmEnv, host::BlockNumberOrTag as BlockRisc0};
 
   /// Tests Linea header verification with correct input parameters
@@ -146,8 +147,8 @@ mod tests {
   /// - No panic occurs with valid input
   #[tokio::test]
   async fn test_validate_optimism_env_correct_input() {
-    let (sequencer_commitment, block) =
-      get_current_sequencer_commitment(OPTIMISM_CHAIN_ID, false).await;
+    let chain = Chain::Optimism(OptimismNetwork::Mainnet);
+    let (sequencer_commitment, block) = get_current_sequencer_commitment(&chain, false).await;
 
     let http_url: Url = get_rpc_url("OPTIMISM", false, false).parse().unwrap();
 
@@ -174,8 +175,8 @@ mod tests {
   /// - Panics due to hash mismatch
   #[tokio::test]
   async fn test_validate_optimism_env_wrong_hash_panics() {
-    let (sequencer_commitment, block) =
-      get_current_sequencer_commitment(OPTIMISM_CHAIN_ID, false).await;
+    let chain = Chain::Optimism(OptimismNetwork::Mainnet);
+    let (sequencer_commitment, block) = get_current_sequencer_commitment(&chain, false).await;
 
     let http_url: Url = get_rpc_url("OPTIMISM", false, false).parse().unwrap();
 
@@ -209,8 +210,8 @@ mod tests {
   /// - Panics due to chain ID mismatch
   #[tokio::test]
   async fn test_validate_optimism_env_wrong_chain_id_panics() {
-    let (sequencer_commitment, block) =
-      get_current_sequencer_commitment(OPTIMISM_CHAIN_ID, false).await;
+    let chain = Chain::Optimism(OptimismNetwork::Mainnet);
+    let (sequencer_commitment, block) = get_current_sequencer_commitment(&chain, false).await;
 
     let http_url: Url = get_rpc_url("OPTIMISM", false, false).parse().unwrap();
 
@@ -245,8 +246,8 @@ mod tests {
   #[tokio::test]
   async fn test_validate_optimism_env_wrong_commitment_panics() {
     // get commitment from base chain here
-    let (sequencer_commitment, block) =
-      get_current_sequencer_commitment(BASE_CHAIN_ID, false).await;
+    let chain = Chain::Base(BaseNetwork::Mainnet);
+    let (sequencer_commitment, block) = get_current_sequencer_commitment(&chain, false).await;
 
     let http_url: Url = get_rpc_url("OPTIMISM", false, false).parse().unwrap();
 
@@ -280,11 +281,13 @@ mod tests {
   /// - Panics for both signature and data manipulation
   #[tokio::test]
   async fn test_validate_optimism_env_manipulated_commitment_panics() {
+    let optimism_chain = Chain::Optimism(OptimismNetwork::Mainnet);
     let (sequencer_commitment, _block) =
-      get_current_sequencer_commitment(OPTIMISM_CHAIN_ID, false).await;
+      get_current_sequencer_commitment(&optimism_chain, false).await;
 
+    let base_chain = Chain::Base(BaseNetwork::Mainnet);
     let (wrong_sequencer_commitment, block) =
-      get_current_sequencer_commitment(BASE_CHAIN_ID, false).await;
+      get_current_sequencer_commitment(&base_chain, false).await;
 
     let mut manipulated_commitment_signature = sequencer_commitment.clone();
     manipulated_commitment_signature.signature = wrong_sequencer_commitment.signature;
