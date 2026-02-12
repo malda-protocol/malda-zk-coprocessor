@@ -940,9 +940,9 @@ pub async fn get_proof_data_zkvm_input(
   let rpc_url = get_rpc_url(chain_name, fallback, is_testnet);
 
   // Fetch sequencer commitments and block numbers for the chain
+  let chain = Chain::try_from(chain_id).unwrap();
   let (block, commitment, block_2, commitment_2) =
-    get_sequencer_commitments_and_blocks(chain_id, rpc_url, is_sepolia, l1_inclusion, fallback)
-      .await;
+    get_sequencer_commitments_and_blocks(chain, rpc_url, l1_inclusion, fallback).await;
 
   // Prepare L1 block call inputs and block numbers if needed
   let (l1_block_call_input_1, ethereum_block_1, l1_block_call_input_2, _ethereum_block_2) =
@@ -1531,9 +1531,8 @@ pub async fn get_proof_data_call_input(
 /// For L1 inclusion scenarios, it uses the default sequencer chain (Optimism) to get commitments.
 ///
 /// # Arguments
-/// * `chain_id` - The chain ID to query.
+/// * `chain` - The chain to query.
 /// * `rpc_url` - The RPC URL for the chain.
-/// * `is_sepolia` - Whether the chain is a Sepolia testnet variant.
 /// * `l1_inclusion` - Whether to include L1 data in the proof.
 /// * `fallback` - Whether to use fallback RPC URLs.
 ///
@@ -1547,9 +1546,8 @@ pub async fn get_proof_data_call_input(
 /// - RPC calls fail.
 /// - Sequencer API requests fail.
 pub async fn get_sequencer_commitments_and_blocks(
-  chain_id: u64,
+  chain: Chain,
   rpc_url: &str,
-  _is_sepolia: bool,
   l1_inclusion: bool,
   fallback: bool,
 ) -> (
@@ -1558,29 +1556,9 @@ pub async fn get_sequencer_commitments_and_blocks(
   Option<u64>,
   Option<SequencerCommitment>,
 ) {
-  if is_opstack_chain(chain_id)
-    || is_ethereum_chain(chain_id)
-    || (is_linea_chain(chain_id) && l1_inclusion)
-  {
-    if !l1_inclusion && is_opstack_chain(chain_id) {
-      // For OpStack chains without L1 inclusion, get the current sequencer commitment
-      let chain = Chain::try_from(chain_id).unwrap();
-      let (commitment, block) = get_current_sequencer_commitment(&chain, fallback).await;
-      (
-        Some(block),
-        Some(commitment),
-        None::<u64>,
-        None::<SequencerCommitment>,
-      )
-    } else {
-      // For L1 inclusion or Ethereum chains, use the default sequencer chain
-      let chain = Chain::try_from(chain_id).unwrap();
-      let default_chain = get_default_sequencer_chain(&chain);
-      let (commitment, block) = get_current_sequencer_commitment(&default_chain, fallback).await;
-      (Some(block), Some(commitment), None, None)
-    }
-  } else if is_linea_chain(chain_id) {
-    // For Linea chains, get the current block number directly from RPC
+  // For Linea chain with no L1 inclusion, get the current block number
+  // directly from RPC; there is no sequencer commitment.
+  if matches!((chain, l1_inclusion), (Chain::Linea(_), false)) {
     let block = EthEvmEnv::builder()
       .rpc(Url::parse(rpc_url).unwrap())
       .block_number_or_tag(BlockNumberOrTag::Latest)
@@ -1592,10 +1570,22 @@ pub async fn get_sequencer_commitments_and_blocks(
       .inner()
       .inner()
       .number;
-    (Some(block), None, None, None)
-  } else {
-    panic!("Invalid chain ID");
+    return (Some(block), None, None, None);
   }
+
+  // For other chains we need to determine which chain to query for the commitment.
+  let commitment_chain = match (chain, l1_inclusion) {
+    (Chain::Linea(_), false) => unreachable!(),
+    // OpStack with no L1 inclusion - use current chain
+    (Chain::Optimism(_), false) | (Chain::Base(_), false) => chain,
+    // Ethereum, or any chain with L1 inclusion - use default sequencer chain
+    (Chain::Ethereum(_), _) | (_, true) => get_default_sequencer_chain(&chain),
+  };
+
+  // Fetch commitment.
+  let (commitment, block) = get_current_sequencer_commitment(&commitment_chain, fallback).await;
+
+  (Some(block), Some(commitment), None, None)
 }
 /// Fetches the current sequencer commitment for L2 chains.
 ///
