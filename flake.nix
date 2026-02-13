@@ -56,8 +56,9 @@
               #   RUSTSEC-2023-0071 (rsa) - see https://github.com/malda-protocol/malda-zk-coprocessor/issues/39
               #   RUSTSEC-2025-0055 (tracing-subscriber) - see https://github.com/malda-protocol/malda-zk-coprocessor/issues/40
               IGNORE="--ignore RUSTSEC-2023-0071 --ignore RUSTSEC-2025-0055"
+              GUEST_IGNORE="--ignore RUSTSEC-2025-0055"
               cargo-audit audit --no-fetch $IGNORE --db ${advisory-db} --file ${./Cargo.lock}
-              cargo-audit audit --no-fetch $IGNORE --db ${advisory-db} --file ${./methods/guest/Cargo.lock}
+              cargo-audit audit --no-fetch $GUEST_IGNORE --db ${advisory-db} --file ${./methods/guest/Cargo.lock}
               touch $out
             '';
       });
