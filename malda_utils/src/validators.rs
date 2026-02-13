@@ -80,7 +80,7 @@ pub fn validate_get_proof_data_call(
   env_input_for_viewcall: Option<EthEvmInput>,
   sequencer_commitment_opstack: Option<SequencerCommitment>,
   env_input_opstack_for_l1_block_call: Option<EthEvmInput>,
-  linking_blocks: &Vec<RlpHeader<Header>>,
+  linking_blocks: &[RlpHeader<Header>],
   output: &mut Vec<Bytes>,
   env_input_eth_for_l1_inclusion: &Option<EthEvmInput>,
   env_input_opstack_for_viewcall_with_l1_inclusion: Option<OpEvmInput>,
@@ -130,13 +130,13 @@ pub fn validate_get_proof_data_call(
   );
 
   // Execute the batch multicall to retrieve proof data, using the appropriate environment.
-  if op_env_for_viewcall_with_l1_inclusion.is_some() {
+  if let Some(env) = op_env_for_viewcall_with_l1_inclusion {
     batch_call_get_proof_data(
       chain_id,
       account,
       asset,
       target_chain_ids,
-      op_env_for_viewcall_with_l1_inclusion.unwrap(),
+      env,
       validate_l1_inclusion,
       output,
     )
@@ -185,7 +185,7 @@ pub fn validate_get_proof_data_call(
 pub fn sort_and_verify_relevant_params(
   chain_id: u64,
   env_input_for_viewcall: Option<EthEvmInput>,
-  linking_blocks: &Vec<RlpHeader<Header>>,
+  linking_blocks: &[RlpHeader<Header>],
   env_input_eth_for_l1_inclusion: &Option<EthEvmInput>,
   env_input_opstack_for_viewcall_with_l1_inclusion: Option<OpEvmInput>,
 ) -> (
@@ -573,6 +573,7 @@ pub fn get_validated_block_hash_linea(
   let untrusted_header = block_header_to_validate.inner();
   let linea_beacon_data = linea_beacon_data.unwrap();
   let network = linea_block_verifier::core::constants::LineaNetwork::try_from(chain_id).unwrap();
+  #[allow(clippy::let_and_return)]
   let trusted_block_hash =
     linea_block_verifier::core::verify_header(untrusted_header, &linea_beacon_data, network)
       .unwrap();
@@ -838,7 +839,7 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
 pub fn validate_chain_length(
   chain_id: u64,
   historical_hash: B256,
-  linking_blocks: &Vec<RlpHeader<Header>>,
+  linking_blocks: &[RlpHeader<Header>],
   current_hash: B256,
 ) {
   // Determine the required reorg protection depth for the given chain.

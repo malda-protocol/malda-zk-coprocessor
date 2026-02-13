@@ -576,7 +576,6 @@ pub async fn get_proof_data_exec(
       let markets = markets[i].clone();
       let target_chain_id = target_chain_id[i].clone();
       let chain_id = chain_ids[i];
-      let fallback = fallback;
       tokio::spawn(async move {
         get_proof_data_zkvm_input(
           users,
@@ -659,7 +658,6 @@ async fn get_proof_data_env(
       let markets = markets[i].clone();
       let chain_id = chain_ids[i];
       let target_chain_id = target_chain_ids[i].clone();
-      let fallback = fallback;
       tokio::spawn(async move {
         get_proof_data_zkvm_input(
           users,
@@ -679,7 +677,7 @@ async fn get_proof_data_env(
   let all_inputs = results
     .into_iter()
     .filter_map(|r| r.ok())
-    .flat_map(|input| input)
+    .flatten()
     .collect::<Vec<_>>();
 
   // Build the ZKVM executor environment with all chain inputs
@@ -735,7 +733,6 @@ async fn get_proof_data_input(
       let markets = markets[i].clone();
       let chain_id = chain_ids[i];
       let target_chain_id = target_chain_ids[i].clone();
-      let fallback = fallback;
       tokio::spawn(async move {
         get_proof_data_zkvm_input(
           users,
@@ -755,7 +752,7 @@ async fn get_proof_data_input(
   let all_inputs = results
     .into_iter()
     .filter_map(|r| r.ok())
-    .flat_map(|input| input)
+    .flatten()
     .collect::<Vec<_>>();
 
   // Serialize the number of chains as the first field (required by the ZKVM input format)
@@ -1068,16 +1065,13 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
     // Prepare the L1 RPC URL
     let l1_rpc_url = get_rpc_url("ETHEREUM", fallback, is_sepolia);
     // Determine the L1 block to use for inclusion
+    let ethereum_block = ethereum_block.unwrap();
     let l1_block = if is_linea_chain(chain_id) {
-      ethereum_block.unwrap()
+      ethereum_block
+    } else if is_sepolia {
+      ethereum_block - REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA
     } else {
-      if is_sepolia {
-        ethereum_block.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA
-      } else if !is_sepolia {
-        ethereum_block.unwrap() - REORG_PROTECTION_DEPTH_ETHEREUM
-      } else {
-        panic!("Invalid chain ID");
-      }
+      ethereum_block - REORG_PROTECTION_DEPTH_ETHEREUM
     };
 
     // Delegate to the appropriate helper based on chain type
@@ -1450,25 +1444,17 @@ pub async fn get_proof_data_call_input(
   // Use separate code paths for each environment type
   if is_opstack_chain(chain_id) && validate_l1_inclusion {
     // Build an environment based on the state of the latest finalized fault dispute game
-    let (l1_rpc_url, optimism_portal, chain_url_final, _chain_name) =
+    let (l1_rpc_url, optimism_portal, rpc_url, _chain_name) =
       get_opstack_config(chain_id, !fallback);
+    let rpc_url = Url::parse(rpc_url)
+      .unwrap_or_else(|e| panic!("Failed to parse RPC URL '{}': {}", rpc_url, e));
     let mut env = OpEvmEnv::builder()
       .dispute_game_from_rpc(
         optimism_portal,
         Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"),
       )
       .game_index(DisputeGameIndex::Finalized)
-      .rpc(
-        Url::parse(chain_url_final)
-          .map_err(|e| {
-            eprintln!(
-              "ERROR parsing RPC URL in get_proof_data_call_input (op_env): {:?} - URL: {}",
-              e, chain_url_final
-            );
-            e
-          })
-          .expect("Failed to parse RPC URL"),
-      )
+      .rpc(rpc_url)
       .chain_spec(&OP_MAINNET_CHAIN_SPEC)
       .build()
       .await
@@ -1493,25 +1479,17 @@ pub async fn get_proof_data_call_input(
       ),
     )
   } else {
-    let chain_url_final = if fallback {
+    let rpc_url = if fallback {
       let (chain_name, is_testnet) = get_chain_params(chain_id);
       get_rpc_url(chain_name, true, is_testnet)
     } else {
       chain_url
     };
+    let rpc_url = Url::parse(rpc_url)
+      .unwrap_or_else(|e| panic!("Failed to parse RPC URL '{}': {}", rpc_url, e));
     let chain_spec = get_steel_chain_spec(chain_id);
     let mut env = EthEvmEnv::builder()
-      .rpc(
-        Url::parse(chain_url_final)
-          .map_err(|e| {
-            eprintln!(
-              "ERROR parsing RPC URL in get_proof_data_call_input (op_env): {:?} - URL: {}",
-              e, chain_url_final
-            );
-            e
-          })
-          .expect("Failed to parse RPC URL"),
-      )
+      .rpc(rpc_url)
       .block_number_or_tag(BlockNumberOrTag::Number(block_reorg_protected))
       .chain_spec(chain_spec)
       .build()
