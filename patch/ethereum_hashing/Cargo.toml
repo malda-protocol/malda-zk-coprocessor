@@ -9,7 +9,7 @@ repository = "https://github.com/sigp/ethereum_hashing"
 documentation = "https://docs.rs/ethereum_hashing"
 keywords = ["ethereum"]
 categories = ["cryptography::cryptocurrencies"]
-rust-version = "1.79.0"
+rust-version = "1.85.0"
 
 [dependencies]
 sha2 = "0.10"
