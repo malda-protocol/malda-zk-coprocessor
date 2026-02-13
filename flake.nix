@@ -35,9 +35,7 @@
           projectRootFile = "flake.nix";
           programs.nixfmt.enable = true;
           programs.rustfmt.enable = true;
-          # Override edition to match Cargo.toml (2021). Remove this when
-          # the workspace edition is updated to 2024.
-          programs.rustfmt.edition = "2021";
+          programs.rustfmt.edition = "2024";
         }
       );
     in
