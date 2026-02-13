@@ -238,6 +238,29 @@ docker cp <container_id>:<path_from_banner> ./get-proof-data.bin
 
 **Note:** Reproducibility of the guest ELF can only be guaranteed by publishing the particular Docker image used for the build. This ensures that the exact build environment, toolchain versions, and dependencies are preserved.
 
+#### Reproducible Build with Nix
+
+The guest ELF can be built reproducibly using [Nix](https://nixos.org/) on an x86_64-linux machine. Anyone can verify the exact binary and image ID produced by CI at a given commit:
+
+```bash
+# Build the guest at a specific commit
+nix build github:malda-protocol/malda-zk-coprocessor/<commit-sha>#guest
+
+# Check the image ID
+cat result/bin/get-proof-data.id
+
+# The ProgramBinary is at result/bin/get-proof-data.bin
+```
+
+To build from a local checkout:
+
+```bash
+nix build .#guest
+cat result/bin/get-proof-data.id
+```
+
+This is fully deterministic — the same commit on x86_64-linux always produces the same ELF, ProgramBinary, and image ID.
+
 ### Environment Setup for Testing
 
 Before running tests, you must configure your environment variables. Create and fill out a `.env` file as described in the [Environment Configuration](#environment-configuration) section above. Ensure that all required RPC endpoints and `SEQUENCER_REQUEST` URLs are set for the relevant networks.
