@@ -190,10 +190,12 @@ mod tests {
       .header
       .hash;
 
-    assert!(std::panic::catch_unwind(|| {
-      validate_opstack_env(OPTIMISM_CHAIN_ID, &sequencer_commitment, wrong_hash);
-    })
-    .is_err());
+    assert!(
+      std::panic::catch_unwind(|| {
+        validate_opstack_env(OPTIMISM_CHAIN_ID, &sequencer_commitment, wrong_hash);
+      })
+      .is_err()
+    );
   }
 
   /// Tests OpStack environment validation with incorrect chain ID
@@ -223,10 +225,12 @@ mod tests {
       .header
       .hash;
 
-    assert!(std::panic::catch_unwind(|| {
-      validate_opstack_env(OPTIMISM_CHAIN_ID + 1, &sequencer_commitment, correct_hash);
-    })
-    .is_err());
+    assert!(
+      std::panic::catch_unwind(|| {
+        validate_opstack_env(OPTIMISM_CHAIN_ID + 1, &sequencer_commitment, correct_hash);
+      })
+      .is_err()
+    );
   }
 
   /// Tests OpStack environment validation with wrong commitment
@@ -257,10 +261,12 @@ mod tests {
       .header
       .hash;
 
-    assert!(std::panic::catch_unwind(|| {
-      validate_opstack_env(OPTIMISM_CHAIN_ID, &sequencer_commitment, correct_hash);
-    })
-    .is_err());
+    assert!(
+      std::panic::catch_unwind(|| {
+        validate_opstack_env(OPTIMISM_CHAIN_ID, &sequencer_commitment, correct_hash);
+      })
+      .is_err()
+    );
   }
 
   /// Tests OpStack environment validation with manipulated commitment
@@ -300,23 +306,27 @@ mod tests {
       .hash;
 
     // fails when either signature or data has been modified
-    assert!(std::panic::catch_unwind(|| {
-      validate_opstack_env(
-        OPTIMISM_CHAIN_ID,
-        &manipulated_commitment_signature,
-        correct_hash,
-      );
-    })
-    .is_err());
+    assert!(
+      std::panic::catch_unwind(|| {
+        validate_opstack_env(
+          OPTIMISM_CHAIN_ID,
+          &manipulated_commitment_signature,
+          correct_hash,
+        );
+      })
+      .is_err()
+    );
 
-    assert!(std::panic::catch_unwind(|| {
-      validate_opstack_env(
-        OPTIMISM_CHAIN_ID,
-        &manipulated_commitment_data,
-        correct_hash,
-      );
-    })
-    .is_err());
+    assert!(
+      std::panic::catch_unwind(|| {
+        validate_opstack_env(
+          OPTIMISM_CHAIN_ID,
+          &manipulated_commitment_data,
+          correct_hash,
+        );
+      })
+      .is_err()
+    );
   }
 
   /// Tests chain length validation with correct input
@@ -375,15 +385,17 @@ mod tests {
     let historical_hash = linking_blocks[0].inner().parent_hash;
     let current_hash = linking_blocks[linking_blocks.len() - 1].hash_slow();
 
-    assert!(std::panic::catch_unwind(|| {
-      validate_chain_length(
-        ETHEREUM_CHAIN_ID,
-        historical_hash,
-        &linking_blocks[0..linking_blocks.len() - 2].to_vec(),
-        current_hash,
-      );
-    })
-    .is_err());
+    assert!(
+      std::panic::catch_unwind(|| {
+        validate_chain_length(
+          ETHEREUM_CHAIN_ID,
+          historical_hash,
+          &linking_blocks[0..linking_blocks.len() - 2].to_vec(),
+          current_hash,
+        );
+      })
+      .is_err()
+    );
   }
 
   /// Tests chain length validation with mismatched hashes
@@ -410,14 +422,16 @@ mod tests {
     }
     let historical_hash = linking_blocks[0].inner().parent_hash;
 
-    assert!(std::panic::catch_unwind(|| {
-      validate_chain_length(
-        ETHEREUM_CHAIN_ID,
-        historical_hash,
-        &linking_blocks[0..linking_blocks.len() - 2].to_vec(),
-        historical_hash,
-      );
-    })
-    .is_err());
+    assert!(
+      std::panic::catch_unwind(|| {
+        validate_chain_length(
+          ETHEREUM_CHAIN_ID,
+          historical_hash,
+          &linking_blocks[0..linking_blocks.len() - 2].to_vec(),
+          historical_hash,
+        );
+      })
+      .is_err()
+    );
   }
 }

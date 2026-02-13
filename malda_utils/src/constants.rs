@@ -17,7 +17,7 @@
 //! This module contains various constant definitions that are used across different chains
 //! and components of the Malda Protocol.
 
-use alloy_primitives::{address, Address, B256};
+use alloy_primitives::{Address, B256, address};
 
 pub const MULTICALL: Address = address!("cA11bde05977b3631167028862bE2a173976CA11");
 /// Selector for getProofData(address,uint32)

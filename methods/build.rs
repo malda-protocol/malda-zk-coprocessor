@@ -10,7 +10,7 @@
 // limitations under the License.
 //
 //
-use risc0_build::{embed_methods_with_options, DockerOptionsBuilder, GuestOptionsBuilder};
+use risc0_build::{DockerOptionsBuilder, GuestOptionsBuilder, embed_methods_with_options};
 use std::{collections::HashMap, env, path::PathBuf};
 
 fn main() {

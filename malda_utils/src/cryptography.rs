@@ -18,7 +18,7 @@
 //! signer recovery, and address derivation from public keys using
 //! the secp256k1 elliptic curve.
 
-use alloy_primitives::{keccak256, B256};
+use alloy_primitives::{B256, keccak256};
 
 /// Creates a signature message hash following Ethereum's signing scheme.
 ///
