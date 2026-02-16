@@ -14,11 +14,11 @@
 #[cfg(test)]
 mod tests {
 
-  use alloy_primitives::{address, Address, Bytes, U256};
+  use alloy_primitives::{Address, Bytes, U256, address};
   use hex;
   use malda_rs::{
     constants::*,
-    viewcalls::{get_proof_data_exec, get_proof_data_prove_boundless, BoundlessParams},
+    viewcalls::{BoundlessParams, get_proof_data_exec, get_proof_data_prove_boundless},
   };
 
   use alloy::sol_types::SolValue;

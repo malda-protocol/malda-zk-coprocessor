@@ -19,7 +19,9 @@ use risc0_op_steel::optimism::OpEvmInput;
 use risc0_steel::{ethereum::EthEvmInput, serde::RlpHeader};
 use risc0_zkvm::guest::env;
 #[cfg(not(any(feature = "mainnet", feature = "testnet")))]
-compile_error!("Either 'mainnet' or 'testnet' feature must be enabled. Build with --features mainnet or --features testnet");
+compile_error!(
+  "Either 'mainnet' or 'testnet' feature must be enabled. Build with --features mainnet or --features testnet"
+);
 
 #[cfg(feature = "mainnet")]
 use malda_utils::constants::{BASE_CHAIN_ID, ETHEREUM_CHAIN_ID, LINEA_CHAIN_ID, OPTIMISM_CHAIN_ID};

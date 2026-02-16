@@ -58,23 +58,23 @@ use methods::GET_PROOF_DATA_ELF;
 use core::panic;
 
 use risc0_op_steel::{
-  optimism::{OpEvmEnv, OpEvmInput, OP_MAINNET_CHAIN_SPEC},
   DisputeGameIndex,
+  optimism::{OP_MAINNET_CHAIN_SPEC, OpEvmEnv, OpEvmInput},
 };
 use risc0_steel::{
-  ethereum::{EthEvmEnv, EthEvmFactory, ETH_MAINNET_CHAIN_SPEC},
+  Contract, EvmInput,
+  ethereum::{ETH_MAINNET_CHAIN_SPEC, EthEvmEnv, EthEvmFactory},
   host::BlockNumberOrTag,
   serde::RlpHeader,
-  Contract, EvmInput,
 };
 #[cfg(feature = "guest")]
 use risc0_zkvm::{
-  default_executor, default_prover, ExecutorEnv, ProveInfo, ProverOpts, SessionInfo,
+  ExecutorEnv, ProveInfo, ProverOpts, SessionInfo, default_executor, default_prover,
 };
 
 use boundless_market::request_builder::OfferParams;
 
-use alloy::primitives::{Address, Bytes, U256, U64};
+use alloy::primitives::{Address, Bytes, U64, U256};
 use alloy_consensus::Header;
 use alloy_primitives::utils::parse_units;
 
@@ -93,7 +93,7 @@ use tracing::info;
 use dotenvy;
 
 use alloy::signers::local::PrivateKeySigner;
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use boundless_market::Client as BoundlessClient;
 use std::str::FromStr;
 

@@ -34,14 +34,14 @@ use crate::chains::{
 use crate::constants::*;
 use crate::types::*;
 use alloy_consensus::Header;
-use alloy_primitives::{Address, Bytes, B256, U256};
+use alloy_primitives::{Address, B256, Bytes, U256};
 use alloy_sol_types::SolValue;
-use risc0_op_steel::optimism::{OpEvmFactory, OpEvmInput, OP_MAINNET_CHAIN_SPEC};
+use risc0_op_steel::optimism::{OP_MAINNET_CHAIN_SPEC, OpEvmFactory, OpEvmInput};
 use risc0_steel::EvmFactory;
 use risc0_steel::{
-  ethereum::{EthEvmFactory, EthEvmInput, ETH_MAINNET_CHAIN_SPEC},
-  serde::RlpHeader,
   Commitment, Contract, EvmEnv, StateDb,
+  ethereum::{ETH_MAINNET_CHAIN_SPEC, EthEvmFactory, EthEvmInput},
+  serde::RlpHeader,
 };
 
 /// Validates and executes proof data queries across multiple accounts and tokens using multicall.
