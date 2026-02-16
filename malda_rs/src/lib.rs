@@ -24,3 +24,5 @@ pub use malda_utils::validators;
 
 #[cfg(feature = "guest")]
 pub use methods;
+
+mod boundless;

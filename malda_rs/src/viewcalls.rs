@@ -41,6 +41,7 @@
 //! - **Blacklist Verification**: Checks that dispute games are not blacklisted
 //! - **Game Type Validation**: Verifies dispute games use the correct game type
 
+use crate::boundless;
 use crate::constants::*;
 use crate::types::*;
 use crate::types::{
@@ -93,7 +94,7 @@ use dotenvy;
 
 use alloy::signers::local::PrivateKeySigner;
 use anyhow::{bail, Context};
-use boundless_market::{storage::storage_provider_from_env, Client as BoundlessClient};
+use boundless_market::Client as BoundlessClient;
 use std::str::FromStr;
 
 /// Parameters for configuring the Boundless market client and request offers.
@@ -395,8 +396,9 @@ pub async fn get_proof_data_prove_boundless_with_elf(
   let private_key = PrivateKeySigner::from_str(&private_key)?;
 
   // Create a Boundless client from the provided parameters.
+  let storage_provider = boundless::storage_provider_from_env().await?;
   let client = BoundlessClient::builder()
-    .with_storage_provider(Some(storage_provider_from_env()?))
+    .with_uploader(Some(storage_provider))
     .with_rpc_url(rpc_url)
     .with_private_key(private_key)
     .config_offer_layer(
