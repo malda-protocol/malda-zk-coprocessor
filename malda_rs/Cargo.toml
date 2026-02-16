@@ -33,3 +33,6 @@ malda_utils = { workspace = true }
 
 # Linea block validation.
 linea-block-verifier = { workspace = true, features = ["host"] }
+
+# Parsing boundless configuration from env.
+clap = { version = "4.5.58", default-features = false, features = ["derive", "env"] }
