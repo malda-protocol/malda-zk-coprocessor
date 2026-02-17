@@ -1346,35 +1346,27 @@ pub async fn get_l1block_call_inputs_and_l1_block_numbers(
   Option<EvmInput<EthEvmFactory>>,
   Option<u64>,
 ) {
-  if is_ethereum_chain(chain_id) || l1_inclusion {
-    // For Ethereum or L1 inclusion, prepare the L1 block call input for the appropriate chain
-    let (chain_id_1, _chain_id_2) = match is_sepolia {
-      true => (OPTIMISM_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID),
-      false => (OPTIMISM_CHAIN_ID, BASE_CHAIN_ID),
-    };
-    let chain_1 = Chain::try_from(chain_id_1).unwrap();
-    let (l1_block_call_input_1, ethereum_block_1) = get_l1block_call_input(
-      BlockNumberOrTag::Number(block.unwrap()),
-      &chain_1,
-      fallback,
-    )
-    .await;
+  let chain = Chain::try_from(chain_id).unwrap();
+  // For Ethereum or L1 inclusion, prepare the L1 block call input for the appropriate chain
+  if matches!(chain, Chain::Ethereum(_)) || l1_inclusion {
+    let (chain_1, _chain_2) = get_l1_block_anchor_chains(&chain);
+    let (l1_block_call_input_1, ethereum_block_1) =
+      get_l1block_call_input(BlockNumberOrTag::Number(block.unwrap()), &chain_1, fallback).await;
     // NOTE: The following code is intended to enable L1 block confirmation via both OP and Base for extra security, but is currently disabled for latency reasons. Only the OP path is active.
-    // let chain_2 = Chain::try_from(chain_id_2).unwrap();
     // let (l1_block_call_input_2, ethereum_block_2) =
     //     get_l1block_call_input(BlockNumberOrTag::Number(block_2.unwrap()), &chain_2, fallback).await;
 
-    (
+    return (
       Some(l1_block_call_input_1),
       Some(ethereum_block_1),
       None::<EvmInput<EthEvmFactory>>,
       None::<u64>,
-    )
-    // (Some(l1_block_call_input_1), Some(ethereum_block_1), Some(l1_block_call_input_2), Some(ethereum_block_2))
-  } else {
-    // For other chains, no L1 block call input is needed
-    (None, None, None, None)
+    );
+    // return (Some(l1_block_call_input_1), Some(ethereum_block_1), Some(l1_block_call_input_2), Some(ethereum_block_2))
   }
+
+  // For other chains, no L1 block call input is needed
+  (None, None, None, None)
 }
 
 /// Prepares multicall input for batch proof data checking.
@@ -1914,6 +1906,28 @@ async fn get_linea_beacon_data(
   let beacon_data = beacon_client.fetch_beacon_data(block_number).await.unwrap();
 
   Some(beacon_data)
+}
+
+/// Returns the corresponding Optimism and Base chains for L1 block verification.
+///
+/// Maps any chain to its network-matching (mainnet/sepolia) Optimism and Base pair.
+fn get_l1_block_anchor_chains(chain: &Chain) -> (Chain, Chain) {
+  match chain {
+    Chain::Base(BaseNetwork::Mainnet)
+    | Chain::Ethereum(EthereumNetwork::Mainnet)
+    | Chain::Linea(LineaNetwork::Mainnet)
+    | Chain::Optimism(OptimismNetwork::Mainnet) => (
+      Chain::Optimism(OptimismNetwork::Mainnet),
+      Chain::Base(BaseNetwork::Mainnet),
+    ),
+    Chain::Base(BaseNetwork::Sepolia)
+    | Chain::Ethereum(EthereumNetwork::Sepolia)
+    | Chain::Linea(LineaNetwork::Sepolia)
+    | Chain::Optimism(OptimismNetwork::Sepolia) => (
+      Chain::Optimism(OptimismNetwork::Sepolia),
+      Chain::Base(BaseNetwork::Sepolia),
+    ),
+  }
 }
 
 /// Helper function to get the default sequencer commitment chain for a given chain.
