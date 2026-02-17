@@ -946,15 +946,8 @@ pub async fn get_proof_data_zkvm_input(
 
   // Prepare L1 block call inputs and block numbers if needed
   let (l1_block_call_input_1, ethereum_block_1, l1_block_call_input_2, _ethereum_block_2) =
-    get_l1block_call_inputs_and_l1_block_numbers(
-      chain_id,
-      is_sepolia,
-      l1_inclusion,
-      block,
-      block_2,
-      fallback,
-    )
-    .await;
+    get_l1block_call_inputs_and_l1_block_numbers(&chain, l1_inclusion, block, block_2, fallback)
+      .await;
 
   // Prepare environment input for L1 inclusion and L2 block number
   let (env_input_l1_inclusion, l2_block_number_on_l1) =
@@ -1318,8 +1311,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
 /// This function is designed to support confirming the L1 block via both OP and Base sequencer commitments for additional security. However, the second path (Base) is currently disabled for latency reasons. Only the OP path is active.
 ///
 /// # Arguments
-/// * `chain_id` - The chain ID to query.
-/// * `is_sepolia` - Whether the chain is a Sepolia testnet variant.
+/// * `chain` - The chain to query.
 /// * `l1_inclusion` - Whether to include L1 data in the proof.
 /// * `block` - The block number (optional, required if l1_inclusion is true or chain is Ethereum).
 /// * `_block_2` - The second block number (optional, unused, kept for interface consistency).
@@ -1334,8 +1326,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
 /// - Block number is not provided when required.
 /// - L1 block call input generation fails.
 pub async fn get_l1block_call_inputs_and_l1_block_numbers(
-  chain_id: u64,
-  is_sepolia: bool,
+  chain: &Chain,
   l1_inclusion: bool,
   block: Option<u64>,
   _block_2: Option<u64>,
@@ -1346,7 +1337,6 @@ pub async fn get_l1block_call_inputs_and_l1_block_numbers(
   Option<EvmInput<EthEvmFactory>>,
   Option<u64>,
 ) {
-  let chain = Chain::try_from(chain_id).unwrap();
   // For Ethereum or L1 inclusion, prepare the L1 block call input for the appropriate chain
   if matches!(chain, Chain::Ethereum(_)) || l1_inclusion {
     let (chain_1, _chain_2) = get_l1_block_anchor_chains(&chain);
