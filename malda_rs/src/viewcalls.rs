@@ -1046,7 +1046,6 @@ pub async fn get_proof_data_zkvm_input(
 /// # Panics
 /// Panics if:
 /// - L1 inclusion is requested for an unsupported chain.
-/// - OpStack chain ID is provided (use get_env_input_for_opstack_l1_inclusion instead).
 /// - Ethereum block number is not provided when l1_inclusion is true.
 pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
   chain_id: u64,
@@ -1081,35 +1080,6 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
       panic!("L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants");
     }
   }
-}
-
-/// Returns the environment input for L1 inclusion and the L2 block number for OpStack chains.
-///
-/// This is a wrapper function that delegates to `get_env_input_for_opstack_dispute_game`
-/// for OpStack chains. It provides a consistent interface for L1 inclusion handling.
-///
-/// # Arguments
-/// * `chain_id` - The chain ID to query (must be an OpStack chain).
-/// * `l1_block` - The L1 block number.
-/// * `fallback` - Whether to use fallback RPC URLs.
-///
-/// # Returns
-/// * `(Option<EvmInput<EthEvmFactory>>, Option<u64>)` - The environment input and L2 block number, if available.
-///
-/// # Panics
-/// Panics if:
-/// - Non-OpStack chain ID is provided.
-/// - Dispute game validation fails.
-pub async fn get_env_input_for_opstack_l1_inclusion(
-  chain_id: u64,
-  l1_block: u64,
-  fallback: bool,
-) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
-  if !is_opstack_chain(chain_id) {
-    panic!("This function only supports OpStack chains");
-  }
-  let chain = Chain::try_from(chain_id).expect("Invalid chain ID for OpStack");
-  get_env_input_for_opstack_dispute_game(&chain, l1_block, fallback).await
 }
 
 /// Returns the environment input for OpStack dispute game and a dummy L2 block number.
