@@ -19,6 +19,15 @@ pub enum Chain {
 }
 
 impl Chain {
+  pub fn reorg_protection_depth(&self) -> u64 {
+    match self {
+      Self::Base(n) => n.reorg_protection_depth(),
+      Self::Ethereum(n) => n.reorg_protection_depth(),
+      Self::Linea(n) => n.reorg_protection_depth(),
+      Self::Optimism(n) => n.reorg_protection_depth(),
+    }
+  }
+
   pub fn rpc_url(&self, fallback: bool) -> String {
     match self {
       Self::Base(n) => n.rpc_url(fallback),

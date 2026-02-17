@@ -1686,7 +1686,8 @@ pub async fn get_linking_blocks(
   current_block: u64,
 ) -> Vec<RlpHeader<Header>> {
   // Determine the reorg protection depth for the chain
-  let reorg_protection_depth = get_reorg_protection_depth(chain_id);
+  let chain = Chain::try_from(chain_id).unwrap();
+  let reorg_protection_depth = chain.reorg_protection_depth();
 
   // Calculate the starting block for the reorg protection window
   let start_block = current_block - reorg_protection_depth + 1;
