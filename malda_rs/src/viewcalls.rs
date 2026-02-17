@@ -1028,10 +1028,10 @@ pub async fn get_proof_data_zkvm_input(
 }
 
 /// Returns the environment input for L1 inclusion and the L2 block number for a given chain.
-/// This function handles non-OpStack chains (Ethereum and Linea).
 ///
 /// For OpStack chains, this function delegates to `get_env_input_for_opstack_dispute_game`.
 /// For Linea chains, it calls `get_env_input_for_linea_l1_call` to get L2 block information.
+/// For Ethereum chains, panics since L1 inclusion is not applicable.
 ///
 /// # Arguments
 /// * `chain_id` - The chain ID to query.
@@ -1045,7 +1045,7 @@ pub async fn get_proof_data_zkvm_input(
 ///
 /// # Panics
 /// Panics if:
-/// - L1 inclusion is requested for an unsupported chain.
+/// - L1 inclusion is requested for Ethereum.
 /// - Ethereum block number is not provided when l1_inclusion is true.
 pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
   chain_id: u64,
