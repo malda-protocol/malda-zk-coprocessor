@@ -1076,7 +1076,10 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
       get_env_input_for_opstack_dispute_game(&chain, l1_block, fallback).await
     } else if is_linea_chain(chain_id) {
       let chain = Chain::try_from(chain_id).expect("Invalid chain ID for Linea");
-      get_env_input_for_linea_l1_call(&chain, l1_rpc_url, l1_block).await
+      let Chain::Linea(linea) = chain else {
+        unreachable!()
+      };
+      get_env_input_for_linea_l1_call(&linea, l1_rpc_url, l1_block).await
     } else {
       panic!("L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants");
     }
@@ -1740,18 +1743,12 @@ pub async fn get_linking_blocks(
 /// - RPC calls fail.
 /// - Environment building fails.
 pub async fn get_env_input_for_linea_l1_call(
-  chain: &Chain,
+  linea: &LineaNetwork,
   l1_rpc_url: &str,
   l1_block: u64,
 ) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
   // Select the correct message service address for the chain
-  let message_service_address = match &chain {
-    Chain::Linea(n) => n.message_service_address(),
-    other => panic!(
-      "get_env_input_for_linea_l1_call: not a Linea chain: {:?}",
-      other
-    ),
-  };
+  let message_service_address = linea.message_service_address();
 
   // Build the Ethereum environment for the L1 block
   let mut env = EthEvmEnv::builder()
