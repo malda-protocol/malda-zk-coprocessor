@@ -49,8 +49,8 @@ use crate::types::{
   IMulticall3, SequencerCommitment,
 };
 use malda_utils::chains::{
-  get_portal_address, get_reorg_protection_depth, get_steel_chain_spec, is_ethereum_chain,
-  is_linea_chain, is_opstack_chain,
+  get_portal_address, get_reorg_protection_depth, get_steel_chain_spec, is_linea_chain,
+  is_opstack_chain,
 };
 use malda_utils::chains_v2::Chain;
 use malda_utils::chains_v2::*;
