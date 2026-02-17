@@ -49,8 +49,7 @@ use crate::types::{
   IMulticall3, SequencerCommitment,
 };
 use malda_utils::chains::{
-  get_portal_address, get_reorg_protection_depth, get_steel_chain_spec, is_linea_chain,
-  is_opstack_chain,
+  get_portal_address, get_reorg_protection_depth, get_steel_chain_spec, is_opstack_chain,
 };
 use malda_utils::chains_v2::Chain;
 use malda_utils::chains_v2::*;
@@ -990,7 +989,10 @@ pub async fn get_proof_data_zkvm_input(
   );
 
   // For Linea chains we have to fetch additional beacon data; for others it will be `None`.
-  let linea_beacon_data = get_linea_beacon_data(chain_id, block, fallback, is_testnet).await;
+  let linea_beacon_data = match &chain {
+    Chain::Linea(linea) => Some(get_linea_beacon_data(linea, block, fallback).await),
+    _ => None,
+  };
 
   // Serialize all inputs into the format expected by the ZKVM guest
   let input: Vec<u8> = bytemuck::pod_collect_to_vec(
@@ -1832,41 +1834,30 @@ fn get_opstack_config(
   (l1_rpc_url, portal, l2_rpc_url, chain_name)
 }
 
-/// Fetches beacon data for Linea chains.
+/// Fetches beacon data for a Linea chain.
 ///
-/// For Linea chains, additional beacon data (header and block) is required for proof generation.
+/// Additional beacon data (header and block) is required for proof generation on Linea.
 /// This function fetches the beacon header and block for the given L2 block number.
 ///
 /// # Arguments
-/// * `chain_id` - The chain ID to check and fetch data for.
-/// * `block` - The L2 block number to get beacon data for.
+/// * `linea` - The Linea network variant.
+/// * `block_number` - The L2 block number to get beacon data for.
 /// * `fallback` - Whether to use fallback beacon API URLs.
-/// * `is_testnet` - Whether the chain is a testnet variant.
 ///
 /// # Returns
-/// * `Option<linea_block_verifier::core::types::BeaconData>` -
-///   The beacon header and block if the chain is a Linea chain, None otherwise.
+/// * `linea_block_verifier::core::types::BeaconData` - The beacon data.
 ///
 /// # Panics
-/// Panics if:
-/// - Beacon API requests fail.
+/// Panics if beacon API requests fail.
 async fn get_linea_beacon_data(
-  chain_id: u64,
+  linea: &LineaNetwork,
   block_number: u64,
   fallback: bool,
-  is_testnet: bool,
-) -> Option<linea_block_verifier::core::types::BeaconData> {
-  if !is_linea_chain(chain_id) {
-    return None;
-  }
-
-  let (chain_name, _) = get_chain_params(chain_id);
-  let beacon_url = get_beacon_api_url(chain_name, fallback, is_testnet);
-  let network = linea_block_verifier::core::constants::LineaNetwork::try_from(chain_id).ok()?;
-  let beacon_client = linea_block_verifier::host::BeaconClient::new(beacon_url, network);
-  let beacon_data = beacon_client.fetch_beacon_data(block_number).await.unwrap();
-
-  Some(beacon_data)
+) -> linea_block_verifier::core::types::BeaconData {
+  let beacon_url = linea.beacon_api_url(fallback);
+  let network = linea.block_verifier_network();
+  let beacon_client = linea_block_verifier::host::BeaconClient::new(&beacon_url, network);
+  beacon_client.fetch_beacon_data(block_number).await.unwrap()
 }
 
 /// Returns the corresponding Optimism and Base chains for L1 block verification.

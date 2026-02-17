@@ -23,6 +23,23 @@ impl LineaNetwork {
     }
   }
 
+  pub fn beacon_api_url(&self, fallback: bool) -> String {
+    let key = match (self, fallback) {
+      (Self::Mainnet, false) => "BEACON_API_URL_LINEA",
+      (Self::Mainnet, true) => "BEACON_API_URL_LINEA_FALLBACK",
+      (Self::Sepolia, false) => "BEACON_API_URL_LINEA_SEPOLIA",
+      (Self::Sepolia, true) => "BEACON_API_URL_LINEA_SEPOLIA_FALLBACK",
+    };
+    std::env::var(key).unwrap_or_else(|_| panic!("{key} must be set in environment"))
+  }
+
+  pub fn block_verifier_network(&self) -> linea_block_verifier::core::constants::LineaNetwork {
+    match self {
+      Self::Mainnet => linea_block_verifier::core::constants::LineaNetwork::Mainnet,
+      Self::Sepolia => linea_block_verifier::core::constants::LineaNetwork::Sepolia,
+    }
+  }
+
   pub fn rpc_url(&self, fallback: bool) -> String {
     let key = match (self, fallback) {
       (Self::Mainnet, false) => "RPC_URL_LINEA",
