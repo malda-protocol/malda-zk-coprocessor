@@ -1,3 +1,5 @@
+use alloy_primitives::Address;
+
 use crate::constants;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -7,6 +9,13 @@ pub enum OptimismNetwork {
 }
 
 impl OptimismNetwork {
+  pub fn portal_address(&self) -> Address {
+    match self {
+      Self::Mainnet => constants::OPTIMISM_PORTAL,
+      Self::Sepolia => constants::OPTIMISM_SEPOLIA_PORTAL,
+    }
+  }
+
   pub fn reorg_protection_depth(&self) -> u64 {
     match self {
       Self::Mainnet => constants::REORG_PROTECTION_DEPTH_OPTIMISM,

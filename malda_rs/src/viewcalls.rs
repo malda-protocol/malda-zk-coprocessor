@@ -1141,12 +1141,22 @@ pub async fn get_env_input_for_opstack_dispute_game(
   fallback: bool,
 ) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
   // Get OpStack configuration (RPC URLs, portal address, etc.)
-  let (l1_rpc_url, optimism_portal, l2_rpc_url, _chain_name) =
-    get_opstack_config(chain_id, fallback);
+  let chain = Chain::try_from(chain_id).unwrap();
+  let l1_chain = get_l1_chain(&chain);
+  let l1_rpc_url = l1_chain.rpc_url(fallback);
+  let l2_rpc_url = chain.rpc_url(fallback);
+  let portal_address = match &chain {
+    Chain::Optimism(n) => n.portal_address(),
+    Chain::Base(n) => n.portal_address(),
+    other => panic!(
+      "get_env_input_for_opstack_dispute_game: not an OpStack chain: {:?}",
+      other
+    ),
+  };
 
   // Build the Ethereum environment for the L1 block
   let mut env = EthEvmEnv::builder()
-    .rpc(Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"))
+    .rpc(Url::parse(&l1_rpc_url).expect("Failed to parse RPC URL"))
     .block_number_or_tag(BlockNumberOrTag::Number(l1_block))
     .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
     .build()
@@ -1155,12 +1165,12 @@ pub async fn get_env_input_for_opstack_dispute_game(
   // Build the OpStack environment with the dispute game
   let builder = OpEvmEnv::builder()
     .dispute_game_from_rpc(
-      optimism_portal,
-      Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"),
+      portal_address,
+      Url::parse(&l1_rpc_url).expect("Failed to parse RPC URL"),
     )
     .game_index(DisputeGameIndex::Finalized);
   let mut op_env = builder
-    .rpc(Url::parse(l2_rpc_url).expect("Failed to parse RPC URL"))
+    .rpc(Url::parse(&l2_rpc_url).expect("Failed to parse RPC URL"))
     .chain_spec(&OP_MAINNET_CHAIN_SPEC)
     .build()
     .await
@@ -1188,10 +1198,8 @@ pub async fn get_env_input_for_opstack_dispute_game(
 
   let root_claim = op_env_commitment.digest;
 
-  let portal_adress = get_portal_address(chain_id);
-
   // Get the portal contract for additional checks
-  let mut contract = Contract::preflight(portal_adress, &mut env);
+  let mut contract = Contract::preflight(portal_address, &mut env);
 
   // Get factory address from portal
   let factory_call = IOptimismPortal::disputeGameFactoryCall {};
@@ -1217,7 +1225,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
   let game_address = returns._2;
 
   // Check if game was created after respected game type update
-  let mut contract = Contract::preflight(portal_adress, &mut env);
+  let mut contract = Contract::preflight(portal_address, &mut env);
   let respected_game_type_updated_at_call = IOptimismPortal::respectedGameTypeUpdatedAtCall {};
   let updated_at = contract
     .call_builder(&respected_game_type_updated_at_call)
@@ -1246,7 +1254,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
   );
 
   // Check if game is blacklisted
-  let mut contract = Contract::preflight(portal_adress, &mut env);
+  let mut contract = Contract::preflight(portal_address, &mut env);
   let blacklist_call = IOptimismPortal::disputeGameBlacklistCall { game: game_address };
   let is_blacklisted = contract
     .call_builder(&blacklist_call)
@@ -1264,7 +1272,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
     .await
     .expect("Failed to execute resolved at call");
 
-  let mut contract = Contract::preflight(portal_adress, &mut env);
+  let mut contract = Contract::preflight(portal_address, &mut env);
   let proof_maturity_delay_call = IOptimismPortal::proofMaturityDelaySecondsCall {};
   let proof_maturity_delay = contract
     .call_builder(&proof_maturity_delay_call)
@@ -1917,6 +1925,21 @@ fn get_l1_block_anchor_chains(chain: &Chain) -> (Chain, Chain) {
       Chain::Optimism(OptimismNetwork::Sepolia),
       Chain::Base(BaseNetwork::Sepolia),
     ),
+  }
+}
+
+/// Returns the corresponding Ethereum L1 chain for an OpStack chain.
+///
+/// Maps Optimism/Base chains to their settlement layer Ethereum chain (mainnet/sepolia).
+fn get_l1_chain(chain: &Chain) -> Chain {
+  match chain {
+    Chain::Optimism(OptimismNetwork::Mainnet) | Chain::Base(BaseNetwork::Mainnet) => {
+      Chain::Ethereum(EthereumNetwork::Mainnet)
+    }
+    Chain::Optimism(OptimismNetwork::Sepolia) | Chain::Base(BaseNetwork::Sepolia) => {
+      Chain::Ethereum(EthereumNetwork::Sepolia)
+    }
+    other => panic!("get_l1_chain: not an OpStack chain: {:?}", other),
   }
 }
 
