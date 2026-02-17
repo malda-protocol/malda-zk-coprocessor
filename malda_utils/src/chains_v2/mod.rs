@@ -18,6 +18,17 @@ pub enum Chain {
   Optimism(OptimismNetwork),
 }
 
+impl Chain {
+  pub fn rpc_url(&self, fallback: bool) -> String {
+    match self {
+      Self::Base(n) => n.rpc_url(fallback),
+      Self::Ethereum(n) => n.rpc_url(fallback),
+      Self::Linea(n) => n.rpc_url(fallback),
+      Self::Optimism(n) => n.rpc_url(fallback),
+    }
+  }
+}
+
 impl TryFrom<u64> for Chain {
   type Error = String;
 

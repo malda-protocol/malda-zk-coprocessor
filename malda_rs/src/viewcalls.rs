@@ -1655,11 +1655,11 @@ pub async fn get_l1block_call_input(
   chain_id: u64,
   fallback: bool,
 ) -> (EvmInput<EthEvmFactory>, u64) {
-  // Get the chain name and testnet status for the RPC URL
-  let (chain_name, is_testnet) = get_chain_params(chain_id);
-  let rpc_url = get_rpc_url(chain_name, fallback, is_testnet);
+  // Get the RPC URL for the chain
+  let chain = Chain::try_from(chain_id).unwrap();
+  let rpc_url = chain.rpc_url(fallback);
   let mut env = EthEvmEnv::builder()
-    .rpc(Url::parse(rpc_url).expect("Failed to parse RPC URL"))
+    .rpc(Url::parse(&rpc_url).expect("Failed to parse RPC URL"))
     .block_number_or_tag(block)
     .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
     .build()
@@ -1683,7 +1683,7 @@ pub async fn get_l1block_call_input(
 
   // Call the L1Block contract to get the L1 block number
   let mut env = EthEvmEnv::builder()
-    .rpc(Url::parse(rpc_url).expect("Failed to parse RPC URL"))
+    .rpc(Url::parse(&rpc_url).expect("Failed to parse RPC URL"))
     .block_number_or_tag(block)
     .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
     .build()
