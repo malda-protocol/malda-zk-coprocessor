@@ -4422,6 +4422,7 @@ dependencies = [
  "clap",
  "dotenvy",
  "futures",
+ "hex",
  "linea-block-verifier",
  "malda_utils",
  "methods",
@@ -4533,12 +4534,7 @@ dependencies = [
 name = "methods"
 version = "0.1.0"
 dependencies = [
- "alloy",
- "alloy-primitives 1.5.4",
- "hex",
- "malda_rs",
  "risc0-build",
- "tokio",
 ]
 
 [[package]]
