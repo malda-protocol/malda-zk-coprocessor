@@ -1075,7 +1075,8 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
       let chain = Chain::try_from(chain_id).expect("Invalid chain ID for OpStack");
       get_env_input_for_opstack_dispute_game(&chain, l1_block, fallback).await
     } else if is_linea_chain(chain_id) {
-      get_env_input_for_linea_l1_call(chain_id, l1_rpc_url, l1_block).await
+      let chain = Chain::try_from(chain_id).expect("Invalid chain ID for Linea");
+      get_env_input_for_linea_l1_call(&chain, l1_rpc_url, l1_block).await
     } else {
       panic!("L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants");
     }
@@ -1726,7 +1727,7 @@ pub async fn get_linking_blocks(
 /// that corresponds to the given L1 block. This is used for L1 inclusion proofs on Linea.
 ///
 /// # Arguments
-/// * `chain_id` - The chain ID to query (must be a Linea chain).
+/// * `chain` - The chain to query (must be a Linea chain).
 /// * `l1_rpc_url` - The L1 RPC URL.
 /// * `l1_block` - The L1 block number to query at.
 ///
@@ -1735,16 +1736,15 @@ pub async fn get_linking_blocks(
 ///
 /// # Panics
 /// Panics if:
-/// - Invalid chain ID is provided (not a Linea chain).
+/// - Invalid chain is provided (not a Linea chain).
 /// - RPC calls fail.
 /// - Environment building fails.
 pub async fn get_env_input_for_linea_l1_call(
-  chain_id: u64,
+  chain: &Chain,
   l1_rpc_url: &str,
   l1_block: u64,
 ) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
   // Select the correct message service address for the chain
-  let chain = Chain::try_from(chain_id).unwrap();
   let message_service_address = match &chain {
     Chain::Linea(n) => n.message_service_address(),
     other => panic!(
