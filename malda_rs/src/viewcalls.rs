@@ -1058,30 +1058,33 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
     // If L1 inclusion is not required, return None for both values
     (None, None)
   } else {
-    // Prepare the L1 RPC URL
-    let l1_rpc_url = get_rpc_url("ETHEREUM", fallback, is_sepolia);
-    // Determine the L1 block to use for inclusion
+    let chain = Chain::try_from(chain_id).unwrap();
     let ethereum_block = ethereum_block.unwrap();
-    let l1_block = if is_linea_chain(chain_id) {
-      ethereum_block
-    } else if is_sepolia {
-      ethereum_block - REORG_PROTECTION_DEPTH_ETHEREUM_SEPOLIA
-    } else {
-      ethereum_block - REORG_PROTECTION_DEPTH_ETHEREUM
+
+    // Determine the L1 block to use for inclusion
+    let l1_block = match &chain {
+      Chain::Linea(_) => ethereum_block,
+      Chain::Optimism(_) | Chain::Base(_) => {
+        let Chain::Ethereum(eth) = get_l1_chain(&chain) else {
+          unreachable!()
+        };
+        ethereum_block - eth.reorg_protection_depth()
+      }
+      Chain::Ethereum(eth) => ethereum_block - eth.reorg_protection_depth(),
     };
 
     // Delegate to the appropriate helper based on chain type
-    if is_opstack_chain(chain_id) {
-      let chain = Chain::try_from(chain_id).expect("Invalid chain ID for OpStack");
-      get_env_input_for_opstack_dispute_game(&chain, l1_block, fallback).await
-    } else if is_linea_chain(chain_id) {
-      let chain = Chain::try_from(chain_id).expect("Invalid chain ID for Linea");
-      let Chain::Linea(linea) = chain else {
-        unreachable!()
-      };
-      get_env_input_for_linea_l1_call(&linea, l1_rpc_url, l1_block).await
-    } else {
-      panic!("L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants");
+    match &chain {
+      Chain::Optimism(_) | Chain::Base(_) => {
+        get_env_input_for_opstack_dispute_game(&chain, l1_block, fallback).await
+      }
+      Chain::Linea(linea) => {
+        let l1_rpc_url = get_l1_chain(&chain).rpc_url(fallback);
+        get_env_input_for_linea_l1_call(linea, &l1_rpc_url, l1_block).await
+      }
+      Chain::Ethereum(_) => {
+        panic!("L1 Inclusion not supported for Ethereum")
+      }
     }
   }
 }
@@ -1903,18 +1906,18 @@ fn get_l1_block_anchor_chains(chain: &Chain) -> (Chain, Chain) {
   }
 }
 
-/// Returns the corresponding Ethereum L1 chain for an OpStack chain.
+/// Returns the corresponding Ethereum L1 chain for an L2 chain.
 ///
-/// Maps Optimism/Base chains to their settlement layer Ethereum chain (mainnet/sepolia).
+/// Maps L2 chains (Optimism, Base, Linea) to their settlement layer Ethereum chain (mainnet/sepolia).
 fn get_l1_chain(chain: &Chain) -> Chain {
   match chain {
-    Chain::Optimism(OptimismNetwork::Mainnet) | Chain::Base(BaseNetwork::Mainnet) => {
-      Chain::Ethereum(EthereumNetwork::Mainnet)
-    }
-    Chain::Optimism(OptimismNetwork::Sepolia) | Chain::Base(BaseNetwork::Sepolia) => {
-      Chain::Ethereum(EthereumNetwork::Sepolia)
-    }
-    other => panic!("get_l1_chain: not an OpStack chain: {:?}", other),
+    Chain::Optimism(OptimismNetwork::Mainnet)
+    | Chain::Base(BaseNetwork::Mainnet)
+    | Chain::Linea(LineaNetwork::Mainnet) => Chain::Ethereum(EthereumNetwork::Mainnet),
+    Chain::Optimism(OptimismNetwork::Sepolia)
+    | Chain::Base(BaseNetwork::Sepolia)
+    | Chain::Linea(LineaNetwork::Sepolia) => Chain::Ethereum(EthereumNetwork::Sepolia),
+    Chain::Ethereum(_) => panic!("get_l1_chain: Ethereum is already L1"),
   }
 }
 
