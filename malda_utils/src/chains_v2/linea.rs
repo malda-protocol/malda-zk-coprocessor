@@ -1,3 +1,5 @@
+use alloy_primitives::Address;
+
 use crate::constants;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -7,6 +9,13 @@ pub enum LineaNetwork {
 }
 
 impl LineaNetwork {
+  pub fn message_service_address(&self) -> Address {
+    match self {
+      Self::Mainnet => constants::L1_MESSAGE_SERVICE_LINEA,
+      Self::Sepolia => constants::L1_MESSAGE_SERVICE_LINEA_SEPOLIA,
+    }
+  }
+
   pub fn reorg_protection_depth(&self) -> u64 {
     match self {
       Self::Mainnet => constants::REORG_PROTECTION_DEPTH_LINEA,

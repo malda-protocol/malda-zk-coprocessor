@@ -49,8 +49,8 @@ use crate::types::{
   IMulticall3, SequencerCommitment,
 };
 use malda_utils::chains::{
-  get_linea_message_service_address, get_portal_address, get_reorg_protection_depth,
-  get_steel_chain_spec, is_ethereum_chain, is_linea_chain, is_opstack_chain,
+  get_portal_address, get_reorg_protection_depth, get_steel_chain_spec, is_ethereum_chain,
+  is_linea_chain, is_opstack_chain,
 };
 use malda_utils::chains_v2::Chain;
 use malda_utils::chains_v2::*;
@@ -1744,7 +1744,14 @@ pub async fn get_env_input_for_linea_l1_call(
   l1_block: u64,
 ) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
   // Select the correct message service address for the chain
-  let message_service_address = get_linea_message_service_address(chain_id);
+  let chain = Chain::try_from(chain_id).unwrap();
+  let message_service_address = match &chain {
+    Chain::Linea(n) => n.message_service_address(),
+    other => panic!(
+      "get_env_input_for_linea_l1_call: not a Linea chain: {:?}",
+      other
+    ),
+  };
 
   // Build the Ethereum environment for the L1 block
   let mut env = EthEvmEnv::builder()
