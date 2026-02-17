@@ -1352,15 +1352,17 @@ pub async fn get_l1block_call_inputs_and_l1_block_numbers(
       true => (OPTIMISM_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID),
       false => (OPTIMISM_CHAIN_ID, BASE_CHAIN_ID),
     };
+    let chain_1 = Chain::try_from(chain_id_1).unwrap();
     let (l1_block_call_input_1, ethereum_block_1) = get_l1block_call_input(
       BlockNumberOrTag::Number(block.unwrap()),
-      chain_id_1,
+      &chain_1,
       fallback,
     )
     .await;
     // NOTE: The following code is intended to enable L1 block confirmation via both OP and Base for extra security, but is currently disabled for latency reasons. Only the OP path is active.
+    // let chain_2 = Chain::try_from(chain_id_2).unwrap();
     // let (l1_block_call_input_2, ethereum_block_2) =
-    //     get_l1block_call_input(BlockNumberOrTag::Number(block_2.unwrap()), chain_id_2, fallback).await;
+    //     get_l1block_call_input(BlockNumberOrTag::Number(block_2.unwrap()), &chain_2, fallback).await;
 
     (
       Some(l1_block_call_input_1),
@@ -1638,7 +1640,7 @@ pub async fn get_current_sequencer_commitment(
 ///
 /// # Arguments
 /// * `block` - Block number or tag to query.
-/// * `chain_id` - Chain ID (Optimism, Base, or their Sepolia variants).
+/// * `chain` - Chain.
 /// * `fallback` - Whether to use fallback RPC URLs.
 ///
 /// # Returns
@@ -1646,17 +1648,15 @@ pub async fn get_current_sequencer_commitment(
 ///
 /// # Panics
 /// Panics if:
-/// - Invalid chain ID is provided.
 /// - RPC calls fail.
 /// - Environment building fails.
 /// - Contract calls fail.
 pub async fn get_l1block_call_input(
   block: BlockNumberOrTag,
-  chain_id: u64,
+  chain: &Chain,
   fallback: bool,
 ) -> (EvmInput<EthEvmFactory>, u64) {
   // Get the RPC URL for the chain
-  let chain = Chain::try_from(chain_id).unwrap();
   let rpc_url = chain.rpc_url(fallback);
   let mut env = EthEvmEnv::builder()
     .rpc(Url::parse(&rpc_url).expect("Failed to parse RPC URL"))
