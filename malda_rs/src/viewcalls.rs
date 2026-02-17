@@ -951,12 +951,14 @@ pub async fn get_proof_data_zkvm_input(
     .await;
 
   // Determine the block number to use for linking blocks and proof data call input
-  let block = if l1_inclusion && is_linea_chain(chain_id) {
-    l2_block_number_on_l1.unwrap()
-  } else if is_ethereum_chain(chain_id) || (is_opstack_chain(chain_id) && l1_inclusion) {
-    ethereum_block_1.unwrap()
-  } else {
-    block.unwrap()
+  let block = match (&chain, l1_inclusion) {
+    (Chain::Linea(_), true) => l2_block_number_on_l1.unwrap(),
+    (Chain::Ethereum(_), _) | (Chain::Optimism(_), true) | (Chain::Base(_), true) => {
+      ethereum_block_1.unwrap()
+    }
+    (Chain::Optimism(_), false) | (Chain::Base(_), false) | (Chain::Linea(_), false) => {
+      block.unwrap()
+    }
   };
 
   // Determine which chain and RPC URL to use for reorg protection linking blocks
