@@ -15,7 +15,7 @@ mod tests {
     transports::http::reqwest::Url,
   };
   use malda_rs::{constants::*, types::*, validators::*, viewcalls::*};
-  use malda_utils::chains_v2::{BaseNetwork, Chain, OptimismNetwork};
+  use malda_utils::chains_v2::{BaseNetwork, Chain, EthereumNetwork, OptimismNetwork};
   use risc0_steel::{ethereum::EthEvmEnv, host::BlockNumberOrTag as BlockRisc0};
 
   /// Tests Linea header verification with correct input parameters
@@ -343,12 +343,9 @@ mod tests {
   #[tokio::test]
   async fn test_validate_chain_length_input_correct() {
     let block_number = 21193475;
-    let linking_blocks = get_linking_blocks(
-      ETHEREUM_CHAIN_ID,
-      get_rpc_url("ETHEREUM", false, false),
-      block_number,
-    )
-    .await;
+    let eth_chain = Chain::Ethereum(EthereumNetwork::Mainnet);
+    let linking_blocks =
+      get_linking_blocks(&eth_chain, &eth_chain.rpc_url(false), block_number).await;
     if linking_blocks.is_empty() {
       // No linking blocks needed when reorg protection is zero
       return;
@@ -375,12 +372,9 @@ mod tests {
   #[tokio::test]
   async fn test_validate_chain_length_panics_if_chain_too_short() {
     let block_number = 21193475;
-    let linking_blocks = get_linking_blocks(
-      ETHEREUM_CHAIN_ID,
-      get_rpc_url("ETHEREUM", false, false),
-      block_number,
-    )
-    .await;
+    let eth_chain = Chain::Ethereum(EthereumNetwork::Mainnet);
+    let linking_blocks =
+      get_linking_blocks(&eth_chain, &eth_chain.rpc_url(false), block_number).await;
     if linking_blocks.is_empty() {
       // No linking blocks needed when reorg protection is zero
       return;
@@ -413,12 +407,9 @@ mod tests {
   #[tokio::test]
   async fn test_validate_chain_length_panics_if_hash_doesnt_match() {
     let block_number = 21193475;
-    let linking_blocks = get_linking_blocks(
-      ETHEREUM_CHAIN_ID,
-      get_rpc_url("ETHEREUM", false, false),
-      block_number,
-    )
-    .await;
+    let eth_chain = Chain::Ethereum(EthereumNetwork::Mainnet);
+    let linking_blocks =
+      get_linking_blocks(&eth_chain, &eth_chain.rpc_url(false), block_number).await;
     if linking_blocks.is_empty() {
       // No linking blocks needed when reorg protection is zero
       return;

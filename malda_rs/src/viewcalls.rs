@@ -962,25 +962,21 @@ pub async fn get_proof_data_zkvm_input(
   };
 
   // Determine which chain and RPC URL to use for reorg protection linking blocks
-  let (chaind_id_linking_blocks, rpc_url_linking_blocks) =
-    if is_opstack_chain(chain_id) && l1_inclusion {
-      let (ethereum_chain_id, is_ethereum_testnet) =
-        if matches!(chain_id, OPTIMISM_CHAIN_ID | BASE_CHAIN_ID) {
-          (ETHEREUM_CHAIN_ID, false)
-        } else {
-          (ETHEREUM_SEPOLIA_CHAIN_ID, true)
-        };
-      (
-        ethereum_chain_id,
-        get_rpc_url("ETHEREUM", fallback, is_ethereum_testnet),
-      )
-    } else {
-      (chain_id, rpc_url)
-    };
+  let (chain_linking_blocks, rpc_url_linking_blocks) = match (&chain, l1_inclusion) {
+    (Chain::Optimism(_), true) | (Chain::Base(_), true) => {
+      let l1 = get_l1_chain(&chain);
+      let rpc = l1.rpc_url(fallback);
+      (l1, rpc)
+    }
+    (Chain::Ethereum(_), _)
+    | (Chain::Linea(_), _)
+    | (Chain::Optimism(_), false)
+    | (Chain::Base(_), false) => (chain, chain.rpc_url(fallback)),
+  };
 
   // Fetch linking blocks for reorg protection and prepare proof data call input in parallel
   let (linking_blocks, (proof_data_call_input, proof_data_call_input_op)) = tokio::join!(
-    get_linking_blocks(chaind_id_linking_blocks, rpc_url_linking_blocks, block),
+    get_linking_blocks(&chain_linking_blocks, &rpc_url_linking_blocks, block),
     get_proof_data_call_input(
       chain_id,
       rpc_url,
@@ -1681,12 +1677,11 @@ pub async fn get_l1block_call_input(
 /// - RPC calls fail.
 /// - Block fetching tasks fail to join.
 pub async fn get_linking_blocks(
-  chain_id: u64,
+  chain: &Chain,
   rpc_url: &str,
   current_block: u64,
 ) -> Vec<RlpHeader<Header>> {
   // Determine the reorg protection depth for the chain
-  let chain = Chain::try_from(chain_id).unwrap();
   let reorg_protection_depth = chain.reorg_protection_depth();
 
   // Calculate the starting block for the reorg protection window
