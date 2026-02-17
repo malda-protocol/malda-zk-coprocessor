@@ -926,15 +926,6 @@ pub async fn get_proof_data_zkvm_input(
   l1_inclusion: bool,
   fallback: bool,
 ) -> Vec<u8> {
-  // Determine if the chain is a Sepolia testnet variant
-  let is_sepolia = matches!(
-    chain_id,
-    OPTIMISM_SEPOLIA_CHAIN_ID
-      | BASE_SEPOLIA_CHAIN_ID
-      | ETHEREUM_SEPOLIA_CHAIN_ID
-      | LINEA_SEPOLIA_CHAIN_ID
-  );
-
   // Get the chain name and testnet status for RPC URL selection
   let (chain_name, is_testnet) = get_chain_params(chain_id);
   let rpc_url = get_rpc_url(chain_name, fallback, is_testnet);
@@ -952,8 +943,7 @@ pub async fn get_proof_data_zkvm_input(
   // Prepare environment input for L1 inclusion and L2 block number
   let (env_input_l1_inclusion, l2_block_number_on_l1) =
     get_env_input_for_l1_inclusion_and_l2_block_number(
-      chain_id,
-      is_sepolia,
+      &chain,
       l1_inclusion,
       ethereum_block_1,
       fallback,
@@ -1034,8 +1024,7 @@ pub async fn get_proof_data_zkvm_input(
 /// For Ethereum chains, panics since L1 inclusion is not applicable.
 ///
 /// # Arguments
-/// * `chain_id` - The chain ID to query.
-/// * `is_sepolia` - Whether the chain is a Sepolia testnet variant.
+/// * `chain` - The chain to query.
 /// * `l1_inclusion` - Whether to include L1 data in the proof.
 /// * `ethereum_block` - The Ethereum block number (optional, required if l1_inclusion is true).
 /// * `fallback` - Whether to use fallback RPC URLs.
@@ -1048,8 +1037,7 @@ pub async fn get_proof_data_zkvm_input(
 /// - L1 inclusion is requested for Ethereum.
 /// - Ethereum block number is not provided when l1_inclusion is true.
 pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
-  chain_id: u64,
-  is_sepolia: bool,
+  chain: &Chain,
   l1_inclusion: bool,
   ethereum_block: Option<u64>,
   fallback: bool,
@@ -1058,7 +1046,6 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
     // If L1 inclusion is not required, return None for both values
     (None, None)
   } else {
-    let chain = Chain::try_from(chain_id).unwrap();
     let ethereum_block = ethereum_block.unwrap();
 
     // Determine the L1 block to use for inclusion
