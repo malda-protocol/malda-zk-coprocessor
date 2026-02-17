@@ -1073,7 +1073,8 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
 
     // Delegate to the appropriate helper based on chain type
     if is_opstack_chain(chain_id) {
-      get_env_input_for_opstack_dispute_game(chain_id, l1_block, fallback).await
+      let chain = Chain::try_from(chain_id).expect("Invalid chain ID for OpStack");
+      get_env_input_for_opstack_dispute_game(&chain, l1_block, fallback).await
     } else if is_linea_chain(chain_id) {
       get_env_input_for_linea_l1_call(chain_id, l1_rpc_url, l1_block).await
     } else {
@@ -1107,7 +1108,8 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
   if !is_opstack_chain(chain_id) {
     panic!("This function only supports OpStack chains");
   }
-  get_env_input_for_opstack_dispute_game(chain_id, l1_block, fallback).await
+  let chain = Chain::try_from(chain_id).expect("Invalid chain ID for OpStack");
+  get_env_input_for_opstack_dispute_game(&chain, l1_block, fallback).await
 }
 
 /// Returns the environment input for OpStack dispute game and a dummy L2 block number.
@@ -1122,7 +1124,7 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
 /// 7. Confirms root claim matches the commitment
 ///
 /// # Arguments
-/// * `chain_id` - The chain ID to query (must be an OpStack chain).
+/// * `chain` - The chain to query (must be an OpStack chain).
 /// * `l1_block` - The L1 block number for the dispute game.
 /// * `fallback` - Whether to use fallback RPC URLs.
 ///
@@ -1136,12 +1138,11 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
 /// - Insufficient time has passed since game resolution.
 /// - Root claim does not match the commitment.
 pub async fn get_env_input_for_opstack_dispute_game(
-  chain_id: u64,
+  chain: &Chain,
   l1_block: u64,
   fallback: bool,
 ) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
   // Get OpStack configuration (RPC URLs, portal address, etc.)
-  let chain = Chain::try_from(chain_id).unwrap();
   let l1_chain = get_l1_chain(&chain);
   let l1_rpc_url = l1_chain.rpc_url(fallback);
   let l2_rpc_url = chain.rpc_url(fallback);
