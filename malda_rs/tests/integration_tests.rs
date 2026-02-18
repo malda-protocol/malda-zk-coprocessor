@@ -455,6 +455,66 @@ mod tests {
   }
 
   #[tokio::test]
+  async fn test_exec_get_proof_data_on_optimism() {
+    test_get_proof_data_with_params(
+      vec![vec![TEST_USER]],
+      vec![vec![WETH_MARKET]],
+      vec![vec![LINEA_CHAIN_ID]],
+      vec![OPTIMISM_CHAIN_ID],
+      false,
+      false,
+      false,
+      false, // onchain = false for exec tests
+    )
+    .await;
+  }
+
+  #[tokio::test]
+  async fn test_exec_get_proof_data_on_optimism_fallback() {
+    test_get_proof_data_with_params(
+      vec![vec![TEST_USER]],
+      vec![vec![WETH_MARKET]],
+      vec![vec![LINEA_CHAIN_ID]],
+      vec![OPTIMISM_CHAIN_ID],
+      false,
+      true,
+      false,
+      false, // onchain = false for exec tests
+    )
+    .await;
+  }
+
+  #[tokio::test]
+  async fn test_exec_get_proof_data_on_optimism_with_l1_inclusion() {
+    test_get_proof_data_with_params(
+      vec![vec![TEST_USER]],
+      vec![vec![WETH_MARKET]],
+      vec![vec![LINEA_CHAIN_ID]],
+      vec![OPTIMISM_CHAIN_ID],
+      true,
+      false,
+      false,
+      false, // onchain = false for exec tests
+    )
+    .await;
+  }
+
+  #[tokio::test]
+  async fn test_exec_get_proof_data_on_optimism_with_l1_inclusion_fallback() {
+    test_get_proof_data_with_params(
+      vec![vec![TEST_USER]],
+      vec![vec![WETH_MARKET]],
+      vec![vec![LINEA_CHAIN_ID]],
+      vec![OPTIMISM_CHAIN_ID],
+      true,
+      true,
+      false,
+      false, // onchain = false for exec tests
+    )
+    .await;
+  }
+
+  #[tokio::test]
   async fn test_exec_get_proof_data_on_ethereum() {
     test_get_proof_data_with_params(
       vec![vec![TEST_USER]],
