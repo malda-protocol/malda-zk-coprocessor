@@ -485,9 +485,7 @@ mod tests {
   }
 
   #[tokio::test]
-  #[should_panic(
-    expected = "L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants"
-  )]
+  #[should_panic(expected = "L1 Inclusion not supported for Ethereum")]
   async fn test_exec_get_proof_data_on_ethereum_with_l1_inclusion() {
     // This test should fail because L1 inclusion is not supported for Ethereum
     test_get_proof_data_with_params(
@@ -504,9 +502,7 @@ mod tests {
   }
 
   #[tokio::test]
-  #[should_panic(
-    expected = "L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants"
-  )]
+  #[should_panic(expected = "L1 Inclusion not supported for Ethereum")]
   async fn test_exec_get_proof_data_on_ethereum_with_l1_inclusion_fallback() {
     // This test should fail because L1 inclusion is not supported for Ethereum
     test_get_proof_data_with_params(
@@ -794,9 +790,7 @@ mod tests {
   }
 
   #[tokio::test]
-  #[should_panic(
-    expected = "L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants"
-  )]
+  #[should_panic(expected = "L1 Inclusion not supported for Ethereum")]
   #[ignore]
   async fn test_sepolia_exec_get_proof_data_on_ethereum_with_l1_inclusion() {
     // This test should fail because L1 inclusion is not supported for Ethereum
@@ -814,9 +808,7 @@ mod tests {
   }
 
   #[tokio::test]
-  #[should_panic(
-    expected = "L1 Inclusion only supported for Optimism, Base, Linea and their Sepolia variants"
-  )]
+  #[should_panic(expected = "L1 Inclusion not supported for Ethereum")]
   #[ignore]
   async fn test_sepolia_exec_get_proof_data_on_ethereum_with_l1_inclusion_fallback() {
     // This test should fail because L1 inclusion is not supported for Ethereum
