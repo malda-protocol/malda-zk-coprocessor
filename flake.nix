@@ -159,6 +159,8 @@
               pkgs.risc0-rust
               pkgs.r0vm
               pkgs.riscv32-cc
+              pkgs.pkg-config
+              pkgs.openssl
             ];
 
             shellHook = ''
