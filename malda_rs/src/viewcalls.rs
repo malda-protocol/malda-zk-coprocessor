@@ -923,10 +923,6 @@ pub async fn get_proof_data_zkvm_input(
   l1_inclusion: bool,
   fallback: bool,
 ) -> Vec<u8> {
-  // Get the chain name and testnet status for RPC URL selection
-  let (chain_name, is_testnet) = get_chain_params(chain_id);
-  let rpc_url = get_rpc_url(chain_name, fallback, is_testnet);
-
   // Fetch sequencer commitments and block numbers for the chain
   let chain = Chain::try_from(chain_id).unwrap();
   let (block, commitment, block_2, commitment_2) =
@@ -976,7 +972,6 @@ pub async fn get_proof_data_zkvm_input(
     get_linking_blocks(&chain_linking_blocks, &rpc_url_linking_blocks, block),
     get_proof_data_call_input(
       chain_id,
-      rpc_url,
       block,
       users.clone(),
       markets.clone(),
@@ -1341,7 +1336,6 @@ pub async fn get_l1block_call_inputs_and_l1_block_numbers(
 ///
 /// # Arguments
 /// * `chain_id` - Chain ID for the queries.
-/// * `chain_url` - RPC URL for the chain.
 /// * `block` - Block number to query at (will be adjusted for reorg protection).
 /// * `users` - Vector of user addresses to query proof data for.
 /// * `markets` - Vector of market contract addresses to query.
@@ -1359,7 +1353,6 @@ pub async fn get_l1block_call_inputs_and_l1_block_numbers(
 /// - Environment building fails.
 pub async fn get_proof_data_call_input(
   chain_id: u64,
-  chain_url: &str,
   block: u64,
   users: Vec<Address>,
   markets: Vec<Address>,
@@ -1444,14 +1437,9 @@ pub async fn get_proof_data_call_input(
       ),
     )
   } else {
-    let rpc_url = if fallback {
-      let (chain_name, is_testnet) = get_chain_params(chain_id);
-      get_rpc_url(chain_name, true, is_testnet)
-    } else {
-      chain_url
-    };
-    let rpc_url = Url::parse(rpc_url)
-      .unwrap_or_else(|e| panic!("Failed to parse RPC URL '{}': {}", rpc_url, e));
+    let rpc_url_str = chain.rpc_url(fallback);
+    let rpc_url = Url::parse(&rpc_url_str)
+      .unwrap_or_else(|e| panic!("Failed to parse RPC URL '{}': {}", rpc_url_str, e));
     let chain_spec = get_steel_chain_spec(chain_id);
     let mut env = EthEvmEnv::builder()
       .rpc(rpc_url)
