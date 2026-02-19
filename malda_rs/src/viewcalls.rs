@@ -1656,7 +1656,7 @@ pub async fn get_l1block_call_input(
 /// `current_block - reorg_protection_depth + 1` up to `current_block`.
 ///
 /// # Arguments
-/// * `chain_id` - Chain ID to query.
+/// * `chain` - Chain to query.
 /// * `rpc_url` - RPC URL for the chain.
 /// * `current_block` - Latest block number to start from.
 ///
@@ -1665,7 +1665,6 @@ pub async fn get_l1block_call_input(
 ///
 /// # Panics
 /// Panics if:
-/// - Invalid chain ID is provided.
 /// - RPC calls fail.
 /// - Block fetching tasks fail to join.
 pub async fn get_linking_blocks(
