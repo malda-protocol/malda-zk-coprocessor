@@ -35,6 +35,7 @@ snap = "1"
 ssz_types = "0.11.0"
 ethereum_ssz_derive = "0.9.0"
 ethereum_ssz = "0.9.0"
+op-revm = { version = "10.0", default-features = false, features = ["serde", "std"] }
 revm = { version = "29.0", default-features = false }
 futures = "0.3"
 malda_utils = { path = "./malda_utils" }

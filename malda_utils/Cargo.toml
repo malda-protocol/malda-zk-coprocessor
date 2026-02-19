@@ -19,6 +19,7 @@ ethereum_ssz_derive = { workspace = true }
 ethereum_ssz = { workspace = true }
 alloy-rlp = { workspace = true }
 alloy-consensus = { workspace = true }
+op-revm = { workspace = true }
 revm = { workspace = true }
 
 # Linea block validation.

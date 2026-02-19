@@ -2766,6 +2766,7 @@ dependencies = [
  "hex",
  "k256",
  "linea-block-verifier",
+ "op-revm",
  "revm",
  "risc0-op-steel",
  "risc0-steel",
