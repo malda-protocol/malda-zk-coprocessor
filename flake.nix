@@ -85,6 +85,7 @@
                 "linea-block-verifier-0.1.0" = "sha256-nnai6DpKmypP06n9KAjwWGCN7ZtlK0uOKI8csOcrxrU=";
                 "risc0-steel-2.4.1" = "sha256-fFsds95M8u2jjfFZ+M3AuX3CzwKG3XYsLgk0Bk32ras=";
                 "tiny-keccak-2.0.2" = "sha256-YTmdBgqbFwVJlId5efXAZBqS4JQptmqDUXImGPkH/48=";
+                "ethereum_hashing-0.8.0" = "sha256-sQJ8CPRerikQZrrH0it8te2uy1p/Xv1E4CCA2BVwDgs=";
               };
             };
           };
@@ -100,6 +101,7 @@
                 "linea-block-verifier-0.1.0" = "sha256-nnai6DpKmypP06n9KAjwWGCN7ZtlK0uOKI8csOcrxrU=";
                 "risc0-steel-2.4.1" = "sha256-fFsds95M8u2jjfFZ+M3AuX3CzwKG3XYsLgk0Bk32ras=";
                 "ssz_rs-0.9.0" = "sha256-rQ+UEOvwa8Gr8DyJKTe4JGnAHaoeFi3VVaxB+oSiepA=";
+                "ethereum_hashing-0.8.0" = "sha256-GoxvdTYyn2toPrz5zp+ckeYpypF9KQJ72qi8/BBUBHA=";
               };
             };
             guests = [ self.packages.${system}.guest ];
@@ -124,6 +126,7 @@
                 "linea-block-verifier-0.1.0" = "sha256-nnai6DpKmypP06n9KAjwWGCN7ZtlK0uOKI8csOcrxrU=";
                 "risc0-steel-2.4.1" = "sha256-fFsds95M8u2jjfFZ+M3AuX3CzwKG3XYsLgk0Bk32ras=";
                 "ssz_rs-0.9.0" = "sha256-rQ+UEOvwa8Gr8DyJKTe4JGnAHaoeFi3VVaxB+oSiepA=";
+                "ethereum_hashing-0.8.0" = "sha256-GoxvdTYyn2toPrz5zp+ckeYpypF9KQJ72qi8/BBUBHA=";
               };
             };
             doCheck = false;

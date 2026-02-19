@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["malda_rs", "methods", "patch/ethereum_hashing", "malda_utils" ]
+members = ["malda_rs", "methods", "malda_utils" ]
 exclude = ["lib"]
 
 [workspace.package]
@@ -32,9 +32,9 @@ eyre = "0.6.8"
 serde = { version = "1.0.143", features = ["derive"] }
 url = "2.5"
 snap = "1"
-ssz_types = "0.11.0"
-ethereum_ssz_derive = "0.9.0"
-ethereum_ssz = "0.9.0"
+ssz_types = { version = "0.14.0", default-features = false }
+ethereum_ssz_derive = "0.10.0"
+ethereum_ssz = "0.10.0"
 revm = { version = "29.0", default-features = false }
 futures = "0.3"
 malda_utils = { path = "./malda_utils" }
@@ -42,3 +42,10 @@ malda_rs = { path = "./malda_rs" }
 
 # Linea block validation.
 linea-block-verifier = { git = "https://github.com/malda-protocol/linea-block-verifier.git", tag = "v0.1.0", default-features = false }
+
+# Just to enable "sha2" feature in the subdependency that we patch.
+# See: https://github.com/sigp/ssz_types/issues/79.
+ethereum_hashing = { version = "0.8.0", default-features = false, features = ["sha2"] }
+
+[patch.crates-io]
+ethereum_hashing = { git = "https://github.com/sigp/ethereum_hashing.git", branch = "main" }
