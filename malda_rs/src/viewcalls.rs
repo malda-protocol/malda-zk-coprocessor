@@ -1761,38 +1761,6 @@ pub async fn get_env_input_for_linea_l1_call(
   )
 }
 
-/// Helper function to get chain parameters from chain ID.
-///
-/// Maps a chain ID to its corresponding chain name and testnet status.
-///
-/// # Arguments
-/// * `chain_id` - The chain ID to look up.
-///
-/// # Returns
-/// * `(&'static str, bool)` - Tuple of (chain_name, is_testnet).
-///
-/// # Panics
-/// Panics if an invalid chain ID is provided.
-///
-/// # Supported Chains
-/// - Ethereum mainnet and Sepolia
-/// - Optimism mainnet and Sepolia
-/// - Base mainnet and Sepolia
-/// - Linea mainnet and Sepolia
-fn get_chain_params(chain_id: u64) -> (&'static str, bool) {
-  match chain_id {
-    BASE_CHAIN_ID => ("BASE", false),
-    OPTIMISM_CHAIN_ID => ("OPTIMISM", false),
-    LINEA_CHAIN_ID => ("LINEA", false),
-    ETHEREUM_CHAIN_ID => ("ETHEREUM", false),
-    OPTIMISM_SEPOLIA_CHAIN_ID => ("OPTIMISM", true),
-    BASE_SEPOLIA_CHAIN_ID => ("BASE", true),
-    LINEA_SEPOLIA_CHAIN_ID => ("LINEA", true),
-    ETHEREUM_SEPOLIA_CHAIN_ID => ("ETHEREUM", true),
-    _ => panic!("Invalid chain ID: {}", chain_id),
-  }
-}
-
 /// Fetches beacon data for a Linea chain.
 ///
 /// Additional beacon data (header and block) is required for proof generation on Linea.
