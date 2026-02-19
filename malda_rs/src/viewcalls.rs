@@ -1806,36 +1806,6 @@ fn get_chain_params(chain_id: u64) -> (&'static str, bool) {
   }
 }
 
-/// Helper function to get OpStack chain configuration.
-///
-/// Returns the RPC URLs, portal address, and chain name for OpStack chains.
-///
-/// # Arguments
-/// * `chain_id` - The OpStack chain ID.
-/// * `fallback` - Whether to use fallback RPC URLs.
-///
-/// # Returns
-/// * `(&'static str, Address, &'static str, &'static str)` - Tuple of (l1_rpc_url, portal_address, l2_rpc_url, chain_name).
-///
-/// # Panics
-/// Panics if an invalid OpStack chain ID is provided.
-///
-/// # Supported OpStack Chains
-/// - Optimism mainnet and Sepolia
-/// - Base mainnet and Sepolia
-fn get_opstack_config(
-  chain_id: u64,
-  fallback: bool,
-) -> (&'static str, Address, &'static str, &'static str) {
-  let (chain_name, is_testnet) = get_chain_params(chain_id);
-  let l1_rpc_url = get_rpc_url("ETHEREUM", fallback, is_testnet);
-  let l2_rpc_url = get_rpc_url(chain_name, fallback, is_testnet);
-
-  let portal = get_portal_address(chain_id);
-
-  (l1_rpc_url, portal, l2_rpc_url, chain_name)
-}
-
 /// Fetches beacon data for a Linea chain.
 ///
 /// Additional beacon data (header and block) is required for proof generation on Linea.
