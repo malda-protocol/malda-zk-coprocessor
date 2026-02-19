@@ -932,7 +932,7 @@ pub async fn get_proof_data_zkvm_input(
   // Fetch sequencer commitments and block numbers for the chain
   let chain = Chain::try_from(chain_id).unwrap();
   let (block, commitment, block_2, commitment_2) =
-    get_sequencer_commitments_and_blocks(chain, rpc_url, l1_inclusion, fallback).await;
+    get_sequencer_commitments_and_blocks(&chain, l1_inclusion, fallback).await;
 
   // Prepare L1 block call inputs and block numbers if needed
   let (l1_block_call_input_1, ethereum_block_1, l1_block_call_input_2, _ethereum_block_2) =
@@ -1489,7 +1489,6 @@ pub async fn get_proof_data_call_input(
 ///
 /// # Arguments
 /// * `chain` - The chain to query.
-/// * `rpc_url` - The RPC URL for the chain.
 /// * `l1_inclusion` - Whether to include L1 data in the proof.
 /// * `fallback` - Whether to use fallback RPC URLs.
 ///
@@ -1499,12 +1498,10 @@ pub async fn get_proof_data_call_input(
 ///
 /// # Panics
 /// Panics if:
-/// - An invalid chain ID is provided.
 /// - RPC calls fail.
 /// - Sequencer API requests fail.
 pub async fn get_sequencer_commitments_and_blocks(
-  chain: Chain,
-  rpc_url: &str,
+  chain: &Chain,
   l1_inclusion: bool,
   fallback: bool,
 ) -> (
@@ -1516,8 +1513,9 @@ pub async fn get_sequencer_commitments_and_blocks(
   // For Linea chain with no L1 inclusion, get the current block number
   // directly from RPC; there is no sequencer commitment.
   if matches!((chain, l1_inclusion), (Chain::Linea(_), false)) {
+    let rpc_url = chain.rpc_url(fallback);
     let block = EthEvmEnv::builder()
-      .rpc(Url::parse(rpc_url).unwrap())
+      .rpc(Url::parse(&rpc_url).unwrap())
       .block_number_or_tag(BlockNumberOrTag::Latest)
       .chain_spec(&ETH_MAINNET_CHAIN_SPEC)
       .build()
@@ -1534,9 +1532,9 @@ pub async fn get_sequencer_commitments_and_blocks(
   let commitment_chain = match (chain, l1_inclusion) {
     (Chain::Linea(_), false) => unreachable!(),
     // OpStack with no L1 inclusion - use current chain
-    (Chain::Optimism(_), false) | (Chain::Base(_), false) => chain,
+    (Chain::Optimism(_), false) | (Chain::Base(_), false) => *chain,
     // Ethereum, or any chain with L1 inclusion - use default sequencer chain
-    (Chain::Ethereum(_), _) | (_, true) => get_default_sequencer_chain(&chain),
+    (Chain::Ethereum(_), _) | (_, true) => get_default_sequencer_chain(chain),
   };
 
   // Fetch commitment.
