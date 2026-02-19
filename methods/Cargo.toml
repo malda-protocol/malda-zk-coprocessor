@@ -8,10 +8,3 @@ methods = ["guest"]
 
 [build-dependencies]
 risc0-build = { workspace = true }
-
-[dev-dependencies]
-alloy = { workspace = true }
-alloy-primitives = { workspace = true }
-malda_rs = { workspace = true }
-tokio = { workspace = true, features = ["full", "test-util"] }
-hex = { workspace = true }

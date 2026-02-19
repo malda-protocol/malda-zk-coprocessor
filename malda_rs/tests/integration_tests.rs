@@ -11,6 +11,13 @@
 //
 //
 
+//! Integration tests for the Malda ZK coprocessor.
+//!
+//! These tests require the `guest` feature to be enabled as they depend on
+//! the compiled guest ELF binary from the `methods` crate.
+
+#![cfg(feature = "guest")]
+
 #[cfg(test)]
 mod tests {
 
