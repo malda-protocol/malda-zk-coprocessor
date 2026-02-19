@@ -48,7 +48,7 @@ use crate::types::{
   Call3, ExecutionPayload, IDisputeGame, IDisputeGameFactory, IL1Block, IL1MessageService,
   IMulticall3, SequencerCommitment,
 };
-use malda_utils::chains::{get_portal_address, get_steel_chain_spec, is_opstack_chain};
+use malda_utils::chains::get_steel_chain_spec;
 use malda_utils::chains_v2::Chain;
 use malda_utils::chains_v2::*;
 #[cfg(feature = "guest")]
@@ -1402,16 +1402,21 @@ pub async fn get_proof_data_call_input(
   let multicall = IMulticall3::aggregate3Call { calls };
 
   // Use separate code paths for each environment type
-  if is_opstack_chain(chain_id) && validate_l1_inclusion {
+  if matches!(chain, Chain::Optimism(_) | Chain::Base(_)) && validate_l1_inclusion {
     // Build an environment based on the state of the latest finalized fault dispute game
-    let (l1_rpc_url, optimism_portal, rpc_url, _chain_name) =
-      get_opstack_config(chain_id, !fallback);
-    let rpc_url = Url::parse(rpc_url)
-      .unwrap_or_else(|e| panic!("Failed to parse RPC URL '{}': {}", rpc_url, e));
+    let l1_rpc_url = get_l1_chain(&chain).rpc_url(!fallback);
+    let l2_rpc_url = chain.rpc_url(!fallback);
+    let portal_address = match &chain {
+      Chain::Optimism(n) => n.portal_address(),
+      Chain::Base(n) => n.portal_address(),
+      _ => unreachable!(),
+    };
+    let rpc_url = Url::parse(&l2_rpc_url)
+      .unwrap_or_else(|e| panic!("Failed to parse RPC URL '{}': {}", l2_rpc_url, e));
     let mut env = OpEvmEnv::builder()
       .dispute_game_from_rpc(
-        optimism_portal,
-        Url::parse(l1_rpc_url).expect("Failed to parse RPC URL"),
+        portal_address,
+        Url::parse(&l1_rpc_url).expect("Failed to parse RPC URL"),
       )
       .game_index(DisputeGameIndex::Finalized)
       .rpc(rpc_url)
