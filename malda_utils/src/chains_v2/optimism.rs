@@ -1,4 +1,5 @@
 use alloy_primitives::Address;
+use risc0_op_steel::optimism::{OP_MAINNET_CHAIN_SPEC, OP_SEPOLIA_CHAIN_SPEC, OpChainSpec};
 
 use crate::constants;
 
@@ -9,6 +10,13 @@ pub enum OptimismNetwork {
 }
 
 impl OptimismNetwork {
+  pub fn chain_spec(&self) -> &'static OpChainSpec {
+    match self {
+      Self::Mainnet => &OP_MAINNET_CHAIN_SPEC,
+      Self::Sepolia => &OP_SEPOLIA_CHAIN_SPEC,
+    }
+  }
+
   pub fn portal_address(&self) -> Address {
     match self {
       Self::Mainnet => constants::OPTIMISM_PORTAL,

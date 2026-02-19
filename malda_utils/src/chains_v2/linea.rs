@@ -1,6 +1,7 @@
 use alloy_primitives::Address;
 
 use crate::constants;
+use crate::types::{EthChainSpec, LINEA_MAINNET_CHAIN_SPEC, LINEA_SEPOLIA_CHAIN_SPEC};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LineaNetwork {
@@ -9,6 +10,13 @@ pub enum LineaNetwork {
 }
 
 impl LineaNetwork {
+  pub fn chain_spec(&self) -> &'static EthChainSpec {
+    match self {
+      Self::Mainnet => &LINEA_MAINNET_CHAIN_SPEC,
+      Self::Sepolia => &LINEA_SEPOLIA_CHAIN_SPEC,
+    }
+  }
+
   pub fn message_service_address(&self) -> Address {
     match self {
       Self::Mainnet => constants::L1_MESSAGE_SERVICE_LINEA,
