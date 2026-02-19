@@ -48,9 +48,7 @@ use crate::types::{
   Call3, ExecutionPayload, IDisputeGame, IDisputeGameFactory, IL1Block, IL1MessageService,
   IMulticall3, SequencerCommitment,
 };
-use malda_utils::chains::{
-  get_portal_address, get_reorg_protection_depth, get_steel_chain_spec, is_opstack_chain,
-};
+use malda_utils::chains::{get_portal_address, get_steel_chain_spec, is_opstack_chain};
 use malda_utils::chains_v2::Chain;
 use malda_utils::chains_v2::*;
 #[cfg(feature = "guest")]
@@ -1370,7 +1368,8 @@ pub async fn get_proof_data_call_input(
   fallback: bool,
 ) -> (Option<EvmInput<EthEvmFactory>>, Option<OpEvmInput>) {
   // Calculate the block number to use for reorg protection
-  let reorg_protection_depth = get_reorg_protection_depth(chain_id);
+  let chain = Chain::try_from(chain_id).unwrap();
+  let reorg_protection_depth = chain.reorg_protection_depth();
   let block_reorg_protected = block - reorg_protection_depth;
 
   // Create array of Call3 structs for each proof data check
