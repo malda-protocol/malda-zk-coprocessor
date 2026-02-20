@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Merge Layers Inc.
+// Copyright (c) 2025-2026 Merge Layers Inc.
 //
 // This source code is licensed under the Business Source License 1.1
 // (the "License"); you may not use this file except in compliance with the

@@ -5,8 +5,8 @@
 
 **Licensor:** Merge Layers Inc.
 
-**Licensed Work:** `malda-lending`
-The Licensed Work is (c) 2025 Merge Layers Inc.
+**Licensed Work:** `malda-zk-coprocessor`
+The Licensed Work is (c) 2025-2026 Merge Layers Inc.
 
 **Additional Use Grant:** Use of the Licensed Work is permitted solely for non-production
 purposes, including development, testing, and evaluation. Any use
