@@ -483,11 +483,17 @@ pub fn get_validated_block_hash_opstack(
   // Compute the hash of the block header to validate.
   let validated_hash = block_header_to_validate.hash_slow();
   if validate_l1_inclusion {
+    let chain = Chain::try_from(chain_id).unwrap();
+
     // For L1 inclusion, determine the correct Ethereum network.
-    let ethereum = match chain_id {
-      OPTIMISM_CHAIN_ID | BASE_CHAIN_ID => EthereumNetwork::Mainnet,
-      OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID => EthereumNetwork::Sepolia,
-      _ => panic!("invalid chain id"),
+    let ethereum = match &chain {
+      Chain::Optimism(OptimismNetwork::Mainnet) | Chain::Base(BaseNetwork::Mainnet) => {
+        EthereumNetwork::Mainnet
+      }
+      Chain::Optimism(OptimismNetwork::Sepolia) | Chain::Base(BaseNetwork::Sepolia) => {
+        EthereumNetwork::Sepolia
+      }
+      other => panic!("expected OpStack chain, got {other:?}"),
     };
 
     // Validate the Ethereum block hash via OpStack.
@@ -502,7 +508,6 @@ pub fn get_validated_block_hash_opstack(
     // Ensure the hashes match.
     assert_eq!(ethereum_hash, validated_hash, "hash mismatch  opstack");
     // Validate the OpStack dispute game commitment.
-    let chain = Chain::try_from(chain_id).unwrap();
     validate_opstack_dispute_game_commitment(
       &chain,
       env_input_eth_for_l1_inclusion
