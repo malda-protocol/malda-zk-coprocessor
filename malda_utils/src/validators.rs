@@ -407,8 +407,11 @@ pub fn get_validated_block_hash(
 ) -> B256 {
   // Dispatch to the correct validation logic based on chain type.
   if is_linea_chain(chain_id) {
+    let Chain::Linea(linea) = Chain::try_from(chain_id).unwrap() else {
+      panic!("expected Linea chain for chain_id {chain_id}");
+    };
     get_validated_block_hash_linea(
-      chain_id,
+      &linea,
       env_header_to_validate,
       sequencer_commitment_opstack,
       env_input_opstack_for_l1_block_call,
@@ -530,7 +533,7 @@ pub fn get_validated_block_hash_opstack(
 /// This function validates the block hash for Linea chains, optionally verifying L1 inclusion if requested.
 ///
 /// # Arguments
-/// * `chain_id` - The Linea chain ID.
+/// * `linea` - The Linea network (mainnet or Sepolia).
 /// * `env_header_to_validate` - The block header to validate.
 /// * `sequencer_commitment_opstack` - Optional sequencer commitment.
 /// * `env_input_opstack_for_l1_block_call` - Optional Optimism environment input.
@@ -549,7 +552,7 @@ pub fn get_validated_block_hash_opstack(
 /// * Validation fails for Linea environment.
 /// * L1 inclusion validation fails when requested.
 pub fn get_validated_block_hash_linea(
-  chain_id: u64,
+  linea: &LineaNetwork,
   env_header_to_validate: Header,
   sequencer_commitment_opstack: Option<SequencerCommitment>,
   env_input_opstack_for_l1_block_call: Option<EthEvmInput>,
@@ -562,10 +565,9 @@ pub fn get_validated_block_hash_linea(
 ) -> B256 {
   if validate_l1_inclusion {
     // For L1 inclusion, determine the correct Ethereum network.
-    let ethereum = match chain_id {
-      LINEA_CHAIN_ID => EthereumNetwork::Mainnet,
-      LINEA_SEPOLIA_CHAIN_ID => EthereumNetwork::Sepolia,
-      _ => panic!("invalid chain id"),
+    let ethereum = match linea {
+      LineaNetwork::Mainnet => EthereumNetwork::Mainnet,
+      LineaNetwork::Sepolia => EthereumNetwork::Sepolia,
     };
     // Validate the Ethereum block hash via OpStack.
     let ethereum_hash = get_validated_ethereum_block_hash_via_opstack(
@@ -576,11 +578,8 @@ pub fn get_validated_block_hash_linea(
       env_input_opstack_for_l1_block_call_2,
     );
     // Validate the Linea environment with L1 inclusion (block number only, not hash).
-    let Chain::Linea(linea) = Chain::try_from(chain_id).unwrap() else {
-      panic!("expected Linea chain for chain_id {chain_id}");
-    };
     validate_linea_env_with_l1_inclusion(
-      &linea,
+      linea,
       env_header_to_validate.number,
       env_input_eth_for_l1_inclusion.as_ref().unwrap(),
       ethereum_hash,
@@ -589,7 +588,7 @@ pub fn get_validated_block_hash_linea(
   // Always validate the Linea header (consensus signature check).
   let untrusted_header = block_header_to_validate.inner();
   let linea_beacon_data = linea_beacon_data.unwrap();
-  let network = linea_block_verifier::core::constants::LineaNetwork::try_from(chain_id).unwrap();
+  let network = linea.block_verifier_network();
   #[allow(clippy::let_and_return)]
   let trusted_block_hash =
     linea_block_verifier::core::verify_header(untrusted_header, &linea_beacon_data, network)
