@@ -28,7 +28,7 @@
 //! - Linea - Mainnet and Sepolia
 
 use crate::chains::{get_steel_chain_spec, is_ethereum_chain, is_linea_chain, is_opstack_chain};
-use crate::chains_v2::{BaseNetwork, Chain, LineaNetwork, OptimismNetwork};
+use crate::chains_v2::{BaseNetwork, Chain, EthereumNetwork, LineaNetwork, OptimismNetwork};
 use crate::constants::*;
 use crate::types::*;
 use alloy_consensus::Header;
@@ -432,10 +432,13 @@ pub fn get_validated_block_hash(
       env_input_opstack_for_l1_block_call_2,
     )
   } else if is_ethereum_chain(chain_id) {
+    let Chain::Ethereum(ethereum) = Chain::try_from(chain_id).unwrap() else {
+      panic!("expected Ethereum chain for chain_id {chain_id}");
+    };
     get_validated_ethereum_block_hash_via_opstack(
       sequencer_commitment_opstack.as_ref(),
       env_input_opstack_for_l1_block_call,
-      chain_id,
+      &ethereum,
       sequencer_commitment_opstack_2.as_ref(),
       env_input_opstack_for_l1_block_call_2,
     )
@@ -480,10 +483,10 @@ pub fn get_validated_block_hash_opstack(
   // Compute the hash of the block header to validate.
   let validated_hash = block_header_to_validate.hash_slow();
   if validate_l1_inclusion {
-    // For L1 inclusion, determine the correct Ethereum chain ID.
-    let ethereum_chain_id = match chain_id {
-      OPTIMISM_CHAIN_ID | BASE_CHAIN_ID => ETHEREUM_CHAIN_ID,
-      OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID => ETHEREUM_SEPOLIA_CHAIN_ID,
+    // For L1 inclusion, determine the correct Ethereum network.
+    let ethereum = match chain_id {
+      OPTIMISM_CHAIN_ID | BASE_CHAIN_ID => EthereumNetwork::Mainnet,
+      OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID => EthereumNetwork::Sepolia,
       _ => panic!("invalid chain id"),
     };
 
@@ -491,7 +494,7 @@ pub fn get_validated_block_hash_opstack(
     let ethereum_hash = get_validated_ethereum_block_hash_via_opstack(
       sequencer_commitment.as_ref(),
       env_input_opstack_for_l1_block_call,
-      ethereum_chain_id,
+      &ethereum,
       sequencer_commitment_opstack_2.as_ref(),
       env_input_opstack_for_l1_block_call_2,
     );
@@ -553,17 +556,17 @@ pub fn get_validated_block_hash_linea(
   linea_beacon_data: Option<linea_block_verifier::core::types::BeaconData>,
 ) -> B256 {
   if validate_l1_inclusion {
-    // For L1 inclusion, determine the correct Ethereum chain ID.
-    let ethereum_chain_id = match chain_id {
-      LINEA_CHAIN_ID => ETHEREUM_CHAIN_ID,
-      LINEA_SEPOLIA_CHAIN_ID => ETHEREUM_SEPOLIA_CHAIN_ID,
+    // For L1 inclusion, determine the correct Ethereum network.
+    let ethereum = match chain_id {
+      LINEA_CHAIN_ID => EthereumNetwork::Mainnet,
+      LINEA_SEPOLIA_CHAIN_ID => EthereumNetwork::Sepolia,
       _ => panic!("invalid chain id"),
     };
     // Validate the Ethereum block hash via OpStack.
     let ethereum_hash = get_validated_ethereum_block_hash_via_opstack(
       sequencer_commitment_opstack.as_ref(),
       env_input_opstack_for_l1_block_call,
-      ethereum_chain_id,
+      &ethereum,
       sequencer_commitment_opstack_2.as_ref(),
       env_input_opstack_for_l1_block_call_2,
     );
@@ -765,7 +768,7 @@ pub fn validate_opstack_env(chain: &Chain, commitment: &SequencerCommitment, env
 /// # Arguments
 /// * `sequencer_commitment_opstack_1` - The Optimism sequencer commitment.
 /// * `env_input_opstack_for_l1_block_call_1` - The Optimism EVM input containing environment data.
-/// * `chain_id` - The Ethereum chain ID (mainnet or Sepolia).
+/// * `ethereum` - The Ethereum network (mainnet or Sepolia).
 /// * `_sequencer_commitment_opstack_2` - (Unused) Optional second sequencer commitment.
 /// * `_env_input_opstack_for_l1_block_call_2` - (Unused) Optional second Optimism EVM input.
 ///
@@ -776,11 +779,10 @@ pub fn validate_opstack_env(chain: &Chain, commitment: &SequencerCommitment, env
 /// Panics if:
 /// * OpStack environment validation fails.
 /// * L1Block contract call fails.
-/// * Chain ID is not an Ethereum chain.
 pub fn get_validated_ethereum_block_hash_via_opstack(
   sequencer_commitment_opstack_1: Option<&SequencerCommitment>,
   env_input_opstack_for_l1_block_call_1: Option<EthEvmInput>,
-  chain_id: u64,
+  ethereum: &EthereumNetwork,
   _sequencer_commitment_opstack_2: Option<&SequencerCommitment>,
   _env_input_opstack_for_l1_block_call_2: Option<EthEvmInput>,
 ) -> B256 {
@@ -790,16 +792,15 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
     .into_env(&ETH_MAINNET_CHAIN_SPEC);
 
   // Determine which OpStack chain to use for validation.
-  let (verify_via_chain_1, _verify_via_chain_2) = if chain_id == ETHEREUM_CHAIN_ID {
-    (
+  let (verify_via_chain_1, _verify_via_chain_2) = match ethereum {
+    EthereumNetwork::Mainnet => (
       Chain::Optimism(OptimismNetwork::Mainnet),
       Chain::Base(BaseNetwork::Mainnet),
-    )
-  } else {
-    (
+    ),
+    EthereumNetwork::Sepolia => (
       Chain::Optimism(OptimismNetwork::Sepolia),
       Chain::Base(BaseNetwork::Sepolia),
-    )
+    ),
   };
 
   // Validate the OpStack environment and commitment.
