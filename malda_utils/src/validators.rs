@@ -28,10 +28,9 @@
 //! - Linea - Mainnet and Sepolia
 
 use crate::chains::{
-  get_linea_message_service_address, get_portal_address, get_steel_chain_spec, is_ethereum_chain,
-  is_linea_chain, is_opstack_chain,
+  get_portal_address, get_steel_chain_spec, is_ethereum_chain, is_linea_chain, is_opstack_chain,
 };
-use crate::chains_v2::Chain;
+use crate::chains_v2::{Chain, LineaNetwork};
 use crate::constants::*;
 use crate::types::*;
 use alloy_consensus::Header;
@@ -565,8 +564,11 @@ pub fn get_validated_block_hash_linea(
       env_input_opstack_for_l1_block_call_2,
     );
     // Validate the Linea environment with L1 inclusion (block number only, not hash).
+    let Chain::Linea(linea) = Chain::try_from(chain_id).unwrap() else {
+      panic!("expected Linea chain for chain_id {chain_id}");
+    };
     validate_linea_env_with_l1_inclusion(
-      chain_id,
+      &linea,
       env_header_to_validate.number,
       env_input_eth_for_l1_inclusion.as_ref().unwrap(),
       ethereum_hash,
@@ -680,24 +682,23 @@ pub fn batch_call_get_proof_data<H>(
 /// and is therefore omitted.
 ///
 /// # Arguments
-/// * `chain_id` - The Linea chain ID.
+/// * `linea` - The Linea network variant.
 /// * `env_block_number` - The block number to validate.
 /// * `env_eth_input` - The Ethereum EVM input for L1 validation.
 /// * `ethereum_hash` - The Ethereum block hash to validate against.
 ///
 /// # Panics
 /// Panics if:
-/// * Chain ID is invalid.
 /// * Ethereum hash doesn't match.
 /// * Block number is higher than the last one posted to L1.
 pub fn validate_linea_env_with_l1_inclusion(
-  chain_id: u64,
+  linea: &LineaNetwork,
   env_block_number: u64,
   env_eth_input: &EthEvmInput,
   ethereum_hash: B256,
 ) {
   // Select the correct message service address for the given chain.
-  let msg_service_address = get_linea_message_service_address(chain_id);
+  let msg_service_address = linea.message_service_address();
 
   let env_eth = env_eth_input.clone().into_env(&ETH_MAINNET_CHAIN_SPEC);
 
