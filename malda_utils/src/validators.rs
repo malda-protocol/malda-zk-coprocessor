@@ -27,9 +27,7 @@
 //! - Base - Mainnet and Sepolia
 //! - Linea - Mainnet and Sepolia
 
-use crate::chains::{
-  get_portal_address, get_steel_chain_spec, is_ethereum_chain, is_linea_chain, is_opstack_chain,
-};
+use crate::chains::{get_steel_chain_spec, is_ethereum_chain, is_linea_chain, is_opstack_chain};
 use crate::chains_v2::{BaseNetwork, Chain, LineaNetwork, OptimismNetwork};
 use crate::constants::*;
 use crate::types::*;
@@ -272,13 +270,13 @@ pub fn sort_and_verify_relevant_params(
 /// status, blacklist status, resolution time, and root claim.
 ///
 /// # Arguments
-/// * `chain_id` - The OpStack chain ID.
+/// * `chain` - The OpStack chain (Optimism or Base).
 /// * `eth_env` - The Ethereum EVM environment.
 /// * `op_env_commitment` - The OpStack commitment to validate.
 ///
 /// # Panics
 /// Panics if:
-/// * Chain ID is invalid.
+/// * Chain is not an OpStack chain.
 /// * Game type is not respected.
 /// * Game was created before respected game type update.
 /// * Game status is not DEFENDER_WINS.
@@ -286,7 +284,7 @@ pub fn sort_and_verify_relevant_params(
 /// * Insufficient time has passed since game resolution.
 /// * Root claim doesn't match.
 pub fn validate_opstack_dispute_game_commitment(
-  chain_id: u64,
+  chain: &Chain,
   eth_env: EvmEnv<StateDb, EthEvmFactory, Commitment>,
   op_env_commitment: &Commitment,
 ) {
@@ -295,7 +293,11 @@ pub fn validate_opstack_dispute_game_commitment(
   let root_claim = op_env_commitment.digest;
 
   // Select the correct portal address for the given chain.
-  let portal_adress = get_portal_address(chain_id);
+  let portal_adress = match chain {
+    Chain::Optimism(n) => n.portal_address(),
+    Chain::Base(n) => n.portal_address(),
+    other => panic!("validate_opstack_dispute_game_commitment: not an OpStack chain: {other:?}"),
+  };
 
   // Get the portal contract for additional checks.
   let portal_contract = Contract::new(portal_adress, &eth_env);
@@ -497,8 +499,9 @@ pub fn get_validated_block_hash_opstack(
     // Ensure the hashes match.
     assert_eq!(ethereum_hash, validated_hash, "hash mismatch  opstack");
     // Validate the OpStack dispute game commitment.
+    let chain = Chain::try_from(chain_id).unwrap();
     validate_opstack_dispute_game_commitment(
-      chain_id,
+      &chain,
       env_input_eth_for_l1_inclusion
         .as_ref()
         .unwrap()
