@@ -30,7 +30,7 @@
 use crate::chains::{
   get_portal_address, get_steel_chain_spec, is_ethereum_chain, is_linea_chain, is_opstack_chain,
 };
-use crate::chains_v2::{Chain, LineaNetwork};
+use crate::chains_v2::{BaseNetwork, Chain, LineaNetwork, OptimismNetwork};
 use crate::constants::*;
 use crate::types::*;
 use alloy_consensus::Header;
@@ -508,7 +508,8 @@ pub fn get_validated_block_hash_opstack(
     )
   } else {
     // For non-L1 inclusion, validate the OpStack environment directly.
-    validate_opstack_env(chain_id, &sequencer_commitment.unwrap(), validated_hash);
+    let chain = Chain::try_from(chain_id).unwrap();
+    validate_opstack_env(&chain, &sequencer_commitment.unwrap(), validated_hash);
   }
   validated_hash
 }
@@ -726,34 +727,27 @@ pub fn validate_linea_env_with_l1_inclusion(
 /// This function verifies the sequencer commitment for OpStack chains, checks the signature, and ensures the block hash matches.
 ///
 /// # Arguments
-/// * `chain_id` - The chain ID (Optimism or Base, mainnet or Sepolia).
+/// * `chain` - The OpStack chain (Optimism or Base).
 /// * `commitment` - The sequencer commitment to verify.
 /// * `env_block_hash` - The block hash to validate against.
 ///
 /// # Panics
 /// Panics if:
-/// * Chain ID is not an OpStack chain.
+/// * Chain is not an OpStack chain.
 /// * Commitment verification fails.
 /// * Block hash doesn't match commitment.
 /// * Sequencer signature is invalid.
 /// * Execution payload conversion fails.
-pub fn validate_opstack_env(chain_id: u64, commitment: &SequencerCommitment, env_block_hash: B256) {
+pub fn validate_opstack_env(chain: &Chain, commitment: &SequencerCommitment, env_block_hash: B256) {
   // Verify the sequencer commitment for the correct chain and sequencer address.
-  match chain_id {
-    OPTIMISM_CHAIN_ID => commitment
-      .verify(OPTIMISM_SEQUENCER, OPTIMISM_CHAIN_ID)
-      .expect("Failed to verify Optimism sequencer commitment"),
-    BASE_CHAIN_ID => commitment
-      .verify(BASE_SEQUENCER, BASE_CHAIN_ID)
-      .expect("Failed to verify Base sequencer commitment"),
-    OPTIMISM_SEPOLIA_CHAIN_ID => commitment
-      .verify(OPTIMISM_SEPOLIA_SEQUENCER, OPTIMISM_SEPOLIA_CHAIN_ID)
-      .expect("Failed to verify Optimism Sepolia sequencer commitment"),
-    BASE_SEPOLIA_CHAIN_ID => commitment
-      .verify(BASE_SEPOLIA_SEQUENCER, BASE_SEPOLIA_CHAIN_ID)
-      .expect("Failed to verify Base Sepolia sequencer commitment"),
-    _ => panic!("invalid chain id"),
-  }
+  let (sequencer, chain_id) = match chain {
+    Chain::Optimism(n) => (n.sequencer_address(), n.chain_id()),
+    Chain::Base(n) => (n.sequencer_address(), n.chain_id()),
+    other => panic!("validate_opstack_env: not an OpStack chain: {other:?}"),
+  };
+  commitment
+    .verify(sequencer, chain_id)
+    .expect("Failed to verify sequencer commitment");
   // Convert the commitment to an execution payload and check the block hash.
   let payload = ExecutionPayload::try_from(commitment)
     .expect("Failed to convert sequencer commitment to execution payload");
@@ -794,14 +788,20 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
 
   // Determine which OpStack chain to use for validation.
   let (verify_via_chain_1, _verify_via_chain_2) = if chain_id == ETHEREUM_CHAIN_ID {
-    (OPTIMISM_CHAIN_ID, BASE_CHAIN_ID)
+    (
+      Chain::Optimism(OptimismNetwork::Mainnet),
+      Chain::Base(BaseNetwork::Mainnet),
+    )
   } else {
-    (OPTIMISM_SEPOLIA_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID)
+    (
+      Chain::Optimism(OptimismNetwork::Sepolia),
+      Chain::Base(BaseNetwork::Sepolia),
+    )
   };
 
   // Validate the OpStack environment and commitment.
   validate_opstack_env(
-    verify_via_chain_1,
+    &verify_via_chain_1,
     sequencer_commitment_opstack_1.unwrap(),
     env_op.commitment().digest,
   );
@@ -813,7 +813,7 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
 
   // (Optional) Could validate via a second chain, but currently omitted.
   // let env_op_2 = env_input_opstack_for_l1_block_call_2.expect("env_input_opstack_for_l1_block_call_2 is None").into_env();
-  // validate_opstack_env(verify_via_chain_2, sequencer_commitment_opstack_2.unwrap(), env_op_2.commitment().digest);
+  // validate_opstack_env(&_verify_via_chain_2, sequencer_commitment_opstack_2.unwrap(), env_op_2.commitment().digest);
   // let l1_block = Contract::new(L1_BLOCK_ADDRESS_OPSTACK, &env_op_2);
   // let call = IL1Block::hashCall {};
   // let l1_hash_2 = l1_block.call_builder(&call).call().0;

@@ -161,7 +161,7 @@ mod tests {
       .header
       .hash;
 
-    validate_opstack_env(OPTIMISM_CHAIN_ID, &sequencer_commitment, correct_hash);
+    validate_opstack_env(&chain, &sequencer_commitment, correct_hash);
   }
 
   /// Tests OpStack environment validation with incorrect block hash
@@ -193,7 +193,8 @@ mod tests {
 
     assert!(
       std::panic::catch_unwind(|| {
-        validate_opstack_env(OPTIMISM_CHAIN_ID, &sequencer_commitment, wrong_hash);
+        let chain = Chain::Optimism(OptimismNetwork::Mainnet);
+        validate_opstack_env(&chain, &sequencer_commitment, wrong_hash);
       })
       .is_err()
     );
@@ -228,7 +229,8 @@ mod tests {
 
     assert!(
       std::panic::catch_unwind(|| {
-        validate_opstack_env(OPTIMISM_CHAIN_ID + 1, &sequencer_commitment, correct_hash);
+        let wrong_chain = Chain::Base(BaseNetwork::Mainnet);
+        validate_opstack_env(&wrong_chain, &sequencer_commitment, correct_hash);
       })
       .is_err()
     );
@@ -264,7 +266,8 @@ mod tests {
 
     assert!(
       std::panic::catch_unwind(|| {
-        validate_opstack_env(OPTIMISM_CHAIN_ID, &sequencer_commitment, correct_hash);
+        let chain = Chain::Optimism(OptimismNetwork::Mainnet);
+        validate_opstack_env(&chain, &sequencer_commitment, correct_hash);
       })
       .is_err()
     );
@@ -311,22 +314,16 @@ mod tests {
     // fails when either signature or data has been modified
     assert!(
       std::panic::catch_unwind(|| {
-        validate_opstack_env(
-          OPTIMISM_CHAIN_ID,
-          &manipulated_commitment_signature,
-          correct_hash,
-        );
+        let chain = Chain::Optimism(OptimismNetwork::Mainnet);
+        validate_opstack_env(&chain, &manipulated_commitment_signature, correct_hash);
       })
       .is_err()
     );
 
     assert!(
       std::panic::catch_unwind(|| {
-        validate_opstack_env(
-          OPTIMISM_CHAIN_ID,
-          &manipulated_commitment_data,
-          correct_hash,
-        );
+        let chain = Chain::Optimism(OptimismNetwork::Mainnet);
+        validate_opstack_env(&chain, &manipulated_commitment_data, correct_hash);
       })
       .is_err()
     );
@@ -352,12 +349,7 @@ mod tests {
     }
     let historical_hash = linking_blocks[0].inner().parent_hash;
     let current_hash = linking_blocks[linking_blocks.len() - 1].hash_slow();
-    validate_chain_length(
-      &eth_chain,
-      historical_hash,
-      &linking_blocks,
-      current_hash,
-    );
+    validate_chain_length(&eth_chain, historical_hash, &linking_blocks, current_hash);
   }
 
   /// Tests chain length validation with insufficient blocks

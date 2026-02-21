@@ -17,6 +17,20 @@ impl OptimismNetwork {
     }
   }
 
+  pub fn chain_id(&self) -> u64 {
+    match self {
+      Self::Mainnet => constants::OPTIMISM_CHAIN_ID,
+      Self::Sepolia => constants::OPTIMISM_SEPOLIA_CHAIN_ID,
+    }
+  }
+
+  pub fn sequencer_address(&self) -> Address {
+    match self {
+      Self::Mainnet => constants::OPTIMISM_SEQUENCER,
+      Self::Sepolia => constants::OPTIMISM_SEPOLIA_SEQUENCER,
+    }
+  }
+
   pub fn portal_address(&self) -> Address {
     match self {
       Self::Mainnet => constants::OPTIMISM_PORTAL,

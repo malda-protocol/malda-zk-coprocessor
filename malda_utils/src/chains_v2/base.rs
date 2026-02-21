@@ -55,6 +55,20 @@ impl BaseNetwork {
     }
   }
 
+  pub fn chain_id(&self) -> u64 {
+    match self {
+      Self::Mainnet => constants::BASE_CHAIN_ID,
+      Self::Sepolia => constants::BASE_SEPOLIA_CHAIN_ID,
+    }
+  }
+
+  pub fn sequencer_address(&self) -> Address {
+    match self {
+      Self::Mainnet => constants::BASE_SEQUENCER,
+      Self::Sepolia => constants::BASE_SEPOLIA_SEQUENCER,
+    }
+  }
+
   pub fn portal_address(&self) -> Address {
     match self {
       Self::Mainnet => constants::BASE_PORTAL,
