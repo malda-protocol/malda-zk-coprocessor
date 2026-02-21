@@ -423,8 +423,9 @@ pub fn get_validated_block_hash(
       linea_beacon_data,
     )
   } else if is_opstack_chain(chain_id) {
+    let chain = Chain::try_from(chain_id).unwrap();
     get_validated_block_hash_opstack(
-      chain_id,
+      &chain,
       sequencer_commitment_opstack,
       env_input_opstack_for_l1_block_call,
       env_input_eth_for_l1_inclusion,
@@ -455,7 +456,7 @@ pub fn get_validated_block_hash(
 /// This function validates the block hash for OpStack chains (Optimism/Base), optionally verifying L1 inclusion if requested.
 ///
 /// # Arguments
-/// * `chain_id` - The OpStack chain ID (Optimism/Base).
+/// * `chain` - The OpStack chain (Optimism/Base).
 /// * `sequencer_commitment` - Optional sequencer commitment.
 /// * `env_input_opstack_for_l1_block_call` - Optional Optimism environment input.
 /// * `env_input_eth_for_l1_inclusion` - Optional Ethereum environment input.
@@ -473,7 +474,7 @@ pub fn get_validated_block_hash(
 /// * Validation fails for OpStack environment.
 /// * L1 inclusion validation fails when requested.
 pub fn get_validated_block_hash_opstack(
-  chain_id: u64,
+  chain: &Chain,
   sequencer_commitment: Option<SequencerCommitment>,
   env_input_opstack_for_l1_block_call: Option<EthEvmInput>,
   env_input_eth_for_l1_inclusion: &Option<EthEvmInput>,
@@ -486,10 +487,8 @@ pub fn get_validated_block_hash_opstack(
   // Compute the hash of the block header to validate.
   let validated_hash = block_header_to_validate.hash_slow();
   if validate_l1_inclusion {
-    let chain = Chain::try_from(chain_id).unwrap();
-
     // For L1 inclusion, determine the correct Ethereum network.
-    let ethereum = match &chain {
+    let ethereum = match chain {
       Chain::Optimism(OptimismNetwork::Mainnet) | Chain::Base(BaseNetwork::Mainnet) => {
         EthereumNetwork::Mainnet
       }
@@ -512,7 +511,7 @@ pub fn get_validated_block_hash_opstack(
     assert_eq!(ethereum_hash, validated_hash, "hash mismatch  opstack");
     // Validate the OpStack dispute game commitment.
     validate_opstack_dispute_game_commitment(
-      &chain,
+      chain,
       env_input_eth_for_l1_inclusion
         .as_ref()
         .unwrap()
@@ -522,8 +521,7 @@ pub fn get_validated_block_hash_opstack(
     )
   } else {
     // For non-L1 inclusion, validate the OpStack environment directly.
-    let chain = Chain::try_from(chain_id).unwrap();
-    validate_opstack_env(&chain, &sequencer_commitment.unwrap(), validated_hash);
+    validate_opstack_env(chain, &sequencer_commitment.unwrap(), validated_hash);
   }
   validated_hash
 }
