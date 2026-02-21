@@ -353,7 +353,7 @@ mod tests {
     let historical_hash = linking_blocks[0].inner().parent_hash;
     let current_hash = linking_blocks[linking_blocks.len() - 1].hash_slow();
     validate_chain_length(
-      ETHEREUM_CHAIN_ID,
+      &eth_chain,
       historical_hash,
       &linking_blocks,
       current_hash,
@@ -385,7 +385,7 @@ mod tests {
     assert!(
       std::panic::catch_unwind(|| {
         validate_chain_length(
-          ETHEREUM_CHAIN_ID,
+          &eth_chain,
           historical_hash,
           &linking_blocks[0..linking_blocks.len() - 2].to_vec(),
           current_hash,
@@ -419,7 +419,7 @@ mod tests {
     assert!(
       std::panic::catch_unwind(|| {
         validate_chain_length(
-          ETHEREUM_CHAIN_ID,
+          &eth_chain,
           historical_hash,
           &linking_blocks[0..linking_blocks.len() - 2].to_vec(),
           historical_hash,

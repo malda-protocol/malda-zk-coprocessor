@@ -28,9 +28,10 @@
 //! - Linea - Mainnet and Sepolia
 
 use crate::chains::{
-  get_linea_message_service_address, get_portal_address, get_reorg_protection_depth,
-  get_steel_chain_spec, is_ethereum_chain, is_linea_chain, is_opstack_chain,
+  get_linea_message_service_address, get_portal_address, get_steel_chain_spec, is_ethereum_chain,
+  is_linea_chain, is_opstack_chain,
 };
+use crate::chains_v2::Chain;
 use crate::constants::*;
 use crate::types::*;
 use alloy_consensus::Header;
@@ -122,8 +123,10 @@ pub fn validate_get_proof_data_call(
   );
 
   // Ensure the chain length and hash linking are valid for reorg protection.
+  let chain_for_length_validation = Chain::try_from(chain_id_for_length_validation)
+    .unwrap_or_else(|e| panic!("invalid chain id for length validation: {e}"));
   validate_chain_length(
-    chain_id_for_length_validation,
+    &chain_for_length_validation,
     env_header_hash_to_validate,
     linking_blocks,
     validated_block_hash,
@@ -825,7 +828,7 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
 /// and that the final hash matches the expected current hash.
 ///
 /// # Arguments
-/// * `chain_id` - The chain ID to determine reorg protection depth.
+/// * `chain` - The chain to determine reorg protection depth.
 /// * `historical_hash` - The hash of the historical block.
 /// * `linking_blocks` - Vector of blocks linking historical to current.
 /// * `current_hash` - The expected current block hash.
@@ -835,15 +838,14 @@ pub fn get_validated_ethereum_block_hash_via_opstack(
 /// * Chain length is less than required reorg protection depth.
 /// * Blocks are not properly hash-linked.
 /// * Final hash doesn't match current hash.
-/// * Chain ID is invalid or unsupported.
 pub fn validate_chain_length(
-  chain_id: u64,
+  chain: &Chain,
   historical_hash: B256,
   linking_blocks: &[RlpHeader<Header>],
   current_hash: B256,
 ) {
   // Determine the required reorg protection depth for the given chain.
-  let reorg_protection_depth = get_reorg_protection_depth(chain_id);
+  let reorg_protection_depth = chain.reorg_protection_depth();
   let chain_length = linking_blocks.len() as u64;
   // Ensure the chain is long enough for reorg protection.
   assert!(
