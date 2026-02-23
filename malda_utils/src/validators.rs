@@ -27,7 +27,7 @@
 //! - Base - Mainnet and Sepolia
 //! - Linea - Mainnet and Sepolia
 
-use crate::chains::{get_steel_chain_spec, is_ethereum_chain, is_linea_chain, is_opstack_chain};
+use crate::chains::{is_ethereum_chain, is_linea_chain, is_opstack_chain};
 use crate::chains_v2::{BaseNetwork, Chain, EthereumNetwork, LineaNetwork, OptimismNetwork};
 use crate::constants::*;
 use crate::types::*;
@@ -87,6 +87,7 @@ pub fn validate_get_proof_data_call(
   linea_beacon_data: Option<linea_block_verifier::core::types::BeaconData>,
 ) {
   // Sort and verify all relevant parameters for the proof data call, including environment and block headers.
+  let chain = Chain::try_from(chain_id).unwrap();
   let (
     env_for_viewcall,
     block_header_to_validate,
@@ -94,10 +95,10 @@ pub fn validate_get_proof_data_call(
     env_header_to_validate,
     op_env_for_viewcall_with_l1_inclusion,
     op_env_commitment,
-    chain_id_for_length_validation,
+    chain_for_length_validation,
     validate_l1_inclusion,
   ) = sort_and_verify_relevant_params(
-    chain_id,
+    &chain,
     env_input_for_viewcall,
     linking_blocks,
     env_input_eth_for_l1_inclusion,
@@ -120,8 +121,6 @@ pub fn validate_get_proof_data_call(
   );
 
   // Ensure the chain length and hash linking are valid for reorg protection.
-  let chain_for_length_validation = Chain::try_from(chain_id_for_length_validation)
-    .unwrap_or_else(|e| panic!("invalid chain id for length validation: {e}"));
   validate_chain_length(
     &chain_for_length_validation,
     env_header_hash_to_validate,
@@ -160,7 +159,7 @@ pub fn validate_get_proof_data_call(
 /// should be used for subsequent validation, based on the chain type and inclusion requirements.
 ///
 /// # Arguments
-/// * `chain_id` - The chain ID to determine validation strategy.
+/// * `chain` - The chain to determine validation strategy.
 /// * `env_input_for_viewcall` - Optional EVM input for view calls (used for L1 or Linea chains).
 /// * `linking_blocks` - Vector of blocks for reorg protection.
 /// * `env_input_eth_for_l1_inclusion` - Optional Ethereum input for L1 inclusion (used for OpStack/Linea L2s).
@@ -174,16 +173,15 @@ pub fn validate_get_proof_data_call(
 /// * `Header` - The inner header to validate.
 /// * `Option<EvmEnv>` - Optional OpStack EVM environment (for L1 inclusion).
 /// * `Option<Commitment>` - Optional commitment (for OpStack L1 inclusion).
-/// * `u64` - Chain ID for length validation.
+/// * `Chain` - Chain for length validation.
 /// * `bool` - Whether to validate L1 inclusion.
 ///
 /// # Panics
 /// Panics if:
-/// * Chain ID is invalid.
 /// * Required environment inputs are missing.
 /// * Parameter validation fails.
 pub fn sort_and_verify_relevant_params(
-  chain_id: u64,
+  chain: &Chain,
   env_input_for_viewcall: Option<EthEvmInput>,
   linking_blocks: &[RlpHeader<Header>],
   env_input_eth_for_l1_inclusion: &Option<EthEvmInput>,
@@ -195,7 +193,7 @@ pub fn sort_and_verify_relevant_params(
   Header,
   Option<EvmEnv<StateDb, OpEvmFactory, Commitment>>,
   Option<Commitment>,
-  u64,
+  Chain,
   bool,
 ) {
   let validate_l1_inclusion = env_input_eth_for_l1_inclusion.is_some();
@@ -205,40 +203,52 @@ pub fn sort_and_verify_relevant_params(
     env_for_viewcall,
     op_env_for_viewcall_with_l1_inclusion,
     op_env_commitment,
-    chain_id_for_length_validation,
-  ) = if is_opstack_chain(chain_id) && validate_l1_inclusion {
-    // For OpStack L2s with L1 inclusion, use the L1 environment and OpStack environment for inclusion.
-    let env_for_viewcall = env_input_eth_for_l1_inclusion
-      .as_ref()
-      .expect("env_eth_input is None")
-      .clone()
-      .into_env(&ETH_MAINNET_CHAIN_SPEC);
-    let op_env_for_viewcall_with_l1_inclusion = env_input_opstack_for_viewcall_with_l1_inclusion
-      .expect("op_evm_input is None")
-      .into_env(&OP_MAINNET_CHAIN_SPEC);
-    let op_env_commitment = op_env_for_viewcall_with_l1_inclusion.commitment().clone();
-    let chain_id_for_length_validation = match chain_id {
-      OPTIMISM_CHAIN_ID | BASE_CHAIN_ID => ETHEREUM_CHAIN_ID,
-      OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID => ETHEREUM_SEPOLIA_CHAIN_ID,
-      _ => panic!("invalid chain id"),
-    };
-    (
-      env_for_viewcall,
-      Some(op_env_for_viewcall_with_l1_inclusion),
-      Some(op_env_commitment),
-      chain_id_for_length_validation,
-    )
-  } else {
-    // For L1 or Linea chains, use the provided environment input.
-    let chain_spec = get_steel_chain_spec(chain_id);
-    (
-      env_input_for_viewcall
-        .expect("env_input is None")
-        .into_env(chain_spec),
-      None,
-      None,
-      chain_id,
-    )
+    chain_for_length_validation,
+  ) = match (chain, validate_l1_inclusion) {
+    (Chain::Optimism(_) | Chain::Base(_), true) => {
+      // For OpStack L2s with L1 inclusion, use the L1 environment and OpStack environment for inclusion.
+      let env_for_viewcall = env_input_eth_for_l1_inclusion
+        .as_ref()
+        .expect("env_eth_input is None")
+        .clone()
+        .into_env(&ETH_MAINNET_CHAIN_SPEC);
+      let op_env_for_viewcall_with_l1_inclusion = env_input_opstack_for_viewcall_with_l1_inclusion
+        .expect("op_evm_input is None")
+        .into_env(&OP_MAINNET_CHAIN_SPEC);
+      let op_env_commitment = op_env_for_viewcall_with_l1_inclusion.commitment().clone();
+      let ethereum = match chain {
+        Chain::Optimism(OptimismNetwork::Mainnet) | Chain::Base(BaseNetwork::Mainnet) => {
+          EthereumNetwork::Mainnet
+        }
+        Chain::Optimism(OptimismNetwork::Sepolia) | Chain::Base(BaseNetwork::Sepolia) => {
+          EthereumNetwork::Sepolia
+        }
+        other => panic!("expected OpStack chain, got {other:?}"),
+      };
+      (
+        env_for_viewcall,
+        Some(op_env_for_viewcall_with_l1_inclusion),
+        Some(op_env_commitment),
+        Chain::Ethereum(ethereum),
+      )
+    }
+    _ => {
+      // For Ethereum, Linea, or OpStack without L1 inclusion, use the provided environment input.
+      let chain_spec = match chain {
+        Chain::Ethereum(n) => n.chain_spec(),
+        Chain::Linea(n) => n.chain_spec(),
+        // OpStack without L1 inclusion uses EthChainSpec (this is BUG!)
+        Chain::Optimism(_) | Chain::Base(_) => &ETH_MAINNET_CHAIN_SPEC,
+      };
+      (
+        env_input_for_viewcall
+          .expect("env_input is None")
+          .into_env(chain_spec),
+        None,
+        None,
+        *chain,
+      )
+    }
   };
 
   // Select the block header to validate: use the last linking block if present, otherwise use the environment's header.
@@ -258,7 +268,7 @@ pub fn sort_and_verify_relevant_params(
     env_header_to_validate,
     op_env_for_viewcall_with_l1_inclusion,
     op_env_commitment,
-    chain_id_for_length_validation,
+    chain_for_length_validation,
     validate_l1_inclusion,
   )
 }
