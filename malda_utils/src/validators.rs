@@ -207,15 +207,6 @@ pub fn sort_and_verify_relevant_params(
   ) = match (chain, validate_l1_inclusion) {
     (Chain::Optimism(_) | Chain::Base(_), true) => {
       // For OpStack L2s with L1 inclusion, use the L1 environment and OpStack environment for inclusion.
-      let env_for_viewcall = env_input_eth_for_l1_inclusion
-        .as_ref()
-        .expect("env_eth_input is None")
-        .clone()
-        .into_env(&ETH_MAINNET_CHAIN_SPEC);
-      let op_env_for_viewcall_with_l1_inclusion = env_input_opstack_for_viewcall_with_l1_inclusion
-        .expect("op_evm_input is None")
-        .into_env(&OP_MAINNET_CHAIN_SPEC);
-      let op_env_commitment = op_env_for_viewcall_with_l1_inclusion.commitment().clone();
       let ethereum = match chain {
         Chain::Optimism(OptimismNetwork::Mainnet) | Chain::Base(BaseNetwork::Mainnet) => {
           EthereumNetwork::Mainnet
@@ -225,6 +216,15 @@ pub fn sort_and_verify_relevant_params(
         }
         other => panic!("expected OpStack chain, got {other:?}"),
       };
+      let env_for_viewcall = env_input_eth_for_l1_inclusion
+        .as_ref()
+        .expect("env_eth_input is None")
+        .clone()
+        .into_env(ethereum.chain_spec());
+      let op_env_for_viewcall_with_l1_inclusion = env_input_opstack_for_viewcall_with_l1_inclusion
+        .expect("op_evm_input is None")
+        .into_env(&OP_MAINNET_CHAIN_SPEC);
+      let op_env_commitment = op_env_for_viewcall_with_l1_inclusion.commitment().clone();
       (
         env_for_viewcall,
         Some(op_env_for_viewcall_with_l1_inclusion),
