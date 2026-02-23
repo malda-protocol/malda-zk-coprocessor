@@ -20,26 +20,6 @@ use risc0_steel::ethereum::ETH_MAINNET_CHAIN_SPEC;
 use crate::constants::*;
 use crate::types::{EthChainSpec, LINEA_MAINNET_CHAIN_SPEC, LINEA_SEPOLIA_CHAIN_SPEC};
 
-/// Returns the OptimismPortal contract address for a given OpStack chain ID.
-///
-/// # Arguments
-/// * `chain_id` - The OpStack chain ID (Optimism or Base, mainnet or Sepolia).
-///
-/// # Returns
-/// * `Address` - The portal contract address.
-///
-/// # Panics
-/// Panics if an invalid or non-OpStack chain ID is provided.
-pub fn get_portal_address(chain_id: u64) -> Address {
-  match chain_id {
-    OPTIMISM_CHAIN_ID => OPTIMISM_PORTAL,
-    OPTIMISM_SEPOLIA_CHAIN_ID => OPTIMISM_SEPOLIA_PORTAL,
-    BASE_CHAIN_ID => BASE_PORTAL,
-    BASE_SEPOLIA_CHAIN_ID => BASE_SEPOLIA_PORTAL,
-    _ => panic!("invalid chain id for portal: {}", chain_id),
-  }
-}
-
 /// Checks if a chain ID corresponds to an OpStack L2 chain.
 ///
 /// # Arguments
@@ -47,6 +27,7 @@ pub fn get_portal_address(chain_id: u64) -> Address {
 ///
 /// # Returns
 /// * `bool` - True if the chain is an OpStack chain (Optimism or Base, mainnet or Sepolia).
+/// NOTE: Not needed when using enums from chains v2.
 pub fn is_opstack_chain(chain_id: u64) -> bool {
   matches!(
     chain_id,
@@ -61,6 +42,7 @@ pub fn is_opstack_chain(chain_id: u64) -> bool {
 ///
 /// # Returns
 /// * `bool` - True if the chain is a Linea chain (mainnet or Sepolia).
+/// NOTE: Not needed when using enums from chains v2.
 pub fn is_linea_chain(chain_id: u64) -> bool {
   matches!(chain_id, LINEA_CHAIN_ID | LINEA_SEPOLIA_CHAIN_ID)
 }
@@ -72,6 +54,7 @@ pub fn is_linea_chain(chain_id: u64) -> bool {
 ///
 /// # Returns
 /// * `bool` - True if the chain is an Ethereum chain (mainnet or Sepolia).
+/// NOTE: Not needed when using enums from chains v2.
 pub fn is_ethereum_chain(chain_id: u64) -> bool {
   matches!(chain_id, ETHEREUM_CHAIN_ID | ETHEREUM_SEPOLIA_CHAIN_ID)
 }
