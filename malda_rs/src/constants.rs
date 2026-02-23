@@ -67,21 +67,3 @@ pub fn get_beacon_api_url(chain_name: &str, fallback: bool, testnet: bool) -> &'
   );
   get_env_var(&env_var)
 }
-
-/// Unified function to get sequencer request URL for L2 chains
-///
-/// # Arguments
-/// * `chain_name` - The L2 chain name (e.g., "OPTIMISM", "BASE")
-/// * `fallback` - Whether to use fallback URL (default: false)
-/// * `testnet` - Whether to use testnet (Sepolia) URL (default: false)
-pub fn get_sequencer_request_url(chain_name: &str, fallback: bool, testnet: bool) -> &'static str {
-  let chain_upper = chain_name.to_uppercase();
-  let fallback_suffix = if fallback { "_FALLBACK" } else { "" };
-  let testnet_suffix = if testnet { "_SEPOLIA" } else { "" };
-
-  let env_var = format!(
-    "SEQUENCER_REQUEST_{}{}{}",
-    chain_upper, testnet_suffix, fallback_suffix
-  );
-  get_env_var(&env_var)
-}
