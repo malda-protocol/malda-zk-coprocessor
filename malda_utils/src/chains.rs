@@ -75,22 +75,3 @@ pub fn is_linea_chain(chain_id: u64) -> bool {
 pub fn is_ethereum_chain(chain_id: u64) -> bool {
   matches!(chain_id, ETHEREUM_CHAIN_ID | ETHEREUM_SEPOLIA_CHAIN_ID)
 }
-
-/// Returns the risc0-steel chain spec for a given chain ID.
-///
-/// Used by the risc0-steel coprocessor to configure EVM environments.
-/// Returns Linea-specific chain specs for Linea chains, otherwise defaults
-/// to the Ethereum mainnet chain spec.
-///
-/// # Arguments
-/// * `chain_id` - The chain ID to get the spec for.
-///
-/// # Returns
-/// * `&'static EthChainSpec` - Reference to the risc0-steel chain specification.
-pub fn get_steel_chain_spec(chain_id: u64) -> &'static EthChainSpec {
-  match chain_id {
-    LINEA_CHAIN_ID => &LINEA_MAINNET_CHAIN_SPEC,
-    LINEA_SEPOLIA_CHAIN_ID => &LINEA_SEPOLIA_CHAIN_SPEC,
-    _ => &ETH_MAINNET_CHAIN_SPEC,
-  }
-}
