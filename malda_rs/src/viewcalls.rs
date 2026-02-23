@@ -48,7 +48,6 @@ use crate::types::{
   Call3, ExecutionPayload, IDisputeGame, IDisputeGameFactory, IL1Block, IL1MessageService,
   IMulticall3, SequencerCommitment,
 };
-use malda_utils::chains::get_steel_chain_spec;
 use malda_utils::chains_v2::Chain;
 use malda_utils::chains_v2::*;
 #[cfg(feature = "guest")]
@@ -1438,7 +1437,12 @@ pub async fn get_proof_data_call_input(
     let rpc_url_str = chain.rpc_url(fallback);
     let rpc_url = Url::parse(&rpc_url_str)
       .unwrap_or_else(|e| panic!("Failed to parse RPC URL '{}': {}", rpc_url_str, e));
-    let chain_spec = get_steel_chain_spec(chain_id);
+    let chain_spec = match &chain {
+      Chain::Ethereum(n) => n.chain_spec(),
+      Chain::Linea(n) => n.chain_spec(),
+      // OpStack without L1 inclusion uses EthChainSpec (this is BUG!)
+      Chain::Optimism(_) | Chain::Base(_) => &ETH_MAINNET_CHAIN_SPEC,
+    };
     let mut env = EthEvmEnv::builder()
       .rpc(rpc_url)
       .block_number_or_tag(BlockNumberOrTag::Number(block_reorg_protected))
