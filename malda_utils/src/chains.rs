@@ -16,21 +16,6 @@
 
 use crate::constants::*;
 
-/// Checks if a chain ID corresponds to an OpStack L2 chain.
-///
-/// # Arguments
-/// * `chain_id` - The chain ID to check.
-///
-/// # Returns
-/// * `bool` - True if the chain is an OpStack chain (Optimism or Base, mainnet or Sepolia).
-/// NOTE: Not needed when using enums from chains v2.
-pub fn is_opstack_chain(chain_id: u64) -> bool {
-  matches!(
-    chain_id,
-    OPTIMISM_CHAIN_ID | BASE_CHAIN_ID | OPTIMISM_SEPOLIA_CHAIN_ID | BASE_SEPOLIA_CHAIN_ID
-  )
-}
-
 /// Checks if a chain ID corresponds to a Linea L2 chain.
 ///
 /// # Arguments
