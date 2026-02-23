@@ -206,15 +206,7 @@ pub fn sort_and_verify_relevant_params(
   ) = match (chain, validate_l1_inclusion) {
     (Chain::Optimism(_) | Chain::Base(_), true) => {
       // For OpStack L2s with L1 inclusion, use the L1 environment and OpStack environment for inclusion.
-      let ethereum = match chain {
-        Chain::Optimism(OptimismNetwork::Mainnet) | Chain::Base(BaseNetwork::Mainnet) => {
-          EthereumNetwork::Mainnet
-        }
-        Chain::Optimism(OptimismNetwork::Sepolia) | Chain::Base(BaseNetwork::Sepolia) => {
-          EthereumNetwork::Sepolia
-        }
-        other => panic!("expected OpStack chain, got {other:?}"),
-      };
+      let ethereum = chain.l1_ethereum_network();
       let env_for_viewcall = env_input_eth_for_l1_inclusion
         .as_ref()
         .expect("env_eth_input is None")
@@ -486,15 +478,7 @@ pub fn get_validated_block_hash_opstack(
   let validated_hash = block_header_to_validate.hash_slow();
   if validate_l1_inclusion {
     // For L1 inclusion, determine the correct Ethereum network.
-    let ethereum = match chain {
-      Chain::Optimism(OptimismNetwork::Mainnet) | Chain::Base(BaseNetwork::Mainnet) => {
-        EthereumNetwork::Mainnet
-      }
-      Chain::Optimism(OptimismNetwork::Sepolia) | Chain::Base(BaseNetwork::Sepolia) => {
-        EthereumNetwork::Sepolia
-      }
-      other => panic!("expected OpStack chain, got {other:?}"),
-    };
+    let ethereum = chain.l1_ethereum_network();
 
     // Validate the Ethereum block hash via OpStack.
     let ethereum_hash = get_validated_ethereum_block_hash_via_opstack(
@@ -561,10 +545,7 @@ pub fn get_validated_block_hash_linea(
 ) -> B256 {
   if validate_l1_inclusion {
     // For L1 inclusion, determine the correct Ethereum network.
-    let ethereum = match linea {
-      LineaNetwork::Mainnet => EthereumNetwork::Mainnet,
-      LineaNetwork::Sepolia => EthereumNetwork::Sepolia,
-    };
+    let ethereum = linea.l1_ethereum_network();
     // Validate the Ethereum block hash via OpStack.
     let ethereum_hash = get_validated_ethereum_block_hash_via_opstack(
       sequencer_commitment_opstack.as_ref(),

@@ -956,7 +956,7 @@ pub async fn get_proof_data_zkvm_input(
   // Determine which chain and RPC URL to use for reorg protection linking blocks
   let (chain_linking_blocks, rpc_url_linking_blocks) = match (&chain, l1_inclusion) {
     (Chain::Optimism(_), true) | (Chain::Base(_), true) => {
-      let l1 = get_l1_chain(&chain);
+      let l1 = chain.l1_ethereum_network();
       let rpc = l1.rpc_url(fallback);
       (Chain::Ethereum(l1), rpc)
     }
@@ -1044,7 +1044,7 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
     let l1_block = match &chain {
       Chain::Linea(_) => ethereum_block,
       Chain::Optimism(_) | Chain::Base(_) => {
-        let eth = get_l1_chain(&chain);
+        let eth = chain.l1_ethereum_network();
         ethereum_block - eth.reorg_protection_depth()
       }
       Chain::Ethereum(eth) => ethereum_block - eth.reorg_protection_depth(),
@@ -1056,7 +1056,7 @@ pub async fn get_env_input_for_l1_inclusion_and_l2_block_number(
         get_env_input_for_opstack_dispute_game(&chain, l1_block, fallback).await
       }
       Chain::Linea(linea) => {
-        let l1_rpc_url = get_l1_chain(&chain).rpc_url(fallback);
+        let l1_rpc_url = chain.l1_ethereum_network().rpc_url(fallback);
         get_env_input_for_linea_l1_call(linea, &l1_rpc_url, l1_block).await
       }
       Chain::Ethereum(_) => {
@@ -1097,7 +1097,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
   fallback: bool,
 ) -> (Option<EvmInput<EthEvmFactory>>, Option<u64>) {
   // Get OpStack configuration (RPC URLs, portal address, etc.)
-  let l1_chain = get_l1_chain(&chain);
+  let l1_chain = chain.l1_ethereum_network();
   let l1_rpc_url = l1_chain.rpc_url(fallback);
   let l2_rpc_url = chain.rpc_url(fallback);
   let portal_address = match &chain {
@@ -1394,7 +1394,7 @@ pub async fn get_proof_data_call_input(
   // Use separate code paths for each environment type
   if matches!(chain, Chain::Optimism(_) | Chain::Base(_)) && validate_l1_inclusion {
     // Build an environment based on the state of the latest finalized fault dispute game
-    let l1_rpc_url = get_l1_chain(&chain).rpc_url(!fallback);
+    let l1_rpc_url = chain.l1_ethereum_network().rpc_url(!fallback);
     let l2_rpc_url = chain.rpc_url(!fallback);
     let portal_address = match &chain {
       Chain::Optimism(n) => n.portal_address(),
@@ -1808,21 +1808,6 @@ fn get_l1_block_anchor_chains(chain: &Chain) -> (Chain, Chain) {
       Chain::Optimism(OptimismNetwork::Sepolia),
       Chain::Base(BaseNetwork::Sepolia),
     ),
-  }
-}
-
-/// Returns the corresponding Ethereum L1 chain for an L2 chain.
-///
-/// Maps L2 chains (Optimism, Base, Linea) to their settlement layer Ethereum chain (mainnet/sepolia).
-fn get_l1_chain(chain: &Chain) -> EthereumNetwork {
-  match chain {
-    Chain::Optimism(OptimismNetwork::Mainnet)
-    | Chain::Base(BaseNetwork::Mainnet)
-    | Chain::Linea(LineaNetwork::Mainnet) => EthereumNetwork::Mainnet,
-    Chain::Optimism(OptimismNetwork::Sepolia)
-    | Chain::Base(BaseNetwork::Sepolia)
-    | Chain::Linea(LineaNetwork::Sepolia) => EthereumNetwork::Sepolia,
-    Chain::Ethereum(_) => panic!("get_l1_chain: Ethereum is already L1"),
   }
 }
 

@@ -10,6 +10,13 @@ pub enum LineaNetwork {
 }
 
 impl LineaNetwork {
+  pub fn l1_ethereum_network(&self) -> super::EthereumNetwork {
+    match self {
+      Self::Mainnet => super::EthereumNetwork::Mainnet,
+      Self::Sepolia => super::EthereumNetwork::Sepolia,
+    }
+  }
+
   pub fn chain_spec(&self) -> &'static EthChainSpec {
     match self {
       Self::Mainnet => &LINEA_MAINNET_CHAIN_SPEC,

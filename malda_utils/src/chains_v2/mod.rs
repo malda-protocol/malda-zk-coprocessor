@@ -28,6 +28,18 @@ impl Chain {
     }
   }
 
+  /// Returns the L1 Ethereum network for this chain.
+  ///
+  /// Panics if called on an Ethereum chain (which is already L1).
+  pub fn l1_ethereum_network(&self) -> EthereumNetwork {
+    match self {
+      Self::Base(n) => n.l1_ethereum_network(),
+      Self::Linea(n) => n.l1_ethereum_network(),
+      Self::Optimism(n) => n.l1_ethereum_network(),
+      Self::Ethereum(_) => panic!("l1_ethereum_network: Ethereum is already L1"),
+    }
+  }
+
   pub fn rpc_url(&self, fallback: bool) -> String {
     match self {
       Self::Base(n) => n.rpc_url(fallback),

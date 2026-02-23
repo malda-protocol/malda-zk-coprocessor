@@ -48,6 +48,13 @@ pub enum BaseNetwork {
 }
 
 impl BaseNetwork {
+  pub fn l1_ethereum_network(&self) -> super::EthereumNetwork {
+    match self {
+      Self::Mainnet => super::EthereumNetwork::Mainnet,
+      Self::Sepolia => super::EthereumNetwork::Sepolia,
+    }
+  }
+
   pub fn chain_spec(&self) -> &'static OpChainSpec {
     match self {
       Self::Mainnet => &BASE_MAINNET_CHAIN_SPEC,
