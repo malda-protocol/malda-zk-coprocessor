@@ -27,7 +27,6 @@
 //! - Base - Mainnet and Sepolia
 //! - Linea - Mainnet and Sepolia
 
-use crate::chains::{is_ethereum_chain, is_linea_chain, is_opstack_chain};
 use crate::chains_v2::{BaseNetwork, Chain, EthereumNetwork, LineaNetwork, OptimismNetwork};
 use crate::constants::*;
 use crate::types::*;
@@ -107,7 +106,7 @@ pub fn validate_get_proof_data_call(
 
   // Validate the block hash for the given chain and environment.
   let validated_block_hash = get_validated_block_hash(
-    chain_id,
+    &chain,
     env_header_to_validate,
     sequencer_commitment_opstack,
     env_input_opstack_for_l1_block_call,
@@ -383,7 +382,7 @@ pub fn validate_opstack_dispute_game_commitment(
 /// This function dispatches to the appropriate block hash validation logic depending on the chain type.
 ///
 /// # Arguments
-/// * `chain_id` - The chain ID to determine validation strategy.
+/// * `chain` - The chain to determine validation strategy.
 /// * `env_header_to_validate` - The block header to validate.
 /// * `sequencer_commitment_opstack` - Optional sequencer commitment for L2 chains.
 /// * `env_input_opstack_for_l1_block_call` - Optional Optimism environment input for L1 validation.
@@ -403,7 +402,7 @@ pub fn validate_opstack_dispute_game_commitment(
 /// * Chain ID is invalid or unsupported.
 /// * Validation fails for the specific chain type.
 pub fn get_validated_block_hash(
-  chain_id: u64,
+  chain: &Chain,
   env_header_to_validate: Header,
   sequencer_commitment_opstack: Option<SequencerCommitment>,
   env_input_opstack_for_l1_block_call: Option<EthEvmInput>,
@@ -416,12 +415,9 @@ pub fn get_validated_block_hash(
   linea_beacon_data: Option<linea_block_verifier::core::types::BeaconData>,
 ) -> B256 {
   // Dispatch to the correct validation logic based on chain type.
-  if is_linea_chain(chain_id) {
-    let Chain::Linea(linea) = Chain::try_from(chain_id).unwrap() else {
-      panic!("expected Linea chain for chain_id {chain_id}");
-    };
-    get_validated_block_hash_linea(
-      &linea,
+  match chain {
+    Chain::Linea(linea) => get_validated_block_hash_linea(
+      linea,
       env_header_to_validate,
       sequencer_commitment_opstack,
       env_input_opstack_for_l1_block_call,
@@ -431,11 +427,9 @@ pub fn get_validated_block_hash(
       sequencer_commitment_opstack_2,
       env_input_opstack_for_l1_block_call_2,
       linea_beacon_data,
-    )
-  } else if is_opstack_chain(chain_id) {
-    let chain = Chain::try_from(chain_id).unwrap();
-    get_validated_block_hash_opstack(
-      &chain,
+    ),
+    Chain::Optimism(_) | Chain::Base(_) => get_validated_block_hash_opstack(
+      chain,
       sequencer_commitment_opstack,
       env_input_opstack_for_l1_block_call,
       env_input_eth_for_l1_inclusion,
@@ -444,20 +438,14 @@ pub fn get_validated_block_hash(
       op_env_commitment,
       sequencer_commitment_opstack_2,
       env_input_opstack_for_l1_block_call_2,
-    )
-  } else if is_ethereum_chain(chain_id) {
-    let Chain::Ethereum(ethereum) = Chain::try_from(chain_id).unwrap() else {
-      panic!("expected Ethereum chain for chain_id {chain_id}");
-    };
-    get_validated_ethereum_block_hash_via_opstack(
+    ),
+    Chain::Ethereum(ethereum) => get_validated_ethereum_block_hash_via_opstack(
       sequencer_commitment_opstack.as_ref(),
       env_input_opstack_for_l1_block_call,
-      &ethereum,
+      ethereum,
       sequencer_commitment_opstack_2.as_ref(),
       env_input_opstack_for_l1_block_call_2,
-    )
-  } else {
-    panic!("invalid chain id");
+    ),
   }
 }
 
