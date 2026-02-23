@@ -16,18 +16,6 @@
 
 use crate::constants::*;
 
-/// Checks if a chain ID corresponds to a Linea L2 chain.
-///
-/// # Arguments
-/// * `chain_id` - The chain ID to check.
-///
-/// # Returns
-/// * `bool` - True if the chain is a Linea chain (mainnet or Sepolia).
-/// NOTE: Not needed when using enums from chains v2.
-pub fn is_linea_chain(chain_id: u64) -> bool {
-  matches!(chain_id, LINEA_CHAIN_ID | LINEA_SEPOLIA_CHAIN_ID)
-}
-
 /// Checks if a chain ID corresponds to an Ethereum L1 chain.
 ///
 /// # Arguments
