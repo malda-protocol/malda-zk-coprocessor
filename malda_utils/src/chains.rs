@@ -14,11 +14,7 @@
 //! This module provides utility functions for working with different blockchain networks,
 //! including reorg protection depth lookups and chain type identification.
 
-use alloy_primitives::Address;
-use risc0_steel::ethereum::ETH_MAINNET_CHAIN_SPEC;
-
 use crate::constants::*;
-use crate::types::{EthChainSpec, LINEA_MAINNET_CHAIN_SPEC, LINEA_SEPOLIA_CHAIN_SPEC};
 
 /// Checks if a chain ID corresponds to an OpStack L2 chain.
 ///
