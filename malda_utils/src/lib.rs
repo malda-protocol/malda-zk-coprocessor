@@ -23,7 +23,6 @@
 pub mod constants;
 
 /// Chain helper functions
-pub mod chains;
 pub mod chains_v2;
 
 /// Custom types and data structures
