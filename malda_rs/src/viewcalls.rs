@@ -37,7 +37,6 @@
 //!
 //! - **Reorg Protection**: Configurable depth protection against chain reorganizations
 //! - **Dispute Game Validation**: For OpStack chains, validates finalized dispute games
-//! - **Proof Maturity Checks**: Ensures sufficient time has passed since dispute resolution
 //! - **Game Type Validation**: Verifies dispute games use the correct game type
 
 use crate::boundless;
@@ -1120,8 +1119,7 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
 /// 1. Builds OpStack environment with dispute game from RPC
 /// 2. Validates game type is correct (0 = fault game)
 /// 3. Checks game was created after respected game type update
-/// 4. Validates sufficient time has passed since game resolution
-/// 5. Confirms root claim matches the commitment
+/// 4. Confirms root claim matches the commitment
 ///
 /// # Arguments
 /// * `chain_id` - The chain ID to query (must be an OpStack chain).
@@ -1135,7 +1133,6 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
 /// Panics if:
 /// - Invalid chain ID is provided.
 /// - Dispute game validation fails (wrong game type, etc.).
-/// - Insufficient time has passed since game resolution.
 /// - Root claim does not match the commitment.
 pub async fn get_env_input_for_opstack_dispute_game(
   chain_id: u64,
@@ -1229,33 +1226,6 @@ pub async fn get_env_input_for_opstack_dispute_game(
   assert!(
     created_at >= updated_at,
     "game created before respected game type update"
-  );
-
-  // Get game contract for status checks
-  let mut contract = Contract::preflight(game_address, &mut env);
-
-  // Check game resolution time
-  let mut contract = Contract::preflight(game_address, &mut env);
-  let resolved_at_call = IDisputeGame::resolvedAtCall {};
-  let resolved_at = contract
-    .call_builder(&resolved_at_call)
-    .call()
-    .await
-    .expect("Failed to execute resolved at call");
-
-  let mut contract = Contract::preflight(portal_adress, &mut env);
-  let proof_maturity_delay_call = IOptimismPortal::proofMaturityDelaySecondsCall {};
-  let proof_maturity_delay = contract
-    .call_builder(&proof_maturity_delay_call)
-    .call()
-    .await
-    .expect("Failed to execute proof maturity delay call");
-
-  let current_timestamp = env.header().inner().inner().timestamp;
-  assert!(
-    U256::from(current_timestamp) - U256::from(resolved_at)
-      > proof_maturity_delay - U256::from(300),
-    "insufficient time passed since game resolution"
   );
 
   // Finally verify root claim matches

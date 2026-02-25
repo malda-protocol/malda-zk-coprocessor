@@ -267,7 +267,7 @@ pub fn sort_and_verify_relevant_params(
 ///
 /// This function verifies the dispute game state and commitment for OpStack chains,
 /// ensuring the game is valid and properly resolved. It checks the game type, creation time,
-/// resolution time, and root claim.
+/// and root claim.
 ///
 /// # Arguments
 /// * `chain_id` - The OpStack chain ID.
@@ -279,7 +279,6 @@ pub fn sort_and_verify_relevant_params(
 /// * Chain ID is invalid.
 /// * Game type is not respected.
 /// * Game was created before respected game type update.
-/// * Insufficient time has passed since game resolution.
 /// * Root claim doesn't match.
 pub fn validate_opstack_dispute_game_commitment(
   chain_id: u64,
@@ -323,24 +322,8 @@ pub fn validate_opstack_dispute_game_commitment(
     "game created before respected game type update"
   );
 
-  // Get game contract for status checks.
+  // Get game contract.
   let game_contract = Contract::new(game_address, &eth_env);
-
-  // Check game resolution time.
-  let resolved_at_call = IDisputeGame::resolvedAtCall {};
-  let resolved_at = game_contract.call_builder(&resolved_at_call).call();
-
-  let proof_maturity_delay_call = IOptimismPortal::proofMaturityDelaySecondsCall {};
-  let proof_maturity_delay = portal_contract
-    .call_builder(&proof_maturity_delay_call)
-    .call();
-
-  let current_timestamp = eth_env.header().inner().inner().timestamp;
-  assert!(
-    U256::from(current_timestamp) - U256::from(resolved_at)
-      > proof_maturity_delay - U256::from(300),
-    "insufficient time passed since game resolution"
-  );
 
   // Finally verify root claim matches.
   let root_claim_call = IDisputeGame::rootClaimCall {};

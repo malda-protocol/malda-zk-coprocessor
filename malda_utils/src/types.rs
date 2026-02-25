@@ -139,7 +139,6 @@ sol! {
 
     // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/dispute/interfaces/IDisputeGame.sol
     interface IDisputeGame {
-        function resolvedAt() external view returns (uint64);
         function rootClaim() external pure returns (bytes32);
         function l2BlockNumberChallenged() external view returns (bool);
         function l2BlockNumber() external view returns (uint256);
@@ -192,9 +191,6 @@ sol! {
 
         /// @notice Returns the timestamp when the respected game type was last updated
         function respectedGameTypeUpdatedAt() external view returns (uint256);
-
-        /// @notice Returns the proof maturity delay in seconds
-        function proofMaturityDelaySeconds() external view returns (uint256);
     }
 }
 
