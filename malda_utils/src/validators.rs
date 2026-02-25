@@ -267,7 +267,7 @@ pub fn sort_and_verify_relevant_params(
 ///
 /// This function verifies the dispute game state and commitment for OpStack chains,
 /// ensuring the game is valid and properly resolved. It checks the game type, creation time,
-/// and root claim.
+/// game claim validity via AnchorStateRegistry, and root claim.
 ///
 /// # Arguments
 /// * `chain_id` - The OpStack chain ID.
@@ -279,6 +279,7 @@ pub fn sort_and_verify_relevant_params(
 /// * Chain ID is invalid.
 /// * Game type is not respected.
 /// * Game was created before respected game type update.
+/// * Game claim is not valid according to AnchorStateRegistry.
 /// * Root claim doesn't match.
 pub fn validate_opstack_dispute_game_commitment(
   chain_id: u64,
@@ -321,6 +322,17 @@ pub fn validate_opstack_dispute_game_commitment(
     created_at >= updated_at,
     "game created before respected game type update"
   );
+
+  // Get ASR address from the portal.
+  let asr_call = IOptimismPortal2::anchorStateRegistryCall {};
+  let asr_address = portal_contract.call_builder(&asr_call).call();
+
+  // Perform game validation with ASR.
+  // NOTE: It covers status check, blacklist check, maturity etc.
+  let asr_contract = Contract::new(asr_address, &eth_env);
+  let is_game_claim_valid_call = IAnchorStateRegistry::isGameClaimValidCall { game: game_address };
+  let is_game_claim_valid = asr_contract.call_builder(&is_game_claim_valid_call).call();
+  assert!(is_game_claim_valid, "Game claim is not valid!");
 
   // Get game contract.
   let game_contract = Contract::new(game_address, &eth_env);

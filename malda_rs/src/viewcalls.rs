@@ -1119,7 +1119,8 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
 /// 1. Builds OpStack environment with dispute game from RPC
 /// 2. Validates game type is correct (0 = fault game)
 /// 3. Checks game was created after respected game type update
-/// 4. Confirms root claim matches the commitment
+/// 4. Validates game claim via AnchorStateRegistry (covers status, blacklist, maturity, etc.)
+/// 5. Confirms root claim matches the commitment
 ///
 /// # Arguments
 /// * `chain_id` - The chain ID to query (must be an OpStack chain).
@@ -1133,6 +1134,7 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
 /// Panics if:
 /// - Invalid chain ID is provided.
 /// - Dispute game validation fails (wrong game type, etc.).
+/// - Game claim is not valid according to AnchorStateRegistry.
 /// - Root claim does not match the commitment.
 pub async fn get_env_input_for_opstack_dispute_game(
   chain_id: u64,
@@ -1227,6 +1229,25 @@ pub async fn get_env_input_for_opstack_dispute_game(
     created_at >= updated_at,
     "game created before respected game type update"
   );
+
+  // Get ASR address from the portal.
+  let asr_call = IOptimismPortal2::anchorStateRegistryCall {};
+  let asr_address = contract
+    .call_builder(&asr_call)
+    .call()
+    .await
+    .expect("Failed to execute ASR call");
+
+  // Perform game validation with ASR.
+  // NOTE: It covers status check, blacklist check, maturity etc.
+  let mut asr_contract = Contract::preflight(asr_address, &mut env);
+  let is_game_claim_valid_call = IAnchorStateRegistry::isGameClaimValidCall { game: game_address };
+  let is_game_claim_valid = asr_contract
+    .call_builder(&is_game_claim_valid_call)
+    .call()
+    .await
+    .expect("Failed to execute is game claim valid call");
+  assert!(is_game_claim_valid, "Game claim is not valid!");
 
   // Finally verify root claim matches
   let mut contract = Contract::preflight(game_address, &mut env);
