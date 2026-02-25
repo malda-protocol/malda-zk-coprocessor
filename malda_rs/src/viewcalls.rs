@@ -1193,7 +1193,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
   let mut contract = Contract::preflight(portal_adress, &mut env);
 
   // Get factory address from portal
-  let factory_call = IOptimismPortal::disputeGameFactoryCall {};
+  let factory_call = IOptimismPortal2::disputeGameFactoryCall {};
   let factory_address = contract
     .call_builder(&factory_call)
     .call()
@@ -1210,14 +1210,14 @@ pub async fn get_env_input_for_opstack_dispute_game(
     .expect("Failed to execute game at index call");
 
   let game_type = returns._0;
-  assert_eq!(game_type, U256::from(0), "game type not respected game");
+  assert_eq!(game_type, 0_u32, "game type not respected game");
 
   let created_at = returns._1;
   let game_address = returns._2;
 
   // Check if game was created after respected game type update
   let mut contract = Contract::preflight(portal_adress, &mut env);
-  let respected_game_type_updated_at_call = IOptimismPortal::respectedGameTypeUpdatedAtCall {};
+  let respected_game_type_updated_at_call = IOptimismPortal2::respectedGameTypeUpdatedAtCall {};
   let updated_at = contract
     .call_builder(&respected_game_type_updated_at_call)
     .call()

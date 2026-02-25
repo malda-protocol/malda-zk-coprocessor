@@ -296,7 +296,7 @@ pub fn validate_opstack_dispute_game_commitment(
   let portal_contract = Contract::new(portal_adress, &eth_env);
 
   // Get factory address from portal.
-  let factory_call = IOptimismPortal::disputeGameFactoryCall {};
+  let factory_call = IOptimismPortal2::disputeGameFactoryCall {};
   let returns = portal_contract.call_builder(&factory_call).call();
   let factory_address = returns;
 
@@ -310,10 +310,10 @@ pub fn validate_opstack_dispute_game_commitment(
   let game_address = returns._2;
 
   // Ensure the game type is respected (must be 0).
-  assert_eq!(game_type, U256::from(0), "game type not respected game");
+  assert_eq!(game_type, 0_u32, "game type not respected game");
 
   // Check if game was created after respected game type update.
-  let respected_game_type_updated_at_call = IOptimismPortal::respectedGameTypeUpdatedAtCall {};
+  let respected_game_type_updated_at_call = IOptimismPortal2::respectedGameTypeUpdatedAtCall {};
   let updated_at = portal_contract
     .call_builder(&respected_game_type_updated_at_call)
     .call();

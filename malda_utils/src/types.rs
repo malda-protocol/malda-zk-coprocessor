@@ -131,25 +131,19 @@ sol! {
         function number() external view returns (uint64);
     }
 
-    // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/dispute/interfaces/IDisputeGameFactory.sol
-    interface IDisputeGameFactory {
-        function gameCount() external view returns (uint256);
-        function gameAtIndex(uint256 index) external view returns (uint256, uint256, address);
+    // https://github.com/ethereum-optimism/optimism/blob/op-contracts/v6.0.0-rc.2/packages/contracts-bedrock/interfaces/dispute/IAnchorStateRegistry.sol
+    interface IAnchorStateRegistry {
+        function isGameClaimValid(address game) external view returns (bool);
     }
 
-    // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/dispute/interfaces/IDisputeGame.sol
+    // https://github.com/ethereum-optimism/optimism/blob/op-contracts/v6.0.0-rc.2/packages/contracts-bedrock/interfaces/dispute/IDisputeGameFactory.sol
+    interface IDisputeGameFactory {
+        function gameAtIndex(uint256 index) external view returns (uint32, uint64, address);
+    }
+
+    // https://github.com/ethereum-optimism/optimism/blob/op-contracts/v6.0.0-rc.2/packages/contracts-bedrock/interfaces/dispute/IDisputeGame.sol
     interface IDisputeGame {
         function rootClaim() external pure returns (bytes32);
-        function l2BlockNumberChallenged() external view returns (bool);
-        function l2BlockNumber() external view returns (uint256);
-        function extraData() external view returns (bytes memory);
-    }
-
-    struct OutputRootProof {
-        bytes32 version;
-        bytes32 stateRoot;
-        bytes32 messagePasserStorageRoot;
-        bytes32 latestBlockhash;
     }
 
     /// @title Multicall3 interface for batch calling contracts
@@ -184,13 +178,16 @@ sol! {
         uint256 amountOut;
     }
 
-    /// @title Interface for the Optimism Portal
-    interface IOptimismPortal {
+    // https://github.com/ethereum-optimism/optimism/blob/op-contracts/v6.0.0-rc.2/packages/contracts-bedrock/interfaces/L1/IOptimismPortal2.sol
+    interface IOptimismPortal2 {
+        /// @notice Returns the address of the AnchorStateRegistry
+        function anchorStateRegistry() external view returns (address);
+
         /// @notice Returns the address of the DisputeGameFactory
         function disputeGameFactory() external view returns (address);
 
         /// @notice Returns the timestamp when the respected game type was last updated
-        function respectedGameTypeUpdatedAt() external view returns (uint256);
+        function respectedGameTypeUpdatedAt() external view returns (uint64);
     }
 }
 
