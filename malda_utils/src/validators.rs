@@ -267,7 +267,7 @@ pub fn sort_and_verify_relevant_params(
 ///
 /// This function verifies the dispute game state and commitment for OpStack chains,
 /// ensuring the game is valid and properly resolved. It checks the game type, creation time,
-/// blacklist status, resolution time, and root claim.
+/// resolution time, and root claim.
 ///
 /// # Arguments
 /// * `chain_id` - The OpStack chain ID.
@@ -279,7 +279,6 @@ pub fn sort_and_verify_relevant_params(
 /// * Chain ID is invalid.
 /// * Game type is not respected.
 /// * Game was created before respected game type update.
-/// * Game is blacklisted.
 /// * Insufficient time has passed since game resolution.
 /// * Root claim doesn't match.
 pub fn validate_opstack_dispute_game_commitment(
@@ -326,11 +325,6 @@ pub fn validate_opstack_dispute_game_commitment(
 
   // Get game contract for status checks.
   let game_contract = Contract::new(game_address, &eth_env);
-
-  // Check if game is blacklisted.
-  let blacklist_call = IOptimismPortal::disputeGameBlacklistCall { game: game_address };
-  let is_blacklisted = portal_contract.call_builder(&blacklist_call).call();
-  assert!(!is_blacklisted, "game is blacklisted");
 
   // Check game resolution time.
   let resolved_at_call = IDisputeGame::resolvedAtCall {};

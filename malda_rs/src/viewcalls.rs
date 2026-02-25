@@ -38,7 +38,6 @@
 //! - **Reorg Protection**: Configurable depth protection against chain reorganizations
 //! - **Dispute Game Validation**: For OpStack chains, validates finalized dispute games
 //! - **Proof Maturity Checks**: Ensures sufficient time has passed since dispute resolution
-//! - **Blacklist Verification**: Checks that dispute games are not blacklisted
 //! - **Game Type Validation**: Verifies dispute games use the correct game type
 
 use crate::boundless;
@@ -1121,9 +1120,8 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
 /// 1. Builds OpStack environment with dispute game from RPC
 /// 2. Validates game type is correct (0 = fault game)
 /// 3. Checks game was created after respected game type update
-/// 4. Ensures game is not blacklisted
-/// 5. Validates sufficient time has passed since game resolution
-/// 6. Confirms root claim matches the commitment
+/// 4. Validates sufficient time has passed since game resolution
+/// 5. Confirms root claim matches the commitment
 ///
 /// # Arguments
 /// * `chain_id` - The chain ID to query (must be an OpStack chain).
@@ -1136,7 +1134,7 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
 /// # Panics
 /// Panics if:
 /// - Invalid chain ID is provided.
-/// - Dispute game validation fails (wrong game type, blacklisted, etc.).
+/// - Dispute game validation fails (wrong game type, etc.).
 /// - Insufficient time has passed since game resolution.
 /// - Root claim does not match the commitment.
 pub async fn get_env_input_for_opstack_dispute_game(
@@ -1235,16 +1233,6 @@ pub async fn get_env_input_for_opstack_dispute_game(
 
   // Get game contract for status checks
   let mut contract = Contract::preflight(game_address, &mut env);
-
-  // Check if game is blacklisted
-  let mut contract = Contract::preflight(portal_adress, &mut env);
-  let blacklist_call = IOptimismPortal::disputeGameBlacklistCall { game: game_address };
-  let is_blacklisted = contract
-    .call_builder(&blacklist_call)
-    .call()
-    .await
-    .expect("Failed to execute blacklist call");
-  assert!(!is_blacklisted, "game is blacklisted");
 
   // Check game resolution time
   let mut contract = Contract::preflight(game_address, &mut env);

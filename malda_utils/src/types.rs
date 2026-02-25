@@ -193,10 +193,6 @@ sol! {
         /// @notice Returns the timestamp when the respected game type was last updated
         function respectedGameTypeUpdatedAt() external view returns (uint256);
 
-        /// @notice Checks if a dispute game is blacklisted
-        /// @param game The address of the dispute game
-        function disputeGameBlacklist(address game) external view returns (bool);
-
         /// @notice Returns the proof maturity delay in seconds
         function proofMaturityDelaySeconds() external view returns (uint256);
     }
