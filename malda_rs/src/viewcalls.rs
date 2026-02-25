@@ -1121,10 +1121,9 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
 /// 1. Builds OpStack environment with dispute game from RPC
 /// 2. Validates game type is correct (0 = fault game)
 /// 3. Checks game was created after respected game type update
-/// 4. Verifies game status is DEFENDER_WINS
-/// 5. Ensures game is not blacklisted
-/// 6. Validates sufficient time has passed since game resolution
-/// 7. Confirms root claim matches the commitment
+/// 4. Ensures game is not blacklisted
+/// 5. Validates sufficient time has passed since game resolution
+/// 6. Confirms root claim matches the commitment
 ///
 /// # Arguments
 /// * `chain_id` - The chain ID to query (must be an OpStack chain).
@@ -1137,7 +1136,7 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
 /// # Panics
 /// Panics if:
 /// - Invalid chain ID is provided.
-/// - Dispute game validation fails (wrong game type, status, blacklisted, etc.).
+/// - Dispute game validation fails (wrong game type, blacklisted, etc.).
 /// - Insufficient time has passed since game resolution.
 /// - Root claim does not match the commitment.
 pub async fn get_env_input_for_opstack_dispute_game(
@@ -1236,19 +1235,6 @@ pub async fn get_env_input_for_opstack_dispute_game(
 
   // Get game contract for status checks
   let mut contract = Contract::preflight(game_address, &mut env);
-
-  // Check game status
-  let status_call = IDisputeGame::statusCall {};
-  let status = contract
-    .call_builder(&status_call)
-    .call()
-    .await
-    .expect("Failed to execute status call");
-  assert_eq!(
-    status,
-    GameStatus::DEFENDER_WINS,
-    "game status not DEFENDER_WINS"
-  );
 
   // Check if game is blacklisted
   let mut contract = Contract::preflight(portal_adress, &mut env);

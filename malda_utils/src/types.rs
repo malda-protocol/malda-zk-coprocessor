@@ -139,7 +139,6 @@ sol! {
 
     // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/dispute/interfaces/IDisputeGame.sol
     interface IDisputeGame {
-        function status() external view returns (GameStatus);
         function resolvedAt() external view returns (uint64);
         function rootClaim() external pure returns (bytes32);
         function l2BlockNumberChallenged() external view returns (bool);
@@ -152,14 +151,6 @@ sol! {
         bytes32 stateRoot;
         bytes32 messagePasserStorageRoot;
         bytes32 latestBlockhash;
-    }
-
-    // https://github.com/ethereum-optimism/optimism/blob/v1.9.3/packages/contracts-bedrock/src/dispute/lib/Types.sol
-    #[derive(Debug, PartialEq)]
-    enum GameStatus {
-        IN_PROGRESS,
-        CHALLENGER_WINS,
-        DEFENDER_WINS
     }
 
     /// @title Multicall3 interface for batch calling contracts
