@@ -189,19 +189,21 @@ run_section_4() {
 run_section_5() {
   # 5. Testing Optimism - no L1 inclusion (mainnet)
   # Note: This test is temporarily disabled.
-  # Current failure: "Failed to decode return data: Overrun".
+  # Current failure: "Failed to decode return data: Overrun" - caused by missing market contracts on the Optimism chain.
   export RPC_URL_OPTIMISM="${RPC_URL_OPTIMISM:-https://opt-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}}"
   export RPC_URL_ETHEREUM="${RPC_URL_ETHEREUM:-https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}}"
   export SEQUENCER_REQUEST_OPTIMISM="${SEQUENCER_REQUEST_OPTIMISM:-http://127.0.0.1:9547/gossip_getSequencerCommitment}"
 
   #start_op_node_mainnet
   #run_cargo_test tests::test_exec_get_proof_data_on_optimism
-  echo "Warning: section 5 is temporarily skipped due to decoding overrun." >&2
+  echo "Warning: section 5 is temporarily skipped due to missing contract deployments." >&2
   echo "Skipped test: tests::test_exec_get_proof_data_on_optimism" >&2
 }
 
 run_section_6() {
   # 6. Testing Optimism - with L1 inclusion (mainnet)
+  # Note: This test is temporarily disabled.
+  # Current failure: "Failed to decode return data: Overrun" - caused by missing market contracts on the Optimism chain.
   export RPC_URL_OPTIMISM="${RPC_URL_OPTIMISM:-https://opt-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}}"
   export RPC_URL_ETHEREUM="${RPC_URL_ETHEREUM:-https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}}"
   export SEQUENCER_REQUEST_OPTIMISM="${SEQUENCER_REQUEST_OPTIMISM:-http://127.0.0.1:9547/gossip_getSequencerCommitment}"
@@ -210,7 +212,7 @@ run_section_6() {
 
   #start_op_node_mainnet
   #run_cargo_test tests::test_exec_get_proof_data_on_optimism_with_l1_inclusion
-  echo "Warning: section 6 is temporarily skipped due to Alchemy RPC issues." >&2
+  echo "Warning: section 6 is temporarily skipped due to missing contract deployments." >&2
   echo "Skipped test: tests::test_exec_get_proof_data_on_optimism_with_l1_inclusion" >&2
 }
 
