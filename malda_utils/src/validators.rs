@@ -267,7 +267,7 @@ pub fn sort_and_verify_relevant_params(
 ///
 /// This function verifies the dispute game state and commitment for OpStack chains,
 /// ensuring the game is valid and properly resolved. It checks the game type, creation time,
-/// status, blacklist status, resolution time, and root claim.
+/// game claim validity via AnchorStateRegistry, and root claim.
 ///
 /// # Arguments
 /// * `chain_id` - The OpStack chain ID.
@@ -279,9 +279,7 @@ pub fn sort_and_verify_relevant_params(
 /// * Chain ID is invalid.
 /// * Game type is not respected.
 /// * Game was created before respected game type update.
-/// * Game status is not DEFENDER_WINS.
-/// * Game is blacklisted.
-/// * Insufficient time has passed since game resolution.
+/// * Game claim is not valid according to AnchorStateRegistry.
 /// * Root claim doesn't match.
 pub fn validate_opstack_dispute_game_commitment(
   chain_id: u64,
@@ -299,7 +297,7 @@ pub fn validate_opstack_dispute_game_commitment(
   let portal_contract = Contract::new(portal_adress, &eth_env);
 
   // Get factory address from portal.
-  let factory_call = IOptimismPortal::disputeGameFactoryCall {};
+  let factory_call = IOptimismPortal2::disputeGameFactoryCall {};
   let returns = portal_contract.call_builder(&factory_call).call();
   let factory_address = returns;
 
@@ -313,10 +311,10 @@ pub fn validate_opstack_dispute_game_commitment(
   let game_address = returns._2;
 
   // Ensure the game type is respected (must be 0).
-  assert_eq!(game_type, U256::from(0), "game type not respected game");
+  assert_eq!(game_type, 0_u32, "game type not respected game");
 
   // Check if game was created after respected game type update.
-  let respected_game_type_updated_at_call = IOptimismPortal::respectedGameTypeUpdatedAtCall {};
+  let respected_game_type_updated_at_call = IOptimismPortal2::respectedGameTypeUpdatedAtCall {};
   let updated_at = portal_contract
     .call_builder(&respected_game_type_updated_at_call)
     .call();
@@ -325,38 +323,19 @@ pub fn validate_opstack_dispute_game_commitment(
     "game created before respected game type update"
   );
 
-  // Get game contract for status checks.
+  // Get ASR address from the portal.
+  let asr_call = IOptimismPortal2::anchorStateRegistryCall {};
+  let asr_address = portal_contract.call_builder(&asr_call).call();
+
+  // Perform game validation with ASR.
+  // NOTE: It covers status check, blacklist check, maturity etc.
+  let asr_contract = Contract::new(asr_address, &eth_env);
+  let is_game_claim_valid_call = IAnchorStateRegistry::isGameClaimValidCall { game: game_address };
+  let is_game_claim_valid = asr_contract.call_builder(&is_game_claim_valid_call).call();
+  assert!(is_game_claim_valid, "Game claim is not valid!");
+
+  // Get game contract.
   let game_contract = Contract::new(game_address, &eth_env);
-
-  // Check game status.
-  let status_call = IDisputeGame::statusCall {};
-  let status = game_contract.call_builder(&status_call).call();
-  assert_eq!(
-    status,
-    GameStatus::DEFENDER_WINS,
-    "game status not DEFENDER_WINS"
-  );
-
-  // Check if game is blacklisted.
-  let blacklist_call = IOptimismPortal::disputeGameBlacklistCall { game: game_address };
-  let is_blacklisted = portal_contract.call_builder(&blacklist_call).call();
-  assert!(!is_blacklisted, "game is blacklisted");
-
-  // Check game resolution time.
-  let resolved_at_call = IDisputeGame::resolvedAtCall {};
-  let resolved_at = game_contract.call_builder(&resolved_at_call).call();
-
-  let proof_maturity_delay_call = IOptimismPortal::proofMaturityDelaySecondsCall {};
-  let proof_maturity_delay = portal_contract
-    .call_builder(&proof_maturity_delay_call)
-    .call();
-
-  let current_timestamp = eth_env.header().inner().inner().timestamp;
-  assert!(
-    U256::from(current_timestamp) - U256::from(resolved_at)
-      > proof_maturity_delay - U256::from(300),
-    "insufficient time passed since game resolution"
-  );
 
   // Finally verify root claim matches.
   let root_claim_call = IDisputeGame::rootClaimCall {};

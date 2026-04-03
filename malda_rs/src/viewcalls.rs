@@ -37,8 +37,6 @@
 //!
 //! - **Reorg Protection**: Configurable depth protection against chain reorganizations
 //! - **Dispute Game Validation**: For OpStack chains, validates finalized dispute games
-//! - **Proof Maturity Checks**: Ensures sufficient time has passed since dispute resolution
-//! - **Blacklist Verification**: Checks that dispute games are not blacklisted
 //! - **Game Type Validation**: Verifies dispute games use the correct game type
 
 use crate::boundless;
@@ -1121,10 +1119,8 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
 /// 1. Builds OpStack environment with dispute game from RPC
 /// 2. Validates game type is correct (0 = fault game)
 /// 3. Checks game was created after respected game type update
-/// 4. Verifies game status is DEFENDER_WINS
-/// 5. Ensures game is not blacklisted
-/// 6. Validates sufficient time has passed since game resolution
-/// 7. Confirms root claim matches the commitment
+/// 4. Validates game claim via AnchorStateRegistry (covers status, blacklist, maturity, etc.)
+/// 5. Confirms root claim matches the commitment
 ///
 /// # Arguments
 /// * `chain_id` - The chain ID to query (must be an OpStack chain).
@@ -1137,8 +1133,8 @@ pub async fn get_env_input_for_opstack_l1_inclusion(
 /// # Panics
 /// Panics if:
 /// - Invalid chain ID is provided.
-/// - Dispute game validation fails (wrong game type, status, blacklisted, etc.).
-/// - Insufficient time has passed since game resolution.
+/// - Dispute game validation fails (wrong game type, etc.).
+/// - Game claim is not valid according to AnchorStateRegistry.
 /// - Root claim does not match the commitment.
 pub async fn get_env_input_for_opstack_dispute_game(
   chain_id: u64,
@@ -1199,7 +1195,7 @@ pub async fn get_env_input_for_opstack_dispute_game(
   let mut contract = Contract::preflight(portal_adress, &mut env);
 
   // Get factory address from portal
-  let factory_call = IOptimismPortal::disputeGameFactoryCall {};
+  let factory_call = IOptimismPortal2::disputeGameFactoryCall {};
   let factory_address = contract
     .call_builder(&factory_call)
     .call()
@@ -1216,14 +1212,14 @@ pub async fn get_env_input_for_opstack_dispute_game(
     .expect("Failed to execute game at index call");
 
   let game_type = returns._0;
-  assert_eq!(game_type, U256::from(0), "game type not respected game");
+  assert_eq!(game_type, 0_u32, "game type not respected game");
 
   let created_at = returns._1;
   let game_address = returns._2;
 
   // Check if game was created after respected game type update
   let mut contract = Contract::preflight(portal_adress, &mut env);
-  let respected_game_type_updated_at_call = IOptimismPortal::respectedGameTypeUpdatedAtCall {};
+  let respected_game_type_updated_at_call = IOptimismPortal2::respectedGameTypeUpdatedAtCall {};
   let updated_at = contract
     .call_builder(&respected_game_type_updated_at_call)
     .call()
@@ -1234,55 +1230,24 @@ pub async fn get_env_input_for_opstack_dispute_game(
     "game created before respected game type update"
   );
 
-  // Get game contract for status checks
-  let mut contract = Contract::preflight(game_address, &mut env);
-
-  // Check game status
-  let status_call = IDisputeGame::statusCall {};
-  let status = contract
-    .call_builder(&status_call)
+  // Get ASR address from the portal.
+  let asr_call = IOptimismPortal2::anchorStateRegistryCall {};
+  let asr_address = contract
+    .call_builder(&asr_call)
     .call()
     .await
-    .expect("Failed to execute status call");
-  assert_eq!(
-    status,
-    GameStatus::DEFENDER_WINS,
-    "game status not DEFENDER_WINS"
-  );
+    .expect("Failed to execute ASR call");
 
-  // Check if game is blacklisted
-  let mut contract = Contract::preflight(portal_adress, &mut env);
-  let blacklist_call = IOptimismPortal::disputeGameBlacklistCall { game: game_address };
-  let is_blacklisted = contract
-    .call_builder(&blacklist_call)
+  // Perform game validation with ASR.
+  // NOTE: It covers status check, blacklist check, maturity etc.
+  let mut asr_contract = Contract::preflight(asr_address, &mut env);
+  let is_game_claim_valid_call = IAnchorStateRegistry::isGameClaimValidCall { game: game_address };
+  let is_game_claim_valid = asr_contract
+    .call_builder(&is_game_claim_valid_call)
     .call()
     .await
-    .expect("Failed to execute blacklist call");
-  assert!(!is_blacklisted, "game is blacklisted");
-
-  // Check game resolution time
-  let mut contract = Contract::preflight(game_address, &mut env);
-  let resolved_at_call = IDisputeGame::resolvedAtCall {};
-  let resolved_at = contract
-    .call_builder(&resolved_at_call)
-    .call()
-    .await
-    .expect("Failed to execute resolved at call");
-
-  let mut contract = Contract::preflight(portal_adress, &mut env);
-  let proof_maturity_delay_call = IOptimismPortal::proofMaturityDelaySecondsCall {};
-  let proof_maturity_delay = contract
-    .call_builder(&proof_maturity_delay_call)
-    .call()
-    .await
-    .expect("Failed to execute proof maturity delay call");
-
-  let current_timestamp = env.header().inner().inner().timestamp;
-  assert!(
-    U256::from(current_timestamp) - U256::from(resolved_at)
-      > proof_maturity_delay - U256::from(300),
-    "insufficient time passed since game resolution"
-  );
+    .expect("Failed to execute is game claim valid call");
+  assert!(is_game_claim_valid, "Game claim is not valid!");
 
   // Finally verify root claim matches
   let mut contract = Contract::preflight(game_address, &mut env);
