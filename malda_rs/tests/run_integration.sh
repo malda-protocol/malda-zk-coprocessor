@@ -173,9 +173,7 @@ run_section_3() {
 }
 
 run_section_4() {
-  # 4. Testing Base - with L1 inclusion (mainnet)
-  # Note: This test is temporarily disabled.
-  # Internal logic appears to be broken at the moment.
+  # 4. Testing Base - with L1 inclusion (mainnet).
   export RPC_URL_BASE="${RPC_URL_BASE:-https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}}"
   export RPC_URL_ETHEREUM="${RPC_URL_ETHEREUM:-https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}}"
   export RPC_URL_OPTIMISM="${RPC_URL_OPTIMISM:-https://opt-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}}"
@@ -186,8 +184,6 @@ run_section_4() {
   start_op_node_mainnet
   run_cargo_test tests::test_exec_get_proof_data_on_base_with_l1_inclusion
   cleanup_container op-node-commitments-op-mainnet
-  #echo "Warning: section 4 is temporarily skipped due to known internal logic issues." >&2
-  #echo "Skipped test: tests::test_exec_get_proof_data_on_base_with_l1_inclusion" >&2
 }
 
 run_section_5() {
