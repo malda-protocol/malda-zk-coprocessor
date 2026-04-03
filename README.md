@@ -280,7 +280,7 @@ cargo test
 
 ## License
 
-This project is licensed under the Business Source License 1.1. See [LICENSE-BSL](LICENSE-BSL) for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## Contributing
 
