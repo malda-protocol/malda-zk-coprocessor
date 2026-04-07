@@ -1,8 +1,14 @@
 # Malda ZK Coprocessor
 
+> **⚠️ This repository is no longer maintained by the core team. Community contributions are welcome.**
+
 This repository contains the ZK coprocessor implementation for the Malda Protocol, a unified liquidity lending protocol that enables seamless cross-chain lending operations without traditional bridging. While this repository focuses on the ZK verification layer, it's part of a larger protocol architecture that includes smart contracts, the zk-coprocessor and the sequencer.
 
 ![Malda Protocol Flow](malda_flow.png)
+
+## Context in Malda Sequencer
+
+The ZK Coprocessor repository is used directly by the [Malda Sequencer](https://github.com/malda-protocol/malda-sequencer) as a dependency — it serves as an SDK for generating proofs. It provides the zkVM guest program and the tooling around it, allowing the sequencer to produce and verify zero-knowledge proofs as part of its cross-chain operation flow.
 
 ## About Malda Protocol
 
@@ -103,7 +109,7 @@ To generate proofs independently:
 
 1. **Setup**
    ```bash
-   # Install RISC Zero zkVM and Bonsai SDK
+   # Install RISC Zero zkVM
    For detailed installation instructions, see the [RISC Zero documentation](https://dev.risczero.com/api/zkvm/install).
    Also to request proof in boundless market, look at the setup here: (https://docs.beboundless.xyz/developers/what).
 
@@ -141,12 +147,6 @@ To generate proofs independently:
    SEQUENCER_REQUEST_BASE_FALLBACK=https://base.operationsolarstorm.org/latest
  
 
-   # --- ZK Prover via Bonsai ---
-
-   IMAGE_ID_BONSAI=<YOUR_BONSAI_IMAGE_ID>        # Bonsai image ID for ZK proof generation
-   BONSAI_API_KEY=<YOUR_BONSAI_API_KEY>
-   BONSAI_API_URL=<YOUR_BONSAI_API_URL>
-
    # --- ZK Prover via Boundless Market ---
    PINATA_JWT=<YOUR_PINATA_JWT>                  # Pinata JWT for IPFS uploads (if required)
    PROGRAM_URL=<YOUR_PROGRAM_URL>                # Program URL
@@ -157,16 +157,21 @@ To generate proofs independently:
 3. **Proof Generation**
    Use the Malda SDK to generate proofs:
    ```rust
-   // Using Bonsai SDK for remote proving
-   pub async fn get_proof_data_prove_sdk(
+   // Using Boundless for remote Risc0 proving.
+   // Tuple (journal, seal) is returned.
+   pub async fn get_proof_data_prove_boundless_with_elf(
        users: Vec<Vec<Address>>,
        markets: Vec<Vec<Address>>,
        target_chain_ids: Vec<Vec<u64>>,
        chain_ids: Vec<u64>,
        l1_inclusion: bool,
-   ) -> Result<MaldaProveInfo, Error>
+       fallback: bool,
+       onchain: bool,
+       boundless_params: BoundlessParams,
+       guest_elf: &[u8],
+   ) -> Result<(Bytes, Bytes), Error>
 
-   // Using local zkVM for proving
+   // Using local zkVM for proving - deprecated
    pub async fn get_proof_data_prove(
        users: Vec<Vec<Address>>,
        markets: Vec<Vec<Address>>,
