@@ -8,7 +8,7 @@ name = "get-proof-data"
 path = "src/bin/get_proof_data.rs"
 
 [features]
-default = ["testnet"]
+default = ["mainnet"]
 mainnet = []
 testnet = []
 

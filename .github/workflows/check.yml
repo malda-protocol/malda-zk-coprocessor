@@ -36,3 +36,8 @@ jobs:
 
       - name: malda_rs
         run: nix build -L --no-link --show-trace .#packages.x86_64-linux.malda_rs
+
+      - name: integration tests
+        env:
+          ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
+        run: nix develop --command bash malda_rs/tests/run_integration.sh all
