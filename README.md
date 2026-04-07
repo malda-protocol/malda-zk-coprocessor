@@ -1,5 +1,7 @@
 # Malda ZK Coprocessor
 
+> **⚠️ This repository is no longer maintained by the core team. Community contributions are welcome.**
+
 This repository contains the ZK coprocessor implementation for the Malda Protocol, a unified liquidity lending protocol that enables seamless cross-chain lending operations without traditional bridging. While this repository focuses on the ZK verification layer, it's part of a larger protocol architecture that includes smart contracts, the zk-coprocessor and the sequencer.
 
 ![Malda Protocol Flow](malda_flow.png)
