@@ -6,6 +6,10 @@ This repository contains the ZK coprocessor implementation for the Malda Protoco
 
 ![Malda Protocol Flow](malda_flow.png)
 
+## Context in Malda Sequencer
+
+The ZK Coprocessor repository is used directly by the [Malda Sequencer](https://github.com/malda-protocol/malda-sequencer) as a dependency — it serves as an SDK for generating proofs. It provides the zkVM guest program and the tooling around it, allowing the sequencer to produce and verify zero-knowledge proofs as part of its cross-chain operation flow.
+
 ## About Malda Protocol
 
 Malda Protocol solves the fragmentation problem in DeFi by creating a unified lending experience across multiple EVM networks. The protocol enables users to:
